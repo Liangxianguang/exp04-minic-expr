@@ -23,6 +23,14 @@ public:
     return visitChildren(ctx);
   }
 
+  virtual std::any visitParamList(MiniCParser::ParamListContext *ctx) override {
+    return visitChildren(ctx);
+  }
+
+  virtual std::any visitParam(MiniCParser::ParamContext *ctx) override {
+    return visitChildren(ctx);
+  }
+
   virtual std::any visitBlock(MiniCParser::BlockContext *ctx) override {
     return visitChildren(ctx);
   }
@@ -72,6 +80,14 @@ public:
   }
 
   virtual std::any visitAddOp(MiniCParser::AddOpContext *ctx) override {
+    return visitChildren(ctx);
+  }
+
+  virtual std::any visitMulDivExp(MiniCParser::MulDivExpContext *ctx) override {
+    return visitChildren(ctx);
+  }
+
+  virtual std::any visitMulDivOp(MiniCParser::MulDivOpContext *ctx) override {
     return visitChildren(ctx);
   }
 

@@ -160,4 +160,19 @@ protected:
     /// @return std::any AST的节点
     ///
     std::any visitExpressionStatement(MiniCParser::ExpressionStatementContext * context) override;
+
+	///新增加visitMulDivExp和visitMulDivOp函数声明
+	///
+	/// @brief 非终结符MulDivExp的分析
+	/// @param ctx CST上下文
+	/// @return std::any AST的节点
+	///
+	std::any visitMulDivExp(MiniCParser::MulDivExpContext * ctx) override;
+
+	///
+	/// @brief 非终结符MulDivOp的分析
+	/// @param ctx CST上下文
+	/// @return std::any 类型
+	///
+	std::any visitMulDivOp(MiniCParser::MulDivOpContext * ctx) override;
 };

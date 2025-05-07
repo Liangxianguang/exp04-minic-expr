@@ -13,8 +13,10 @@ grammar MiniC;
 // 源文件编译单元定义
 compileUnit: (funcDef | varDecl)* EOF;
 
-// 函数定义，目前不支持形参，也不支持返回void类型等
-funcDef: T_INT T_ID T_L_PAREN T_R_PAREN block;
+// 函数定义，目前不支持形参，也不支持返回void类型等 funcDef: T_INT T_ID T_L_PAREN T_R_PAREN block;
+funcDef: T_INT T_ID T_L_PAREN paramList? T_R_PAREN block;
+paramList: param (',' param)*;
+param: T_INT T_ID;
 
 // 语句块看用作函数体，这里允许多个语句，并且不含任何语句
 block: T_L_BRACE blockItemList? T_R_BRACE;
@@ -41,18 +43,26 @@ statement:
 	| block								# blockStatement
 	| expr? T_SEMICOLON					# expressionStatement;
 
-// 表达式文法 expr : AddExp 表达式目前只支持加法与减法运算
+// 表达式文法 expr : AddExp 表达式目前只支持加法与减法运算 expr: addExp;
 expr: addExp;
 
-// 加减表达式
-addExp: unaryExp (addOp unaryExp)*;
+// 加减表达式 addExp: unaryExp (addOp unaryExp)*;
+addExp: mulDivExp (addOp mulDivExp)*;
 
 // 加减运算符
 addOp: T_ADD | T_SUB;
 
-// 一元表达式
-unaryExp: primaryExp | T_ID T_L_PAREN realParamList? T_R_PAREN;
+// 乘除求余表达式
+mulDivExp: unaryExp (mulDivOp unaryExp)*;
 
+// 乘除求余运算符
+mulDivOp: T_MUL | T_DIV | T_MOD;
+
+// 一元表达式 unaryExp: primaryExp | T_ID T_L_PAREN realParamList? T_R_PAREN;
+unaryExp:
+	T_SUB primaryExp
+	| primaryExp
+	| T_ID T_L_PAREN realParamList? T_R_PAREN;
 // 基本表达式：括号表达式、整数、左值表达式
 primaryExp: T_L_PAREN expr T_R_PAREN | T_DIGIT | lVal;
 
@@ -75,14 +85,20 @@ T_COMMA: ',';
 
 T_ADD: '+';
 T_SUB: '-';
-
+T_MUL: '*';
+T_DIV: '/';
+T_MOD: '%';
 // 要注意关键字同样也属于T_ID，因此必须放在T_ID的前面，否则会识别成T_ID
 T_RETURN: 'return';
 T_INT: 'int';
 T_VOID: 'void';
 
 T_ID: [a-zA-Z_][a-zA-Z0-9_]*;
-T_DIGIT: '0' | [1-9][0-9]*;
-
+//T_DIGIT: '0' | [1-9][0-9]* | '0'[0-7]+ | '0'[xX][0-9a-fA-F]+;
+T_DIGIT:
+	'0'
+	| [1-9][0-9]*
+	| '0' [0-7]+
+	| '0' [xX][0-9a-fA-F]+;
 /* 空白符丢弃 */
 WS: [ \r\n\t]+ -> skip;
