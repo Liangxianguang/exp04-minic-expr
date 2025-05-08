@@ -76,6 +76,28 @@ protected:
     /// @param inst IR指令
     void translate_sub_int32(Instruction * inst);
 
+	///添加乘法、除法和求余操作函数的声明-lxg
+	/// @brief 整数乘法指令翻译成ARM32汇编
+	/// @param inst IR指令
+	void translate_mul_int32(Instruction * inst)
+	{
+		translate_two_operator(inst, "mul");
+	}
+
+	/// @brief 整数除法指令翻译成ARM32汇编
+	/// @param inst IR指令
+	void translate_div_int32(Instruction * inst)
+	{
+		translate_two_operator(inst, "sdiv");
+	}
+
+	/// @brief 整数求余指令翻译成ARM32汇编
+	/// @param inst IR指令
+	void translate_mod_int32(Instruction * inst)
+	{
+		translate_two_operator(inst, "srem");
+	}
+
     /// @brief 二元操作指令翻译成ARM32汇编
     /// @param inst IR指令
     /// @param operator_name 操作码

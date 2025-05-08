@@ -50,7 +50,17 @@ void BinaryInstruction::toString(std::string & str)
             // 减法指令，二元运算
             str = getIRName() + " = sub " + src1->getIRName() + "," + src2->getIRName();
             break;
-
+		/// 在 toString 函数中添加对乘法、除法和求余操作的处理-lxg
+		 case IRInstOperator::IRINST_OP_MUL_I:
+            // 乘法指令，二元运算
+            str = getIRName() + " = mul " + src1->getIRName() + "," + src2->getIRName();
+            break;
+		case IRInstOperator::IRINST_OP_DIV_I:
+			str = getIRName() + " = div " + src1->getIRName() + "," + src2->getIRName();
+			break;
+		case IRInstOperator::IRINST_OP_MOD_I:
+			str = getIRName() + " = mod " + src1->getIRName() + "," + src2->getIRName();
+			break;
         default:
             // 未知指令
             Instruction::toString(str);
