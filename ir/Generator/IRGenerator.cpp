@@ -51,7 +51,7 @@ IRGenerator::IRGenerator(ast_node * _root, Module * _module) : root(_root), modu
 	ast2ir_handlers[ast_operator_type::AST_OP_MUL] = &IRGenerator::ir_mul; 	// 添加乘法处理
 	ast2ir_handlers[ast_operator_type::AST_OP_DIV] = &IRGenerator::ir_div;  // 添加除法处理
     ast2ir_handlers[ast_operator_type::AST_OP_MOD] = &IRGenerator::ir_mod;  // 添加求余处理
-
+	ast2ir_handlers[ast_operator_type::AST_OP_NEG] = &IRGenerator::ir_neg;  // 添加负号处理
 
     /* 语句 */
     ast2ir_handlers[ast_operator_type::AST_OP_ASSIGN] = &IRGenerator::ir_assign;
@@ -584,6 +584,38 @@ bool IRGenerator::ir_mod(ast_node * node)
 
     node->val = modInst;
 
+    return true;
+}
+
+/// @brief 一元负号AST节点翻译成线性中间IR
+/// @param node AST节点
+/// @return 翻译是否成功，true：成功，false：失败
+bool IRGenerator::ir_neg(ast_node * node)
+{
+    // 获取操作数节点
+    ast_node * operand_node = node->sons[0];
+    
+    // 计算操作数
+    ast_node * operand = ir_visit_ast_node(operand_node);
+    if (!operand) {
+        // 操作数计算失败
+        return false;
+    }
+    
+    // 创建一元负号指令
+    BinaryInstruction * negInst = new BinaryInstruction(module->getCurrentFunction(),
+                                                      IRInstOperator::IRINST_OP_NEG_I,
+                                                      operand->val,
+                                                      nullptr,  // 一元运算符第二个操作数为空
+                                                      IntegerType::getTypeInt());
+    
+    // 将操作数的指令和负号指令添加到当前节点
+    node->blockInsts.addInst(operand->blockInsts);
+    node->blockInsts.addInst(negInst);
+    
+    // 设置当前节点的值为负号指令的结果
+    node->val = negInst;
+    
     return true;
 }
 

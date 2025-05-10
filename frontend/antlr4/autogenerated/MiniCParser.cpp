@@ -102,7 +102,7 @@ void minicParserInitialize() {
   	127,7,0,0,0,127,27,1,0,0,0,128,134,3,32,16,0,129,130,3,30,15,0,130,131,
   	3,32,16,0,131,133,1,0,0,0,132,129,1,0,0,0,133,136,1,0,0,0,134,132,1,0,
   	0,0,134,135,1,0,0,0,135,29,1,0,0,0,136,134,1,0,0,0,137,138,7,1,0,0,138,
-  	31,1,0,0,0,139,140,5,9,0,0,140,149,3,34,17,0,141,149,3,34,17,0,142,143,
+  	31,1,0,0,0,139,140,5,9,0,0,140,149,3,32,16,0,141,149,3,34,17,0,142,143,
   	5,16,0,0,143,145,5,1,0,0,144,146,3,36,18,0,145,144,1,0,0,0,145,146,1,
   	0,0,0,146,147,1,0,0,0,147,149,5,2,0,0,148,139,1,0,0,0,148,141,1,0,0,0,
   	148,142,1,0,0,0,149,33,1,0,0,0,150,151,5,1,0,0,151,152,3,22,11,0,152,
@@ -1378,6 +1378,10 @@ tree::TerminalNode* MiniCParser::UnaryExpContext::T_SUB() {
   return getToken(MiniCParser::T_SUB, 0);
 }
 
+MiniCParser::UnaryExpContext* MiniCParser::UnaryExpContext::unaryExp() {
+  return getRuleContext<MiniCParser::UnaryExpContext>(0);
+}
+
 MiniCParser::PrimaryExpContext* MiniCParser::UnaryExpContext::primaryExp() {
   return getRuleContext<MiniCParser::PrimaryExpContext>(0);
 }
@@ -1432,7 +1436,7 @@ MiniCParser::UnaryExpContext* MiniCParser::unaryExp() {
       setState(139);
       match(MiniCParser::T_SUB);
       setState(140);
-      primaryExp();
+      unaryExp();
       break;
     }
 

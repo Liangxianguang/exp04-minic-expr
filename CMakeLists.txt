@@ -393,6 +393,7 @@ set(CPACK_SOURCE_IGNORE_FILES
 	"/frontend/antlr4/.antlr/;" # antlr自动产生的目录
 	"/.history/;" # 本地历史文件
 	"/tests/;" # 测试文件夹
+	"/tools/;" #工具箱
 )
 
 # 二进制打包

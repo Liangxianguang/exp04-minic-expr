@@ -307,17 +307,18 @@ std::any MiniCCSTVisitor::visitUnaryExp(MiniCParser::UnaryExpContext * ctx)
 {
     // 识别文法产生式：unaryExp: primaryExp | T_ID T_L_PAREN realParamList? T_R_PAREN;
  	// 识别文法产生式：unaryExp: T_SUB primaryExp | primaryExp | T_ID T_L_PAREN realParamList? T_R_PAREN;-lxg
-    
+    // 识别文法产生式：unaryExp: T_SUB unaryExp | primaryExp | T_ID T_L_PAREN realParamList? T_R_PAREN;-lxg
     if (ctx->T_SUB()) {
-        // 负号表达式
-        auto primaryNode = std::any_cast<ast_node *>(visitPrimaryExp(ctx->primaryExp()));
-        // 如果primaryNode是常量，直接取负
-        if (primaryNode && primaryNode->node_type == ast_operator_type::AST_OP_LEAF_LITERAL_UINT) {
-            primaryNode->integer_val = -((int32_t)primaryNode->integer_val);
-            return primaryNode;
+        // 负号表达式 - 注意这里改为递归处理unaryExp
+        auto unaryNode = std::any_cast<ast_node *>(visitUnaryExp(ctx->unaryExp()));
+        
+        // 如果unaryNode是常量，直接取负
+        if (unaryNode && unaryNode->node_type == ast_operator_type::AST_OP_LEAF_LITERAL_UINT) {
+            unaryNode->integer_val = -((int32_t)unaryNode->integer_val);
+            return unaryNode;
         }
         // 否则保留一元负号节点
-        return ast_node::New(ast_operator_type::AST_OP_NEG, primaryNode, nullptr, nullptr);
+        return ast_node::New(ast_operator_type::AST_OP_NEG, unaryNode, nullptr, nullptr);
     } else if (ctx->primaryExp()) {
         // 普通表达式
         return visitPrimaryExp(ctx->primaryExp());
@@ -334,7 +335,7 @@ std::any MiniCCSTVisitor::visitUnaryExp(MiniCParser::UnaryExpContext * ctx)
             paramListNode = std::any_cast<ast_node *>(visitRealParamList(ctx->realParamList()));
         }
 
-        // 创建函数调用节点，其孩子为被调用函数名和实参，
+        // 创建函数调用节点，其孩子为被调用函数名和实参
         return create_func_call(funcname_node, paramListNode);
     } else {
         return nullptr;

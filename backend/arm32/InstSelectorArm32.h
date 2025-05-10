@@ -93,8 +93,6 @@ protected:
 
 	/// @brief 整数求余指令翻译成ARM32汇编
 	/// @param inst IR指令
-/// @brief 整数求余指令翻译成ARM32汇编
-/// @param inst IR指令
 	void translate_mod_int32(Instruction * inst)
 	{
 		Value * result = inst;
@@ -164,6 +162,52 @@ protected:
 		simpleRegisterAllocator.free(result);
 	}
 
+	/// @brief 整数负号指令翻译成ARM32汇编
+	/// @param inst IR指令
+	void translate_neg_int32(Instruction * inst)
+	{
+		Value * result = inst;
+		Value * arg1 = inst->getOperand(0);
+		
+		int32_t arg1_reg_no = arg1->getRegId();
+		int32_t result_reg_no = inst->getRegId();
+		int32_t load_result_reg_no, load_arg1_reg_no;
+		
+		// 看arg1是否是寄存器，若是则寄存器寻址，否则要load变量到寄存器中
+		if (arg1_reg_no == -1) {
+			// 分配一个寄存器r8
+			load_arg1_reg_no = simpleRegisterAllocator.Allocate(arg1);
+			// arg1 -> r8
+			iloc.load_var(load_arg1_reg_no, arg1);
+		} else {
+			load_arg1_reg_no = arg1_reg_no;
+		}
+		
+		// 看结果变量是否是寄存器，若不是则需要分配一个新的寄存器来保存运算的结果
+		if (result_reg_no == -1) {
+			// 分配一个寄存器，用于暂存结果
+			load_result_reg_no = simpleRegisterAllocator.Allocate(result);
+		} else {
+			load_result_reg_no = result_reg_no;
+		}
+		
+		// 使用rsb指令计算负值 (rsb rd, rn, #0 相当于 rd = 0 - rn)
+		iloc.inst("rsb", 
+				PlatformArm32::regName[load_result_reg_no],
+				PlatformArm32::regName[load_arg1_reg_no],
+				"#0");
+		
+		// 结果不是寄存器，则需要把结果保存到结果变量中
+		if (result_reg_no == -1) {
+			// 保存结果到内存
+			iloc.store_var(load_result_reg_no, result, ARM32_TMP_REG_NO);
+		}
+		
+		// 释放寄存器
+		simpleRegisterAllocator.free(arg1);
+		simpleRegisterAllocator.free(result);
+	}
+	
     /// @brief 二元操作指令翻译成ARM32汇编
     /// @param inst IR指令
     /// @param operator_name 操作码

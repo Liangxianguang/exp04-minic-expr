@@ -59,6 +59,9 @@ enum class IRInstOperator : std::int8_t {
 
     /// @brief 整数的求余指令，二元运算
     IRINST_OP_MOD_I,
+	
+	/// @brief 整数的一元负号运算指令
+    IRINST_OP_NEG_I,   // lxg
 
     /// @brief 最大指令码，也是无效指令
     IRINST_OP_MAX

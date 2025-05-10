@@ -28,8 +28,13 @@ BinaryInstruction::BinaryInstruction(Function * _func,
                                      Type * _type)
     : Instruction(_func, _op, _type)
 {
-    addOperand(_srcVal1);
-    addOperand(_srcVal2);
+    // addOperand(_srcVal1);
+    // addOperand(_srcVal2);
+	// 对于一元操作符，不添加第二个操作数-lxg
+	addOperand(_srcVal1);
+	if (_srcVal2 != nullptr || _op != IRInstOperator::IRINST_OP_NEG_I) {
+		addOperand(_srcVal2);
+	}
 }
 
 /// @brief 转换成字符串
@@ -60,6 +65,10 @@ void BinaryInstruction::toString(std::string & str)
 			break;
 		case IRInstOperator::IRINST_OP_MOD_I:
 			str = getIRName() + " = mod " + src1->getIRName() + "," + src2->getIRName();
+			break;
+		case IRInstOperator::IRINST_OP_NEG_I:
+			// 一元负号指令
+			str = getIRName() + " = neg " + src1->getIRName();
 			break;
         default:
             // 未知指令
