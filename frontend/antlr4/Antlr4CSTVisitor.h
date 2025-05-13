@@ -161,7 +161,7 @@ protected:
     ///
     std::any visitExpressionStatement(MiniCParser::ExpressionStatementContext * context) override;
 
-	///新增加visitMulDivExp和visitMulDivOp函数声明
+	///新增加visitMulDivExp和visitMulDivOp函数声明-lxg
 	///
 	/// @brief 非终结符MulDivExp的分析
 	/// @param ctx CST上下文
@@ -175,4 +175,65 @@ protected:
 	/// @return std::any 类型
 	///
 	std::any visitMulDivOp(MiniCParser::MulDivOpContext * ctx) override;
+
+	///新增关系表达式visitRelExp和visitRelOp函数声明-lxg
+	///
+	/// @brief 非终结符RelExp的分析
+	/// @param ctx CST上下文
+	/// @return std::any AST的节点
+	///
+	std::any visitRelExp(MiniCParser::RelExpContext * ctx) override;
+
+	///新增逻辑表达式visitLorExp和visitLandExp函数声明
+	///
+	/// @brief 非终结符LorExp的分析
+	/// @param ctx CST上下文
+	/// @return std::any AST的节点
+	///
+	std::any visitLorExp(MiniCParser::LorExpContext * ctx) override;
+
+	///
+	/// @brief 非终结符LandExp的分析
+	/// @param ctx CST上下文
+	/// @return std::any AST的节点
+	///
+	std::any visitLandExp(MiniCParser::LandExpContext * ctx) override;
+
+	///新增相等性表达式visitEqExp和visitEqOp函数声明
+	/// @brief 非终结符EqExp的分析
+	/// @param ctx CST上下文
+	/// @return std::any AST的节点
+	///
+	std::any visitEqExp(MiniCParser::EqExpContext * ctx) override;
+
+	///新增控制流语句visitIfStatement、visitWhileStatement、visitBreakStatement、visitContinueStatement函数声明
+	///
+	/// @brief 非终结符IfStatement的分析
+	/// @param ctx CST上下文
+	/// @return std::any AST的节点
+	///
+	std::any visitIfStatement(MiniCParser::IfStatementContext * ctx) override;
+
+	///
+	/// @brief 非终结符WhileStatement的分析
+	/// @param ctx CST上下文
+	/// @return std::any AST的节点
+	///
+	std::any visitWhileStatement(MiniCParser::WhileStatementContext * ctx) override;
+
+	///
+	/// @brief 非终结符BreakStatement的分析
+	/// @param ctx CST上下文
+	/// @return std::any AST的节点
+	///
+	std::any visitBreakStatement(MiniCParser::BreakStatementContext * ctx) override;
+
+	///
+	/// @brief 非终结符ContinueStatement的分析
+	/// @param ctx CST上下文
+	/// @return std::any AST的节点
+	///
+	std::any visitContinueStatement(MiniCParser::ContinueStatementContext * ctx) override;
+	
+
 };

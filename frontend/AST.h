@@ -102,7 +102,25 @@ enum class ast_operator_type : int {
 
     /// @brief 一元运算符负号
     AST_OP_NEG,
-
+    /// @brief 关系运算符
+    AST_OP_LT,         // <
+    AST_OP_GT,         // >
+    AST_OP_LE,         // <=
+    AST_OP_GE,         // >=
+    AST_OP_EQ,         // ==
+    AST_OP_NE,         // !=
+    
+    /// @brief 逻辑运算符
+    AST_OP_LOGIC_AND,  // &&
+    AST_OP_LOGIC_OR,   // ||
+    AST_OP_LOGIC_NOT,  // !
+    
+    /// @brief 控制流语句
+    AST_OP_IF,         // if语句
+    AST_OP_IF_ELSE,    // if-else语句
+    AST_OP_WHILE,      // while循环
+    AST_OP_BREAK,      // break语句
+    AST_OP_CONTINUE,   // continue语句
 	/// @brief 最大标识符，表示非法运算符
     AST_OP_MAX,
 };

@@ -33,7 +33,7 @@
 #include "BinaryInstruction.h"
 #include "MoveInstruction.h"
 #include "GotoInstruction.h"
-
+#include "ConstInt.h" //添加ConstInt-lxg
 /// @brief 构造函数
 /// @param _root AST的根
 /// @param _module 符号表
@@ -52,6 +52,27 @@ IRGenerator::IRGenerator(ast_node * _root, Module * _module) : root(_root), modu
 	ast2ir_handlers[ast_operator_type::AST_OP_DIV] = &IRGenerator::ir_div;  // 添加除法处理
     ast2ir_handlers[ast_operator_type::AST_OP_MOD] = &IRGenerator::ir_mod;  // 添加求余处理
 	ast2ir_handlers[ast_operator_type::AST_OP_NEG] = &IRGenerator::ir_neg;  // 添加负号处理
+
+	/*关系运算,控制流和逻辑运算-lxg*/
+	// 添加关系运算符处理函数映射
+    ast2ir_handlers[ast_operator_type::AST_OP_LT] = &IRGenerator::ir_lt;
+    ast2ir_handlers[ast_operator_type::AST_OP_GT] = &IRGenerator::ir_gt;
+    ast2ir_handlers[ast_operator_type::AST_OP_LE] = &IRGenerator::ir_le;
+    ast2ir_handlers[ast_operator_type::AST_OP_GE] = &IRGenerator::ir_ge;
+    ast2ir_handlers[ast_operator_type::AST_OP_EQ] = &IRGenerator::ir_eq;
+    ast2ir_handlers[ast_operator_type::AST_OP_NE] = &IRGenerator::ir_ne;
+    
+    // 添加逻辑运算符处理函数映射
+    ast2ir_handlers[ast_operator_type::AST_OP_LOGIC_AND] = &IRGenerator::ir_logic_and;
+    ast2ir_handlers[ast_operator_type::AST_OP_LOGIC_OR] = &IRGenerator::ir_logic_or;
+    ast2ir_handlers[ast_operator_type::AST_OP_LOGIC_NOT] = &IRGenerator::ir_logic_not;
+    
+    // 添加控制流语句处理函数映射
+    ast2ir_handlers[ast_operator_type::AST_OP_IF] = &IRGenerator::ir_if;
+    ast2ir_handlers[ast_operator_type::AST_OP_IF_ELSE] = &IRGenerator::ir_if_else;
+    ast2ir_handlers[ast_operator_type::AST_OP_WHILE] = &IRGenerator::ir_while;
+    ast2ir_handlers[ast_operator_type::AST_OP_BREAK] = &IRGenerator::ir_break;
+    ast2ir_handlers[ast_operator_type::AST_OP_CONTINUE] = &IRGenerator::ir_continue;
 
     /* 语句 */
     ast2ir_handlers[ast_operator_type::AST_OP_ASSIGN] = &IRGenerator::ir_assign;
@@ -618,6 +639,553 @@ bool IRGenerator::ir_neg(ast_node * node)
     
     return true;
 }
+
+/// 实现关系运算符的处理函数-lxg
+// 小于
+bool IRGenerator::ir_lt(ast_node* node)
+{
+    // 生成左右操作数
+    ir_visit_ast_node(node->sons[0]);
+    ir_visit_ast_node(node->sons[1]);
+    
+    Value* left = node->sons[0]->val;
+    Value* right = node->sons[1]->val;
+    
+    if (!left || !right) return false;
+    
+    Function* func = module->getCurrentFunction();
+    if (!func) return false;
+    
+    // 创建临时变量存储比较结果 - 使用布尔类型
+    LocalVariable* result = static_cast<LocalVariable*>(module->newVarValue(IntegerType::getTypeBool()));
+    
+    // 添加比较指令 - 使用布尔类型
+    BinaryInstruction* ltInst = new BinaryInstruction(func, 
+                                               IRInstOperator::IRINST_OP_LT_I, 
+                                               left,
+                                               right, 
+                                               IntegerType::getTypeBool());
+    node->blockInsts.addInst(ltInst);
+    
+    // 将结果移动到临时变量中
+    node->blockInsts.addInst(new MoveInstruction(func, result, ltInst));
+    
+    node->val = result;
+    return true;
+}
+
+// 大于
+bool IRGenerator::ir_gt(ast_node* node)
+{
+    // 生成左右操作数
+    ir_visit_ast_node(node->sons[0]);
+    ir_visit_ast_node(node->sons[1]);
+    
+    Value* left = node->sons[0]->val;
+    Value* right = node->sons[1]->val;
+    
+    if (!left || !right) return false;
+    
+    Function* func = module->getCurrentFunction();
+    if (!func) return false;
+    
+    // 使用布尔类型
+    LocalVariable* result = static_cast<LocalVariable*>(module->newVarValue(IntegerType::getTypeBool()));
+    
+    // 使用布尔类型
+    BinaryInstruction* gtInst = new BinaryInstruction(func, 
+                                               IRInstOperator::IRINST_OP_GT_I, 
+                                               left, 
+                                               right, 
+                                               IntegerType::getTypeBool());
+    node->blockInsts.addInst(gtInst);
+    
+    // 将结果移动到临时变量中
+    node->blockInsts.addInst(new MoveInstruction(func, result, gtInst));
+    
+    node->val = result;
+    return true;
+}
+
+// 小于等于
+bool IRGenerator::ir_le(ast_node* node)
+{
+    // 生成左右操作数
+    ir_visit_ast_node(node->sons[0]);
+    ir_visit_ast_node(node->sons[1]);
+    
+    Value* left = node->sons[0]->val;
+    Value* right = node->sons[1]->val;
+    
+    if (!left || !right) return false;
+    
+    Function* func = module->getCurrentFunction();
+    if (!func) return false;
+    
+    // 使用布尔类型
+    LocalVariable* result = static_cast<LocalVariable*>(module->newVarValue(IntegerType::getTypeBool()));
+    
+    // 使用布尔类型
+    BinaryInstruction* leInst = new BinaryInstruction(func, 
+                                               IRInstOperator::IRINST_OP_LE_I, 
+                                               left, 
+                                               right, 
+                                               IntegerType::getTypeBool());
+    node->blockInsts.addInst(leInst);
+    
+    // 将结果移动到临时变量中
+    node->blockInsts.addInst(new MoveInstruction(func, result, leInst));
+    
+    node->val = result;
+    return true;
+}
+
+// 大于等于
+bool IRGenerator::ir_ge(ast_node* node)
+{
+    // 生成左右操作数
+    ir_visit_ast_node(node->sons[0]);
+    ir_visit_ast_node(node->sons[1]);
+    
+    Value* left = node->sons[0]->val;
+    Value* right = node->sons[1]->val;
+    
+    if (!left || !right) return false;
+    
+    Function* func = module->getCurrentFunction();
+    if (!func) return false;
+    
+    // 使用布尔类型
+    LocalVariable* result = static_cast<LocalVariable*>(module->newVarValue(IntegerType::getTypeBool()));
+    
+    // 使用布尔类型
+    BinaryInstruction* geInst = new BinaryInstruction(func, 
+                                               IRInstOperator::IRINST_OP_GE_I, 
+                                               left, 
+                                               right, 
+                                               IntegerType::getTypeBool());
+    node->blockInsts.addInst(geInst);
+    
+    // 将结果移动到临时变量中
+    node->blockInsts.addInst(new MoveInstruction(func, result, geInst));
+    
+    node->val = result;
+    return true;
+}
+
+
+// 等于
+bool IRGenerator::ir_eq(ast_node* node)
+{
+    // 生成左右操作数
+    ir_visit_ast_node(node->sons[0]);
+    ir_visit_ast_node(node->sons[1]);
+    
+    Value* left = node->sons[0]->val;
+    Value* right = node->sons[1]->val;
+    
+    if (!left || !right) return false;
+    
+    Function* func = module->getCurrentFunction();
+    if (!func) return false;
+    
+    // 使用布尔类型
+    LocalVariable* result = static_cast<LocalVariable*>(module->newVarValue(IntegerType::getTypeBool()));
+    
+    // 使用布尔类型
+    BinaryInstruction* eqInst = new BinaryInstruction(func, 
+                                               IRInstOperator::IRINST_OP_EQ_I, 
+                                               left, 
+                                               right, 
+                                               IntegerType::getTypeBool());
+    node->blockInsts.addInst(eqInst);
+    
+    // 将结果移动到临时变量中
+    node->blockInsts.addInst(new MoveInstruction(func, result, eqInst));
+    
+    node->val = result;
+    return true;
+}
+
+// 不等于
+bool IRGenerator::ir_ne(ast_node* node)
+{
+    // 生成左右操作数
+    ir_visit_ast_node(node->sons[0]);
+    ir_visit_ast_node(node->sons[1]);
+    
+    Value* left = node->sons[0]->val;
+    Value* right = node->sons[1]->val;
+    
+    if (!left || !right) return false;
+    
+    Function* func = module->getCurrentFunction();
+    if (!func) return false;
+    
+    // 使用布尔类型
+    LocalVariable* result = static_cast<LocalVariable*>(module->newVarValue(IntegerType::getTypeBool()));
+    
+    // 使用布尔类型
+    BinaryInstruction* neInst = new BinaryInstruction(func, 
+                                               IRInstOperator::IRINST_OP_NE_I, 
+                                               left, 
+                                               right, 
+                                               IntegerType::getTypeBool());
+    node->blockInsts.addInst(neInst);
+    
+    // 将结果移动到临时变量中
+    node->blockInsts.addInst(new MoveInstruction(func, result, neInst));
+    
+    node->val = result;
+    return true;
+}
+
+///实现逻辑运算符，特别需要实现短路求值-lxg
+// 逻辑与 &&，带短路求值
+bool IRGenerator::ir_logic_and(ast_node* node)
+{
+    Function* func = module->getCurrentFunction();
+    if (!func) return false;
+    
+    // 创建标签
+    LabelInstruction* secondOpLabel = new LabelInstruction(func);
+    LabelInstruction* falseLabel = new LabelInstruction(func);
+    LabelInstruction* endLabel = new LabelInstruction(func);
+    
+    // 为结果创建临时变量
+    LocalVariable* result = static_cast<LocalVariable*>(module->newVarValue(IntegerType::getTypeInt()));
+    
+    // 生成左操作数代码
+    ir_visit_ast_node(node->sons[0]);
+    Value* leftVal = node->sons[0]->val;
+    if (!leftVal) return false;
+    
+    // 关键修改：确保添加左操作数生成的指令到指令流
+    node->blockInsts.addInst(node->sons[0]->blockInsts);
+    
+    // 直接使用左操作数
+    node->blockInsts.addInst(new GotoInstruction(func, leftVal, secondOpLabel, falseLabel));
+    
+    // 第二个操作数标签
+    node->blockInsts.addInst(secondOpLabel);
+    
+    // 生成右操作数代码
+    ir_visit_ast_node(node->sons[1]);
+    Value* rightVal = node->sons[1]->val;
+    if (!rightVal) return false;
+    
+    // 关键修改：确保添加右操作数生成的指令到指令流
+    node->blockInsts.addInst(node->sons[1]->blockInsts);
+    
+    // 右操作数为结果
+    node->blockInsts.addInst(new MoveInstruction(func, result, rightVal));
+    
+    // 跳转到结束
+    node->blockInsts.addInst(new GotoInstruction(func, endLabel));
+    
+    // 处理短路情况（左操作数为假）
+    node->blockInsts.addInst(falseLabel);
+    // 使用ConstInt
+    node->blockInsts.addInst(new MoveInstruction(func, result, new ConstInt(0)));
+    
+    // 结束标签
+    node->blockInsts.addInst(endLabel);
+    
+    node->val = result;
+    return true;
+}
+
+// 逻辑或 ||，带短路求值
+bool IRGenerator::ir_logic_or(ast_node* node)
+{
+    Function* func = module->getCurrentFunction();
+    if (!func) return false;
+    
+    // 创建标签
+    LabelInstruction* secondOpLabel = new LabelInstruction(func);
+    LabelInstruction* trueLabel = new LabelInstruction(func);
+    LabelInstruction* endLabel = new LabelInstruction(func);
+    
+    // 为结果创建临时变量
+    LocalVariable* result = static_cast<LocalVariable*>(module->newVarValue(IntegerType::getTypeInt()));
+    
+    // 生成左操作数代码
+    ir_visit_ast_node(node->sons[0]);
+    Value* leftVal = node->sons[0]->val;
+    if (!leftVal) return false;
+    
+    // 关键修改：确保添加左操作数生成的指令到指令流
+    node->blockInsts.addInst(node->sons[0]->blockInsts);
+    
+    // 直接使用左操作数
+    node->blockInsts.addInst(new GotoInstruction(func, leftVal, trueLabel, secondOpLabel));
+    
+    // 第二个操作数标签
+    node->blockInsts.addInst(secondOpLabel);
+    
+    // 生成右操作数代码
+    ir_visit_ast_node(node->sons[1]);
+    Value* rightVal = node->sons[1]->val;
+    if (!rightVal) return false;
+    
+    // 关键修改：确保添加右操作数生成的指令到指令流
+    node->blockInsts.addInst(node->sons[1]->blockInsts);
+    
+    // 右操作数为结果
+    node->blockInsts.addInst(new MoveInstruction(func, result, rightVal));
+    
+    // 跳转到结束
+    node->blockInsts.addInst(new GotoInstruction(func, endLabel));
+    
+    // 处理短路情况（左操作数为真）
+    node->blockInsts.addInst(trueLabel);
+    // 使用ConstInt
+    node->blockInsts.addInst(new MoveInstruction(func, result, new ConstInt(1)));
+    
+    // 结束标签
+    node->blockInsts.addInst(endLabel);
+    
+    node->val = result;
+    return true;
+}
+
+// 逻辑非 !
+bool IRGenerator::ir_logic_not(ast_node* node)
+{
+    Function* func = module->getCurrentFunction();
+    if (!func) return false;
+    
+    // 生成操作数代码
+    ir_visit_ast_node(node->sons[0]);
+    Value* operandVal = node->sons[0]->val;
+    if (!operandVal) return false;
+    
+    // 关键修改：确保添加操作数生成的指令到指令流
+    node->blockInsts.addInst(node->sons[0]->blockInsts);
+    
+    // 为结果创建临时变量
+    LocalVariable* result = static_cast<LocalVariable*>(module->newVarValue(IntegerType::getTypeInt()));
+    
+    // 实现逻辑非：用1减去布尔值 (1 - x)
+    BinaryInstruction* notInst = new BinaryInstruction(func, 
+                                                 IRInstOperator::IRINST_OP_SUB_I, 
+                                                 new ConstInt(1), 
+                                                 operandVal, 
+                                                 IntegerType::getTypeInt());
+    
+    // 将非运算结果保存到结果变量
+    node->blockInsts.addInst(notInst);
+    node->blockInsts.addInst(new MoveInstruction(func, result, notInst));
+    
+    node->val = result;
+    return true;
+}
+
+// if语句（无else分支）
+bool IRGenerator::ir_if(ast_node* node)
+{
+    Function* func = module->getCurrentFunction();
+    if (!func) return false;
+    
+    // 创建标签
+    LabelInstruction* thenLabel = new LabelInstruction(func);
+    LabelInstruction* endLabel = new LabelInstruction(func);
+    
+    // 生成条件表达式代码
+    ir_visit_ast_node(node->sons[0]);
+    Value* condVal = node->sons[0]->val;
+    if (!condVal) return false;
+    
+    // 关键修改：确保添加条件表达式生成的指令到指令流
+    node->blockInsts.addInst(node->sons[0]->blockInsts);
+    
+    // 直接使用条件值，不再转换为"不等于0"形式
+    node->blockInsts.addInst(new GotoInstruction(func, condVal, thenLabel, endLabel));
+    
+    // 生成then部分代码
+    node->blockInsts.addInst(thenLabel);
+    ir_visit_ast_node(node->sons[1]);
+    node->blockInsts.addInst(node->sons[1]->blockInsts);
+    
+    // 结束标签
+    node->blockInsts.addInst(endLabel);
+    
+    return true;
+}
+
+// if-else语句
+bool IRGenerator::ir_if_else(ast_node* node)
+{
+    Function* func = module->getCurrentFunction();
+    if (!func) return false;
+    
+    // 创建标签
+    LabelInstruction* thenLabel = new LabelInstruction(func);
+    LabelInstruction* elseLabel = new LabelInstruction(func);
+    LabelInstruction* endLabel = new LabelInstruction(func);
+    
+    // 生成条件表达式代码
+    ir_visit_ast_node(node->sons[0]);
+    Value* condVal = node->sons[0]->val;
+    if (!condVal) return false;
+    
+    // 关键修改：确保添加条件表达式生成的指令到指令流
+    node->blockInsts.addInst(node->sons[0]->blockInsts);
+    
+    // 直接使用条件值
+    node->blockInsts.addInst(new GotoInstruction(func, condVal, thenLabel, elseLabel));
+    
+    // 生成then部分代码
+    node->blockInsts.addInst(thenLabel);
+    ir_visit_ast_node(node->sons[1]);
+    node->blockInsts.addInst(node->sons[1]->blockInsts);
+    
+    // then部分执行完后跳转到结束
+    node->blockInsts.addInst(new GotoInstruction(func, endLabel));
+    
+    // 生成else部分代码
+    node->blockInsts.addInst(elseLabel);
+    ir_visit_ast_node(node->sons[2]);
+    node->blockInsts.addInst(node->sons[2]->blockInsts);
+    
+    // 结束标签
+    node->blockInsts.addInst(endLabel);
+    
+    return true;
+}
+
+// while循环语句
+bool IRGenerator::ir_while(ast_node* node)
+{
+    Function* func = module->getCurrentFunction();
+    if (!func) return false;
+    
+    // 创建标签
+    LabelInstruction* condLabel = new LabelInstruction(func);   // 循环的入口label
+    LabelInstruction* bodyLabel = new LabelInstruction(func);   // 循环体的入口label
+    LabelInstruction* endLabel = new LabelInstruction(func);    // 循环的出口label
+    
+    // 进入循环前，保存当前break和continue标签
+    Instruction* oldBreakLabel = func->getBreakLabel();
+    Instruction* oldContinueLabel = func->getContinueLabel();
+    
+    // 设置新的break和continue标签
+    func->setBreakLabel(endLabel);
+    func->setContinueLabel(condLabel);
+    
+    // 从循环条件开始
+    node->blockInsts.addInst(condLabel);
+    
+    // 生成条件表达式代码
+    ir_visit_ast_node(node->sons[0]);
+    Value* condVal = node->sons[0]->val;
+    if (!condVal) return false;
+    
+    // 关键修改：确保添加条件表达式生成的指令到指令流
+    node->blockInsts.addInst(node->sons[0]->blockInsts);
+    
+    // 直接使用条件值
+    node->blockInsts.addInst(new GotoInstruction(func, condVal, bodyLabel, endLabel));
+    
+    // 生成循环体代码
+    node->blockInsts.addInst(bodyLabel);
+    ir_visit_ast_node(node->sons[1]);
+    node->blockInsts.addInst(node->sons[1]->blockInsts);
+    
+    // 循环体执行完后跳回条件判断
+    node->blockInsts.addInst(new GotoInstruction(func, condLabel));
+    
+    // 循环结束标签
+    node->blockInsts.addInst(endLabel);
+    
+    // 恢复原来的break和continue标签
+    func->setBreakLabel(oldBreakLabel);
+    func->setContinueLabel(oldContinueLabel);
+    
+    return true;
+}
+
+// break语句
+bool IRGenerator::ir_break(ast_node* node)
+{
+    Function* func = module->getCurrentFunction();
+    if (!func) return false;
+    
+    // 获取当前循环的break标签
+    Instruction* breakLabel = func->getBreakLabel();
+    if (!breakLabel) {
+        // 不在循环内使用break
+        std::cerr << "Error: break statement not inside a loop" << std::endl;
+        return false;
+    }
+    
+    // 生成跳转到break标签的指令
+    node->blockInsts.addInst(new GotoInstruction(func, breakLabel));
+    
+    return true;
+}
+
+// continue语句
+bool IRGenerator::ir_continue(ast_node* node)
+{
+    Function* func = module->getCurrentFunction();
+    if (!func) return false;
+    
+    // 获取当前循环的continue标签
+    Instruction* continueLabel = func->getContinueLabel();
+    if (!continueLabel) {
+        // 不在循环内使用continue
+        std::cerr << "Error: continue statement not inside a loop" << std::endl;
+        return false;
+    }
+    
+    // 生成跳转到continue标签的指令
+    node->blockInsts.addInst(new GotoInstruction(func, continueLabel));
+    
+    return true;
+}
+
+// 整数转布尔值
+bool IRGenerator::int_to_bool(Value* val, Value** bool_val)
+{
+    if (!val) return false;
+    
+    // 如果输入值已经是布尔类型(i1)，直接使用它
+    if (val->getType()->isInt1Byte()) {
+        *bool_val = val;
+        return true;
+    }
+    
+    Function* func = module->getCurrentFunction();
+    if (!func) return false;
+    
+    // 只有在值不是布尔类型时才创建比较指令
+    // 创建临时变量存储布尔值结果
+    LocalVariable* result = static_cast<LocalVariable*>(module->newVarValue(IntegerType::getTypeBool()));
+    
+    // 检查整数值是否不等于0
+    BinaryInstruction* boolCheck = new BinaryInstruction(func, 
+                                                   IRInstOperator::IRINST_OP_NE_I, 
+                                                   val, 
+                                                   new ConstInt(0), 
+                                                   IntegerType::getTypeBool());
+    
+    // 将结果移动到临时变量
+    func->getInterCode().addInst(boolCheck);
+    func->getInterCode().addInst(new MoveInstruction(func, result, boolCheck));
+    
+    *bool_val = result;
+    return true;
+}
+
+// 布尔值转整数
+bool IRGenerator::bool_to_int(Value* val, Value** int_val)
+{
+    // 在我们的实现中，布尔值已经是整数（0或1），所以可以直接使用
+    *int_val = val;
+    return true;
+}
+
 
 /// @brief 赋值AST节点翻译成线性中间IR
 /// @param node AST节点

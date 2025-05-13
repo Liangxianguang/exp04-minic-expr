@@ -96,7 +96,39 @@ protected:
     /// @brief 赋值AST节点翻译成线性中间IR
     /// @param node AST节点
     /// @return 翻译是否成功，true：成功，false：失败
+
+	/// 关系运算符
+	bool ir_lt(ast_node* node);
+	bool ir_gt(ast_node* node);
+	bool ir_le(ast_node* node);
+	bool ir_ge(ast_node* node);
+	bool ir_eq(ast_node* node);
+	bool ir_ne(ast_node* node);
+
+	/// 逻辑运算符
+	bool ir_logic_and(ast_node* node);
+	bool ir_logic_or(ast_node* node);
+	bool ir_logic_not(ast_node* node);
+
+	/// 控制流语句
+	bool ir_if(ast_node* node);
+	bool ir_if_else(ast_node* node);
+	bool ir_while(ast_node* node);
+	bool ir_break(ast_node* node);
+	bool ir_continue(ast_node* node);
+
+	/// 辅助函数
+	/// 生成条件跳转代码
+	Value* generateConditionCode(ast_node* node, Instruction* trueLabel, Instruction* falseLabel);
+	/// 整数转布尔值
+	bool int_to_bool(Value* val, Value** bool_val);
+	/// 布尔值转整数
+	bool bool_to_int(Value* val, Value** int_val);
+
     bool ir_assign(ast_node * node);
+
+
+
 
     /// @brief return节点翻译成线性中间IR
     /// @param node AST节点

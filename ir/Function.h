@@ -170,6 +170,34 @@ public:
     ///
     void realArgCountReset();
 
+	/// 
+	///添加对循环控制结构所需的break和continue标签的支持-lxg
+
+    /// @brief 设置循环的break标签
+    /// @param label break跳转目标标签
+    void setBreakLabel(Instruction* label) {
+        breakLabel = label;
+    }
+    
+    /// @brief 获取当前循环的break标签
+    /// @return break跳转目标标签
+    Instruction* getBreakLabel() {
+        return breakLabel;
+    }
+    
+    /// @brief 设置循环的continue标签
+    /// @param label continue跳转目标标签
+    void setContinueLabel(Instruction* label) {
+        continueLabel = label;
+    }
+    
+    /// @brief 获取当前循环的continue标签
+    /// @return continue跳转目标标签
+    Instruction* getContinueLabel() {
+        return continueLabel;
+    }
+
+
 private:
     ///
     /// @brief 函数的返回值类型，有点冗余，可删除，直接从type中取得即可
@@ -185,6 +213,15 @@ private:
     /// @brief 是否是内置函数或者外部库函数
     ///
     bool builtIn = false;
+    ///
+    /// @brief 当前循环的break标签，用于break语句跳转
+    ///
+    Instruction* breakLabel = nullptr;
+    
+    ///
+    /// @brief 当前循环的continue标签，用于continue语句跳转
+    ///
+    Instruction* continueLabel = nullptr;
 
     ///
     /// @brief 线性IR指令块，可包含多条IR指令

@@ -70,6 +70,25 @@ void BinaryInstruction::toString(std::string & str)
 			// 一元负号指令
 			str = getIRName() + " = neg " + src1->getIRName();
 			break;
+		/// 添加关系运算符的处理-lxg
+		case IRInstOperator::IRINST_OP_LT_I:
+			str = getIRName() + " = icmp lt " + src1->getIRName() + "," + src2->getIRName();
+			break;
+		case IRInstOperator::IRINST_OP_GT_I:
+			str = getIRName() + " = icmp gt " + src1->getIRName() + "," + src2->getIRName();
+			break;
+		case IRInstOperator::IRINST_OP_LE_I:
+			str = getIRName() + " = icmp le " + src1->getIRName() + "," + src2->getIRName();
+			break;
+		case IRInstOperator::IRINST_OP_GE_I:
+			str = getIRName() + " = icmp ge " + src1->getIRName() + "," + src2->getIRName();
+			break;
+		case IRInstOperator::IRINST_OP_EQ_I:
+			str = getIRName() + " = icmp eq " + src1->getIRName() + "," + src2->getIRName();
+			break;
+		case IRInstOperator::IRINST_OP_NE_I:
+			str = getIRName() + " = icmp ne " + src1->getIRName() + "," + src2->getIRName();
+			break;
         default:
             // 未知指令
             Instruction::toString(str);
