@@ -45,6 +45,11 @@ void User::setOperand(int32_t pos, Value * val)
 ///
 void User::addOperand(Value * val)
 {
+    // 添加空指针检查
+    if (val == nullptr) {
+        return;  // 或者抛出异常、记录错误
+    }
+
     // If not, add the given Value as a new use.
     auto use = new Use(val, this);
 

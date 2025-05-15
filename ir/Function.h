@@ -25,6 +25,10 @@
 #include "MemVariable.h"
 #include "IRCode.h"
 
+// 在这里添加前向声明-lxg
+class BinaryInstruction;
+class MoveInstruction;
+
 ///
 /// @brief 描述函数信息的类，是全局静态存储，其Value的类型为FunctionType
 ///
@@ -197,6 +201,22 @@ public:
         return continueLabel;
     }
 
+	// 在 public 部分的其他函数声明后添加-lxg
+    
+    /// @brief 用于在逻辑运算过程中传递临时指令的辅助结构
+    struct ExtraData {
+        /// @brief 布尔值检查指令
+        BinaryInstruction* boolCheckInst = nullptr;
+        
+        /// @brief 将布尔值移动到结果变量的指令
+        MoveInstruction* moveInst = nullptr;
+    };
+    
+    /// @brief 获取额外数据的引用
+    /// @return 额外数据的引用
+    ExtraData& getExtraData() {
+        return extraData;
+    }
 
 private:
     ///
@@ -287,4 +307,9 @@ private:
     /// @brief 累计的实参个数，用于ARG指令的统计
     ///
     int32_t realArgCount = 0;
+
+	// 在 private 部分的其他成员变量后添加-lxg
+    
+    /// @brief 用于在函数间传递临时指令的额外数据
+    ExtraData extraData;
 };

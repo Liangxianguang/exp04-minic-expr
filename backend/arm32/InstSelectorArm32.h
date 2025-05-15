@@ -207,6 +207,108 @@ protected:
 		simpleRegisterAllocator.free(arg1);
 		simpleRegisterAllocator.free(result);
 	}
+
+	//添加关系运算符的处理函数实现-lxg
+	/// @brief 整数关系运算指令翻译成ARM32汇编(统一处理函数)
+	/// @param inst IR指令
+	/// @param condition ARM的条件码(eq,ne,lt,gt,le,ge)
+	void translate_cmp_int32(Instruction * inst, const string& condition)
+	{
+		Value * result = inst;
+		Value * arg1 = inst->getOperand(0);
+		Value * arg2 = inst->getOperand(1);
+
+		int32_t arg1_reg_no = arg1->getRegId();
+		int32_t arg2_reg_no = arg2->getRegId();
+		int32_t result_reg_no = inst->getRegId();
+		int32_t load_arg1_reg_no, load_arg2_reg_no, load_result_reg_no;
+
+		// 加载第一个操作数
+		if (arg1_reg_no == -1) {
+			load_arg1_reg_no = simpleRegisterAllocator.Allocate(arg1);
+			iloc.load_var(load_arg1_reg_no, arg1);
+		} else {
+			load_arg1_reg_no = arg1_reg_no;
+		}
+
+		// 加载第二个操作数
+		if (arg2_reg_no == -1) {
+			load_arg2_reg_no = simpleRegisterAllocator.Allocate(arg2);
+			iloc.load_var(load_arg2_reg_no, arg2);
+		} else {
+			load_arg2_reg_no = arg2_reg_no;
+		}
+
+		// 为结果分配寄存器
+		if (result_reg_no == -1) {
+			load_result_reg_no = simpleRegisterAllocator.Allocate(result);
+		} else {
+			load_result_reg_no = result_reg_no;
+		}
+
+		// 比较两个操作数（cmp只接受两个参数）
+		iloc.inst("cmp", 
+				PlatformArm32::regName[load_arg1_reg_no],
+				PlatformArm32::regName[load_arg2_reg_no]);
+		
+		// 根据条件设置结果为0或1
+		// 使用mov{条件}指令，条件满足时设为1，否则设为0
+		iloc.inst("mov", PlatformArm32::regName[load_result_reg_no], "#0");  // 默认为0
+		iloc.inst("mov" + condition, PlatformArm32::regName[load_result_reg_no], "#1");  // 条件满足时为1
+
+		// 保存结果
+		if (result_reg_no == -1) {
+			iloc.store_var(load_result_reg_no, result, ARM32_TMP_REG_NO);
+		}
+
+		// 释放寄存器
+		simpleRegisterAllocator.free(arg1);
+		simpleRegisterAllocator.free(arg2);
+		simpleRegisterAllocator.free(result);
+	}
+
+	/// @brief 整数小于指令翻译成ARM32汇编
+	/// @param inst IR指令
+	void translate_lt_int32(Instruction * inst)
+	{
+		translate_cmp_int32(inst, "lt");
+	}
+
+	/// @brief 整数大于指令翻译成ARM32汇编
+	/// @param inst IR指令
+	void translate_gt_int32(Instruction * inst)
+	{
+		translate_cmp_int32(inst, "gt");
+	}
+
+	/// @brief 整数小于等于指令翻译成ARM32汇编
+	/// @param inst IR指令
+	void translate_le_int32(Instruction * inst)
+	{
+		translate_cmp_int32(inst, "le");
+	}
+
+	/// @brief 整数大于等于指令翻译成ARM32汇编
+	/// @param inst IR指令
+	void translate_ge_int32(Instruction * inst)
+	{
+		translate_cmp_int32(inst, "ge");
+	}
+
+	/// @brief 整数等于指令翻译成ARM32汇编
+	/// @param inst IR指令
+	void translate_eq_int32(Instruction * inst)
+	{
+		translate_cmp_int32(inst, "eq");
+	}
+
+	/// @brief 整数不等于指令翻译成ARM32汇编
+	/// @param inst IR指令
+	void translate_ne_int32(Instruction * inst)
+	{
+		translate_cmp_int32(inst, "ne");
+	}
+
 	
     /// @brief 二元操作指令翻译成ARM32汇编
     /// @param inst IR指令

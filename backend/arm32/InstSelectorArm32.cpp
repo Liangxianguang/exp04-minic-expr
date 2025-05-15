@@ -56,6 +56,14 @@ InstSelectorArm32::InstSelectorArm32(vector<Instruction *> & _irCode,
 	translator_handlers[IRInstOperator::IRINST_OP_MOD_I] = &InstSelectorArm32::translate_mod_int32;
 	translator_handlers[IRInstOperator::IRINST_OP_NEG_I] = &InstSelectorArm32::translate_neg_int32;
 
+	// 添加关系运算符的处理函数映射-lxg
+	translator_handlers[IRInstOperator::IRINST_OP_LT_I] = &InstSelectorArm32::translate_lt_int32;
+	translator_handlers[IRInstOperator::IRINST_OP_GT_I] = &InstSelectorArm32::translate_gt_int32;
+	translator_handlers[IRInstOperator::IRINST_OP_LE_I] = &InstSelectorArm32::translate_le_int32;
+	translator_handlers[IRInstOperator::IRINST_OP_GE_I] = &InstSelectorArm32::translate_ge_int32;
+	translator_handlers[IRInstOperator::IRINST_OP_EQ_I] = &InstSelectorArm32::translate_eq_int32;
+	translator_handlers[IRInstOperator::IRINST_OP_NE_I] = &InstSelectorArm32::translate_ne_int32;
+
     translator_handlers[IRInstOperator::IRINST_OP_FUNC_CALL] = &InstSelectorArm32::translate_call;
     translator_handlers[IRInstOperator::IRINST_OP_ARG] = &InstSelectorArm32::translate_arg;
 }
@@ -134,10 +142,38 @@ void InstSelectorArm32::translate_label(Instruction * inst)
 /// @param inst IR指令
 void InstSelectorArm32::translate_goto(Instruction * inst)
 {
-    Instanceof(gotoInst, GotoInstruction *, inst);
+    // Instanceof(gotoInst, GotoInstruction *, inst);
 
-    // 无条件跳转
-    iloc.jump(gotoInst->getTarget()->getName());
+    // // 无条件跳转
+    // iloc.jump(gotoInst->getTarget()->getName());
+	// 新增有条件跳转-lxg
+	Instanceof(gotoInst, GotoInstruction *, inst);
+    // 检查是否是条件跳转
+    if (gotoInst->getOperandsNum() > 0) {
+        // 这是条件跳转
+        Value* condition = gotoInst->getOperand(0);
+        std::string trueLabel = gotoInst->getTarget()->getName();
+        std::string falseLabel = gotoInst->getFalseTarget()->getName();
+        
+        // 加载条件到寄存器中
+        int condRegNo = simpleRegisterAllocator.Allocate(condition);
+        iloc.load_var(condRegNo, condition);
+        
+        // 比较与0
+        iloc.inst("cmp", PlatformArm32::regName[condRegNo], "#0");
+        
+        // 如果不等于0，跳转到trueLabel
+        iloc.inst("bne", trueLabel);
+        
+        // 否则跳转到falseLabel
+        iloc.inst("b", falseLabel);
+        
+        // 释放条件寄存器
+        simpleRegisterAllocator.free(condition);
+    } else {
+        // 无条件跳转
+        iloc.jump(gotoInst->getTarget()->getName());
+    }
 }
 
 /// @brief 函数入口指令翻译成ARM32汇编

@@ -68,16 +68,55 @@ void Module::setCurrentFunction(Function * current)
 /// @param params 形参列表
 /// @param builtin 是否内置函数
 /// @return 新建的函数对象实例
+// Function * Module::newFunction(std::string name, Type * returnType, std::vector<FormalParam *> params, bool builtin)
+// {
+//     // 先根据函数名查找函数，若找到则出错
+//     Function * tempFunc = findFunction(name);
+//     if (tempFunc) {
+//         // 函数已存在
+//         return nullptr;
+//     }
+
+//     // 根据形参创建形参类型清单
+//     std::vector<Type *> paramsType(params.size());
+
+//     for (auto & param: params) {
+//         paramsType.push_back(param->getType());
+//     }
+
+//     /// 函数类型参数
+//     FunctionType * type = new FunctionType(returnType, paramsType);
+
+//     // 新建函数对象
+//     tempFunc = new Function(name, type, builtin);
+
+//     // 设置参数
+//     tempFunc->getParams().assign(params.begin(), params.end());
+
+//     insertFunctionDirectly(tempFunc);
+
+//     return tempFunc;
+// }
+
+///修改 Module.cpp 中的 newFunction 函数-lxg
 Function * Module::newFunction(std::string name, Type * returnType, std::vector<FormalParam *> params, bool builtin)
 {
     // 先根据函数名查找函数，若找到则出错
     Function * tempFunc = findFunction(name);
     if (tempFunc) {
-        // 函数已存在
+        // 函数已存在，但我们不直接返回错误
+        // 而是检查这是否是自动生成的原型（形参数量为0）
+        if (tempFunc->getParams().empty() && !params.empty()) {
+            // 这是一个空参数的原型，但现在我们有了真正的函数定义
+            // 用新的参数列表更新此函数
+            tempFunc->getParams().assign(params.begin(), params.end());
+            return tempFunc;
+        }
+        // 如果不是空原型，那么这确实是重复定义，返回错误
         return nullptr;
     }
 
-    // 根据形参创建形参类型清单
+    // 以下是原代码，创建新函数...
     std::vector<Type *> paramsType(params.size());
 
     for (auto & param: params) {

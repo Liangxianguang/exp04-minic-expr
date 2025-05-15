@@ -554,3 +554,4 @@ void ILocArm32::jump(std::string label)
 {
     emit("b", label);
 }
+
