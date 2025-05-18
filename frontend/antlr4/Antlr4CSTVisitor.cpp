@@ -86,9 +86,16 @@ std::any MiniCCSTVisitor::visitFuncDef(MiniCParser::FuncDefContext * ctx)
 
     var_id_attr funcId{id, (int64_t) ctx->T_ID()->getSymbol()->getLine()};
 
-    // 形参结点目前没有，设置为空指针
+    // // 形参结点目前没有，设置为空指针
+    // ast_node * formalParamsNode = nullptr;
+	// 形参列表节点-lxg
     ast_node * formalParamsNode = nullptr;
-
+    if (ctx->paramList()) {
+        formalParamsNode = std::any_cast<ast_node *>(visitParamList(ctx->paramList()));
+    } else {
+        // 如果没有参数，创建一个空的形参列表节点
+        formalParamsNode = new ast_node(ast_operator_type::AST_OP_FUNC_FORMAL_PARAMS);
+    }
     // 遍历block结点创建函数体节点，非终结符
     auto blockNode = std::any_cast<ast_node *>(visitBlock(ctx->block()));
 
@@ -740,5 +747,44 @@ std::any MiniCCSTVisitor::visitContinueStatement(MiniCParser::ContinueStatementC
     // 处理continue语句
     // 语法: T_CONTINUE T_SEMICOLON
     return ast_node::New(ast_operator_type::AST_OP_CONTINUE, nullptr);
+}
+
+///实现visitParamList和visitParam方法-lxg
+std::any MiniCCSTVisitor::visitParamList(MiniCParser::ParamListContext * ctx)
+{
+    // 创建形参列表节点
+    ast_node * paramsNode = new ast_node(ast_operator_type::AST_OP_FUNC_FORMAL_PARAMS);
+
+    // 遍历所有参数
+    for (auto paramCtx : ctx->param()) {
+        // 处理每个参数
+        ast_node * paramNode = std::any_cast<ast_node *>(visitParam(paramCtx));
+        paramsNode->insert_son_node(paramNode);
+    }
+
+    return paramsNode;
+}
+
+std::any MiniCCSTVisitor::visitParam(MiniCParser::ParamContext * ctx)
+{
+    // 获取参数类型
+    type_attr paramType{BasicType::TYPE_INT, (int64_t) ctx->T_INT()->getSymbol()->getLine()};
+    
+    // 创建类型节点 - 直接使用 create_type_node 而不是先转换类型再创建
+    ast_node * typeNode = create_type_node(paramType);
+    
+    // 获取参数名称
+    std::string paramName = ctx->T_ID()->getText();
+    int64_t lineno = (int64_t) ctx->T_ID()->getSymbol()->getLine();
+    
+    // 创建名称节点
+    ast_node * nameNode = ast_node::New(paramName, lineno);
+    
+    // 创建形参节点
+    ast_node * paramNode = new ast_node(ast_operator_type::AST_OP_FUNC_FORMAL_PARAM);
+    paramNode->insert_son_node(typeNode);
+    paramNode->insert_son_node(nameNode);
+    
+    return paramNode;
 }
 

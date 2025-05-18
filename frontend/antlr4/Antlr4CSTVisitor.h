@@ -235,5 +235,14 @@ protected:
 	///
 	std::any visitContinueStatement(MiniCParser::ContinueStatementContext * ctx) override;
 	
+	///添加对 paramList 和 param 的访问方法-lxg
+	/// @brief 非终结运算符paramList的遍历
+	/// @param ctx CST上下文
+	/// @return AST的节点
+	std::any visitParamList(MiniCParser::ParamListContext * ctx) override;
 
+	/// @brief 非终结运算符param的遍历
+	/// @param ctx CST上下文
+	/// @return AST的节点
+	std::any visitParam(MiniCParser::ParamContext * ctx) override;
 };

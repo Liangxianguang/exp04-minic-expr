@@ -35,6 +35,9 @@ public:
 
     /// @brief 运行产生IR
     bool run();
+	
+	void setLastError(const std::string& error) { lastError = error; }
+    std::string getLastError() const { return lastError; }
 
 protected:
     /// @brief 编译单元AST节点翻译成线性中间IR
@@ -187,4 +190,5 @@ private:
 
     /// @brief 符号表:模块
     Module * module;
+	std::string lastError;
 };

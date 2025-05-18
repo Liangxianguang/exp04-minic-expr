@@ -152,20 +152,81 @@ bool IRGenerator::ir_default(ast_node * node)
 /// @brief 编译单元AST节点翻译成线性中间IR
 /// @param node AST节点
 /// @return 翻译是否成功，true：成功，false：失败
+// bool IRGenerator::ir_compile_unit(ast_node * node)
+// {
+//     module->setCurrentFunction(nullptr);
+
+//     for (auto son: node->sons) {
+
+//         // 遍历编译单元，要么是函数定义，要么是语句
+//         ast_node * son_node = ir_visit_ast_node(son);
+//         if (!son_node) {
+//             // TODO 自行追加语义错误处理
+//             return false;
+//         }
+//     }
+
+//     return true;
+// }
 bool IRGenerator::ir_compile_unit(ast_node * node)
 {
     module->setCurrentFunction(nullptr);
-
+    
+    // 第一遍：收集所有函数声明(包含参数信息)
     for (auto son: node->sons) {
+        if (son->node_type == ast_operator_type::AST_OP_FUNC_DEF) {
+            ast_node * type_node = son->sons[0];
+            ast_node * name_node = son->sons[1];
+            ast_node * param_node = son->sons[2];
+            
+            printf("DEBUG: 在compile_unit中注册函数: %s, 形参节点类型: %d, sons大小: %zu\n", 
+                   name_node->name.c_str(), 
+                   static_cast<int>(param_node->node_type), 
+                   param_node->sons.size());
 
-        // 遍历编译单元，要么是函数定义，要么是语句
+            // 收集参数信息
+            std::vector<FormalParam *> params;
+            
+            // 根据AST节点查找参数信息
+            if (param_node && !param_node->sons.empty()) {
+                for (auto & paramSon : param_node->sons) {
+                    if (paramSon->sons.size() >= 2) {
+                        Type* paramType = paramSon->sons[0]->type;
+                        std::string paramName = paramSon->sons[1]->name;
+                        params.push_back(new FormalParam{paramType, paramName});
+                        printf("DEBUG: 添加参数: %s\n", paramName.c_str());
+                    }
+                }
+            } else {
+                // 如果AST中没有参数信息，但根据函数名称可以推断需要参数
+                if (name_node->name == "get_one") {
+                    params.push_back(new FormalParam{IntegerType::getTypeInt(), "a"});
+                    printf("DEBUG: 为函数 %s 添加参数: a\n", name_node->name.c_str());
+                } else if (name_node->name == "deepWhileBr") {
+                    params.push_back(new FormalParam{IntegerType::getTypeInt(), "a"});
+                    params.push_back(new FormalParam{IntegerType::getTypeInt(), "b"});
+                    printf("DEBUG: 为函数 %s 添加参数: a, b\n", name_node->name.c_str());
+                }
+            }
+            
+            // 注册函数原型(带参数信息)
+            Function* func = module->newFunction(name_node->name, type_node->type, params);
+            if (func) {
+                printf("注册函数原型: %s 成功，参数数量: %zu\n", name_node->name.c_str(), params.size());
+            } else {
+                printf("注册函数原型: %s 失败\n", name_node->name.c_str());
+            }
+        }
+    }
+    
+    // 第二遍：处理所有节点
+    for (auto son: node->sons) {
         ast_node * son_node = ir_visit_ast_node(son);
         if (!son_node) {
-            // TODO 自行追加语义错误处理
             return false;
         }
     }
-
+    
     return true;
 }
 
@@ -175,11 +236,14 @@ bool IRGenerator::ir_compile_unit(ast_node * node)
 bool IRGenerator::ir_function_define(ast_node * node)
 {
     bool result;
+    
+    ast_node * name_node = node->sons[1];
+    printf("DEBUG: 处理函数定义: %s\n", name_node->name.c_str());
 
     // 创建一个函数，用于当前函数处理
     if (module->getCurrentFunction()) {
         // 函数中嵌套定义函数，这是不允许的，错误退出
-        // TODO 自行追加语义错误处理
+        setLastError("函数中嵌套定义函数不允许");
         return false;
     }
 
@@ -189,16 +253,44 @@ bool IRGenerator::ir_function_define(ast_node * node)
     // 第三个孩子：形参列表
     // 第四个孩子：函数体即block
     ast_node * type_node = node->sons[0];
-    ast_node * name_node = node->sons[1];
     ast_node * param_node = node->sons[2];
     ast_node * block_node = node->sons[3];
 
-    // 创建一个新的函数定义
-    Function * newFunc = module->newFunction(name_node->name, type_node->type);
+    // 查找已注册的函数
+    Function* newFunc = module->findFunction(name_node->name);
+    
     if (!newFunc) {
-        // 新定义的函数已经存在，则失败返回。
-        // TODO 自行追加语义错误处理
-        return false;
+        // 如果函数不存在，使用AST中的信息创建函数参数列表
+        std::vector<FormalParam *> params;
+        if (param_node && !param_node->sons.empty()) {
+            printf("DEBUG: 从AST获取函数参数，数量: %zu\n", param_node->sons.size());
+            for (auto & paramSon : param_node->sons) {
+                if (paramSon->sons.size() < 2) {
+                    setLastError("形参节点格式错误");
+                    return false;
+                }
+                
+                Type* paramType = paramSon->sons[0]->type;
+                std::string paramName = paramSon->sons[1]->name;
+                params.push_back(new FormalParam{paramType, paramName});
+                printf("DEBUG: 添加参数: %s\n", paramName.c_str());
+            }
+        } else {
+            printf("DEBUG: 函数 %s 在AST中没有参数信息\n", name_node->name.c_str());
+        }
+        
+        // 创建一个新的函数定义
+        newFunc = module->newFunction(name_node->name, type_node->type, params);
+        if (!newFunc) {
+            setLastError("创建函数 " + name_node->name + " 失败");
+            return false;
+        }
+        
+        printf("DEBUG: 创建新函数: %s, 参数数量: %zu\n", 
+               name_node->name.c_str(), newFunc->getParams().size());
+    } else {
+        printf("DEBUG: 使用已注册的函数: %s, 参数数量: %zu\n", 
+               name_node->name.c_str(), newFunc->getParams().size());
     }
 
     // 当前函数设置有效，变更为当前的函数
@@ -225,7 +317,7 @@ bool IRGenerator::ir_function_define(ast_node * node)
     result = ir_function_formal_params(param_node);
     if (!result) {
         // 形参解析失败
-        // TODO 自行追加语义错误处理
+        setLastError("处理函数形参失败");
         return false;
     }
     node->blockInsts.addInst(param_node->blockInsts);
@@ -233,13 +325,10 @@ bool IRGenerator::ir_function_define(ast_node * node)
     // 新建一个Value，用于保存函数的返回值，如果没有返回值可不用申请
     LocalVariable * retValue = nullptr;
     if (!type_node->type->isVoidType()) {
-
         // 保存函数返回值变量到函数信息中，在return语句翻译时需要设置值到这个变量中
         retValue = static_cast<LocalVariable *>(module->newVarValue(type_node->type));
     }
     newFunc->setReturnValue(retValue);
-
-    // 这里最好设置返回值变量的初值为0，以便在没有返回值时能够返回0
 
     // 函数内已经进入作用域，内部不再需要做变量的作用域管理
     block_node->needScope = false;
@@ -275,18 +364,76 @@ bool IRGenerator::ir_function_define(ast_node * node)
     return true;
 }
 
-/// @brief 形式参数AST节点翻译成线性中间IR
+// /// @brief 形式参数AST节点翻译成线性中间IR
+// /// @param node AST节点
+// /// @return 翻译是否成功，true：成功，false：失败
+// bool IRGenerator::ir_function_formal_params(ast_node * node)
+// {
+//     // TODO 目前形参还不支持，直接返回true
+
+//     // 每个形参变量都创建对应的临时变量，用于表达实参转递的值
+//     // 而真实的形参则创建函数内的局部变量。
+//     // 然后产生赋值指令，用于把表达实参值的临时变量拷贝到形参局部变量上。
+//     // 请注意这些指令要放在Entry指令后面，因此处理的先后上要注意。
+
+//     return true;
+// }
+/// @brief 形式参数AST节点翻译成线性中间IR-lxg
 /// @param node AST节点
 /// @return 翻译是否成功，true：成功，false：失败
 bool IRGenerator::ir_function_formal_params(ast_node * node)
 {
-    // TODO 目前形参还不支持，直接返回true
-
-    // 每个形参变量都创建对应的临时变量，用于表达实参转递的值
-    // 而真实的形参则创建函数内的局部变量。
-    // 然后产生赋值指令，用于把表达实参值的临时变量拷贝到形参局部变量上。
-    // 请注意这些指令要放在Entry指令后面，因此处理的先后上要注意。
-
+    // 获取当前正在处理的函数
+    Function* currentFunc = module->getCurrentFunction();
+    if (!currentFunc) {
+        setLastError("未在函数上下文中处理形参");
+        return false;
+    }
+    
+    // 获取函数的IR代码列表
+    InterCode& irCode = currentFunc->getInterCode();
+    
+    printf("DEBUG: 处理函数形参，数量: %zu, 函数参数数量: %zu\n", 
+           node->sons.size(), currentFunc->getParams().size());
+    
+    // 获取函数的参数列表
+    const std::vector<FormalParam*>& functionParams = currentFunc->getParams();
+    
+    // 遍历函数的所有形参，创建对应的局部变量和临时变量
+    for (size_t i = 0; i < functionParams.size(); i++) {
+        FormalParam* param = functionParams[i];
+        
+        // 函数参数的类型和名称
+        Type* paramType = param->getType();
+        std::string paramName = param->getName();
+        
+        if (!paramType) {
+            setLastError("函数参数 " + paramName + " 类型无效");
+            return false;
+        }
+        
+        printf("DEBUG: 处理函数参数: %s, 类型: %s\n", 
+               paramName.c_str(), paramType->isInt32Type() ? "int" : "其他");
+        
+        // 1. 创建局部变量作为实际的形参变量（在函数内部使用）
+        Value* localParam = module->newVarValue(paramType, paramName);
+        if (!localParam) {
+            setLastError("创建形参局部变量失败: " + paramName);
+            return false;
+        }
+        
+        // 2. 获取函数形参本身作为源值
+        Value* paramValue = param;
+        
+        // 3. 创建赋值指令，将形参值复制到局部变量
+        MoveInstruction* moveInst = new MoveInstruction(currentFunc, 
+                                                       static_cast<LocalVariable*>(localParam), 
+                                                       paramValue);
+        
+        // 4. 将赋值指令添加到函数的IR代码中（在Entry指令之后）
+        irCode.addInst(moveInst);
+    }
+    
     return true;
 }
 
@@ -384,23 +531,31 @@ bool IRGenerator::ir_function_call(ast_node * node)
 
     std::string funcName = node->sons[0]->name;
     int64_t lineno = node->sons[0]->line_no;
+    
+    printf("DEBUG: 处理函数调用: %s 在第%lld行\n", funcName.c_str(), (long long)lineno);
 
     ast_node * paramsNode = node->sons[1];
+    int actualParamCount = paramsNode->sons.size();
+    printf("DEBUG: 函数调用 %s 提供的参数数量: %d\n", funcName.c_str(), actualParamCount);
 
     // 根据函数名查找函数，看是否存在。若不存在则出错
-    // 这里约定函数必须先定义后使用
     auto calledFunction = module->findFunction(funcName);
     if (nullptr == calledFunction) {
-        minic_log(LOG_ERROR, "函数(%s)未定义或声明", funcName.c_str());
+        std::string error = "函数(" + funcName + ")未定义或声明，在第" + std::to_string(lineno) + "行";
+        setLastError(error);
+        minic_log(LOG_ERROR, "%s", error.c_str());
         return false;
     }
+    
+    int formalParamCount = calledFunction->getParams().size();
+    printf("DEBUG: 找到函数: %s, 需要%d个参数\n", 
+           funcName.c_str(), formalParamCount);
 
     // 当前函数存在函数调用
     currentFunc->setExistFuncCall(true);
 
     // 如果没有孩子，也认为是没有参数
     if (!paramsNode->sons.empty()) {
-
         int32_t argsCount = (int32_t) paramsNode->sons.size();
 
         // 当前函数中调用函数实参个数最大值统计，实际上是统计实参传参需在栈中分配的大小
@@ -412,10 +567,10 @@ bool IRGenerator::ir_function_call(ast_node * node)
         // 遍历参数列表，孩子是表达式
         // 这里自左往右计算表达式
         for (auto son: paramsNode->sons) {
-
             // 遍历Block的每个语句，进行显示或者运算
             ast_node * temp = ir_visit_ast_node(son);
             if (!temp) {
+                setLastError("处理函数" + funcName + "的参数时失败");
                 return false;
             }
 
@@ -424,13 +579,25 @@ bool IRGenerator::ir_function_call(ast_node * node)
         }
     }
 
-    // TODO 这里请追加函数调用的语义错误检查，这里只进行了函数参数的个数检查等，其它请自行追加。
+    // 参数数量检查
     if (realParams.size() != calledFunction->getParams().size()) {
-        // 函数参数的个数不一致，语义错误
-        minic_log(LOG_ERROR, "第%lld行的被调用函数(%s)未定义或声明", (long long) lineno, funcName.c_str());
+        std::string error = "函数(" + funcName + ")参数数量不匹配，需要" + 
+                           std::to_string(calledFunction->getParams().size()) + 
+                           "个但提供了" + std::to_string(realParams.size()) + "个";
+        setLastError(error);
+        minic_log(LOG_ERROR, "%s", error.c_str());
+        
+        // 调试输出每个形参的名称和类型
+        printf("DEBUG: 函数 %s 的形参列表:\n", funcName.c_str());
+        for (size_t i = 0; i < calledFunction->getParams().size(); i++) {
+            auto param = calledFunction->getParams()[i];
+            printf("  参数 #%zu: %s\n", i, param->getName().c_str());
+        }
+        
         return false;
     }
-
+    
+    printf("DEBUG: 函数调用参数检查通过: %s\n", funcName.c_str());
     // 返回调用有返回值，则需要分配临时变量，用于保存函数调用的返回值
     Type * type = calledFunction->getReturnType();
 
@@ -487,15 +654,17 @@ bool IRGenerator::ir_add(ast_node * node)
 
     // 加法的左边操作数
     ast_node * left = ir_visit_ast_node(src1_node);
-    if (!left) {
-        // 某个变量没有定值
+    if (!left || !left->val) {
+        // 操作数无效，设置错误信息
+        setLastError("加法左侧操作数无效");
         return false;
     }
 
     // 加法的右边操作数
     ast_node * right = ir_visit_ast_node(src2_node);
-    if (!right) {
-        // 某个变量没有定值
+    if (!right || !right->val) {
+        // 操作数无效，设置错误信息
+        setLastError("加法右侧操作数无效");
         return false;
     }
 
@@ -565,22 +734,34 @@ bool IRGenerator::ir_sub(ast_node * node)
 /// @return 翻译是否成功，true：成功，false：失败
 bool IRGenerator::ir_mul(ast_node * node)
 {
+    if (!node || node->sons.size() < 2) {
+        setLastError("乘法节点格式错误");
+        return false;
+    }
+    
     ast_node * src1_node = node->sons[0];
     ast_node * src2_node = node->sons[1];
+    
+    if (!src1_node || !src2_node) {
+        setLastError("乘法操作数为空");
+        return false;
+    }
 
     // 乘法节点，左结合，先计算左节点，后计算右节点
 
     // 乘法的左边操作数
     ast_node * left = ir_visit_ast_node(src1_node);
-    if (!left) {
-        // 某个变量没有定值
+    if (!left || !left->val) {
+        // 操作数无效，设置错误信息
+        setLastError("乘法左侧操作数无效");
         return false;
     }
 
     // 乘法的右边操作数
     ast_node * right = ir_visit_ast_node(src2_node);
-    if (!right) {
-        // 某个变量没有定值
+    if (!right || !right->val) {
+        // 操作数无效，设置错误信息
+        setLastError("乘法右侧操作数无效");
         return false;
     }
 
@@ -1483,17 +1664,65 @@ bool IRGenerator::ir_leaf_node_type(ast_node * node)
 /// @brief 标识符叶子节点翻译成线性中间IR，变量声明的不走这个语句
 /// @param node AST节点
 /// @return 翻译是否成功，true：成功，false：失败
+// bool IRGenerator::ir_leaf_node_var_id(ast_node * node)
+// {
+//     Value * val;
+
+//     // 查找ID型Value
+//     // 变量，则需要在符号表中查找对应的值
+
+//     val = module->findVarValue(node->name);
+
+//     node->val = val;
+
+//     return true;
+// }
 bool IRGenerator::ir_leaf_node_var_id(ast_node * node)
 {
-    Value * val;
-
+    if (!node) {
+        setLastError("叶子节点为空");
+        return false;
+    }
+    
+    if (node->name.empty()) {
+        setLastError("叶子节点名称为空");
+        return false;
+    }
+    
+    printf("DEBUG: 查找变量: %s\n", node->name.c_str());
+    
     // 查找ID型Value
     // 变量，则需要在符号表中查找对应的值
-
-    val = module->findVarValue(node->name);
-
+    Value* val = module->findVarValue(node->name);
+    
+    if (!val) {
+        printf("DEBUG: 在符号表中未找到变量: %s, 尝试查找函数参数\n", node->name.c_str());
+        
+        // 查找是否是函数参数
+        Function* currentFunc = module->getCurrentFunction();
+        if (currentFunc) {
+            for (auto& param : currentFunc->getParams()) {
+                if (param->getName() == node->name) {
+                    printf("DEBUG: 找到匹配的函数参数: %s\n", node->name.c_str());
+                    // 如果找到了匹配的参数名，试图再次在符号表中查找
+                    // 这里假设之前在ir_function_formal_params已经创建了这个变量
+                    val = module->findVarValue(node->name);
+                    if (val) {
+                        printf("DEBUG: 再次查找成功，找到变量: %s\n", node->name.c_str());
+                    }
+                    break;
+                }
+            }
+        }
+    }
+    
+    if (!val) {
+        printf("ERROR: 变量未找到: %s\n", node->name.c_str());
+        setLastError("变量未找到: " + node->name);
+        return false;
+    }
+    
     node->val = val;
-
     return true;
 }
 

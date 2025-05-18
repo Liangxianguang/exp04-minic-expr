@@ -405,3 +405,24 @@ ast_node * add_var_decl_node(ast_node * stmt_node, var_id_attr & id)
 
     return stmt_node;
 }
+
+/// @brief 创建函数形式参数的节点-lxg
+/// @param type 参数类型
+/// @param param_name 形式参数名
+/// @param line_no 行号
+/// @return 创建的节点
+ast_node * create_func_formal_param(Type * type, const std::string & param_name, int64_t line_no)
+{
+    // 创建类型节点
+    ast_node * type_node = ast_node::New(type);
+    
+    // 创建参数名节点
+    ast_node * name_node = ast_node::New(param_name, line_no);
+    
+    // 创建形参节点
+    ast_node * paramNode = new ast_node(ast_operator_type::AST_OP_FUNC_FORMAL_PARAM);
+    paramNode->insert_son_node(type_node);
+    paramNode->insert_son_node(name_node);
+    
+    return paramNode;
+}

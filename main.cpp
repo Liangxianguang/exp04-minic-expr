@@ -324,8 +324,8 @@ static int compile(std::string inputFile, std::string outputFile)
         subResult = ast2IR.run();
         if (!subResult) {
 
-            // 输出错误信息
-            minic_log(LOG_ERROR, "中间IR生成错误");
+			// 输出错误信息
+			minic_log(LOG_ERROR, "中间IR生成错误 - 详细信息：%s", ast2IR.getLastError().c_str());
 
             break;
         }

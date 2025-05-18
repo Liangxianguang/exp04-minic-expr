@@ -137,9 +137,20 @@ Function * Module::newFunction(std::string name, Type * returnType, std::vector<
     return tempFunc;
 }
 
-/// @brief 根据函数名查找函数信息
+/// @brief 根据函数名查找函数信息-lxg
 /// @param name 函数名
 /// @return 函数信息
+// Function * Module::findFunction(std::string name)
+// {
+//     // 根据名字查找
+//     auto pIter = funcMap.find(name);
+//     if (pIter != funcMap.end()) {
+//         // 查找到
+//         return pIter->second;
+//     }
+
+//     return nullptr;
+// }
 Function * Module::findFunction(std::string name)
 {
     // 根据名字查找
@@ -148,7 +159,8 @@ Function * Module::findFunction(std::string name)
         // 查找到
         return pIter->second;
     }
-
+    
+    // 不自动创建原型，只返回nullptr
     return nullptr;
 }
 
