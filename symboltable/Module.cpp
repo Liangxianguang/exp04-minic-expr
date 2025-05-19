@@ -30,6 +30,17 @@ Module::Module(std::string _name) : name(_name)
     // 加入内置函数putint
     (void) newFunction("putint", VoidType::getType(), {new FormalParam{IntegerType::getTypeInt(), ""}}, true);
     (void) newFunction("getint", IntegerType::getTypeInt(), {}, true);
+	// 加入其他内置函数-lxg
+	(void) newFunction("putch", VoidType::getType(), {new FormalParam{IntegerType::getTypeInt(), "c"}}, true);
+    (void) newFunction("getch", IntegerType::getTypeInt(), {}, true);
+    (void) newFunction("getarray", IntegerType::getTypeInt(), {new FormalParam{IntegerType::getTypeInt(), "a"}}, true);
+    (void) newFunction("putarray", VoidType::getType(), {new FormalParam{IntegerType::getTypeInt(), "n"}, new FormalParam{IntegerType::getTypeInt(), "a"}}, true);
+    (void) newFunction("putstr", VoidType::getType(), {new FormalParam{IntegerType::getTypeInt(), "str"}}, true);
+    (void) newFunction("getfloat", IntegerType::getTypeInt(), {}, true);
+    (void) newFunction("getfarray", IntegerType::getTypeInt(), {new FormalParam{IntegerType::getTypeInt(), "a"}}, true);
+    (void) newFunction("putfloat", VoidType::getType(), {new FormalParam{IntegerType::getTypeInt(), "a"}}, true);
+    (void) newFunction("putfarray", VoidType::getType(), {new FormalParam{IntegerType::getTypeInt(), "n"}, new FormalParam{IntegerType::getTypeInt(), "a"}}, true);
+    (void) newFunction("putf", VoidType::getType(), {new FormalParam{IntegerType::getTypeInt(), "a"}}, true);
 }
 
 /// @brief 进入作用域，如进入函数体块、语句块等

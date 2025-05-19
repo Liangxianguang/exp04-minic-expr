@@ -15,7 +15,7 @@
 /// </table>
 ///
 #include "VoidType.h"
-
+#include "Function.h" // 添加这行，包含完整的Function类定义，便于后续判断是否是void类型-lxg
 #include "ExitInstruction.h"
 
 /// @brief return语句指令
@@ -33,7 +33,15 @@ ExitInstruction::ExitInstruction(Function * _func, Value * _result)
 void ExitInstruction::toString(std::string & str)
 {
     if (getOperandsNum() == 0) {
-        str = "exit void";
+        // 检查函数的返回类型
+        Function* func = getFunction();
+        if (func && func->getReturnType()->isVoidType()) {
+            // 如果函数返回类型是void，只输出"exit"
+            str = "exit";
+        } else {
+            // 否则返回0
+            str = "exit 0";
+        }
     } else {
         Value * src1 = getOperand(0);
         str = "exit " + src1->getIRName();

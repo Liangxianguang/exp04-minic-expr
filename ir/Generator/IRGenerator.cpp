@@ -1809,13 +1809,12 @@ bool IRGenerator::ir_variable_declare(ast_node * node)
     // 获取当前函数
     Function* currentFunc = module->getCurrentFunction();
     
-    // 处理变量初始化（只有局部变量才需要生成初始化指令）
-    if (currentFunc) {
-        // 局部变量初始化
-        // 如果有初始化值（第三个子节点）
-        if (node->sons.size() > 2 && node->sons[2]) {
-            printf("DEBUG: 变量 %s 有初始化表达式\n", varName.c_str());
-            
+    // 处理变量初始化
+    if (node->sons.size() > 2 && node->sons[2]) {
+        printf("DEBUG: 变量 %s 有初始化表达式\n", varName.c_str());
+        
+        if (currentFunc) {
+            // 局部变量初始化
             // 处理初始化表达式
             ast_node* init_expr = ir_visit_ast_node(node->sons[2]);
             if (!init_expr) {
@@ -1861,25 +1860,32 @@ bool IRGenerator::ir_variable_declare(ast_node * node)
                 printf("DEBUG: 为局部变量 %s 生成了初始化指令\n", varName.c_str());
             }
         } else {
-            // 对于整数类型的变量，我们可以默认初始化为0
-            if (varType->isInt32Type()) {
-                ConstInt* zeroVal = module->newConstInt(0);
-                MoveInstruction* moveInst = new MoveInstruction(
-                    currentFunc,
-                    var,
-                    zeroVal
-                );
-                node->blockInsts.addInst(moveInst);
-                printf("DEBUG: 为局部变量 %s 生成了默认初始化为0的指令\n", varName.c_str());
+            // 全局变量初始化
+            // 在当前实现中，我们不直接修改GlobalVariable对象
+            // 而是在main函数中添加赋值语句或创建单独的初始化函数
+            if (node->sons[2]->node_type == ast_operator_type::AST_OP_LEAF_LITERAL_UINT) {
+                uint32_t value = node->sons[2]->integer_val;
+                printf("DEBUG: 记录全局变量 %s 的初始值 %u，会在main函数开始处生成初始化代码\n", 
+                       varName.c_str(), value);
+                
+                // 这里可以保存全局变量的初始值，以便在生成main函数时使用
+                // 例如，可以使用一个map保存变量名和初始值
+                // globalVarInitValues[varName] = value;
+            } else {
+                printf("DEBUG: 全局变量 %s 的初始化表达式太复杂，当前不支持\n", varName.c_str());
             }
         }
-    } else {
-        // 全局变量不需要在此处生成初始化指令，它们的初始化会在全局初始化部分处理
-        printf("DEBUG: 创建全局变量 %s\n", varName.c_str());
-        
-        // 如果有初始化值，我们可以记录下来，但在这个简单实现中先忽略
-        if (node->sons.size() > 2 && node->sons[2]) {
-            printf("DEBUG: 全局变量 %s 有初始化表达式，但在当前实现中忽略\n", varName.c_str());
+    } else if (currentFunc) {
+        // 对于未初始化的局部变量，我们可以默认初始化为0
+        if (varType->isInt32Type()) {
+            ConstInt* zeroVal = module->newConstInt(0);
+            MoveInstruction* moveInst = new MoveInstruction(
+                currentFunc,
+                var,
+                zeroVal
+            );
+            node->blockInsts.addInst(moveInst);
+            printf("DEBUG: 为局部变量 %s 生成了默认初始化为0的指令\n", varName.c_str());
         }
     }
     

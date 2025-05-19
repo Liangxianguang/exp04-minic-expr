@@ -14,7 +14,9 @@ grammar MiniC;
 compileUnit: (funcDef | varDecl)* EOF;
 
 // 函数定义，目前不支持形参，也不支持返回void类型等 funcDef: T_INT T_ID T_L_PAREN T_R_PAREN block;
-funcDef: T_INT T_ID T_L_PAREN paramList? T_R_PAREN block;
+// funcDef: T_INT T_ID T_L_PAREN paramList? T_R_PAREN block;
+// 修改函数定义，目前支持形参，也支持返回void类型等-lxg
+funcDef: (T_INT|T_VOID) T_ID T_L_PAREN paramList? T_R_PAREN block;
 paramList: param (',' param)*;
 param: T_INT T_ID;
 
