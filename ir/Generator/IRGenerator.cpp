@@ -341,10 +341,16 @@ bool IRGenerator::ir_function_define(ast_node * node)
         return false;
     }
 
+	// 打印调试信息
+    printf("DEBUG: 函数 %s 的block节点指令数量: %zu\n", 
+           name_node->name.c_str(), block_node->blockInsts.getInsts().size());
+
     // IR指令追加到当前的节点中
     node->blockInsts.addInst(block_node->blockInsts);
 
     // 此时，所有指令都加入到当前函数中，也就是node->blockInsts
+    printf("DEBUG: 函数 %s 的node节点指令数量: %zu\n", 
+           name_node->name.c_str(), node->blockInsts.getInsts().size());
 
     // node节点的指令移动到函数的IR指令列表中
     irCode.addInst(node->blockInsts);
@@ -354,6 +360,10 @@ bool IRGenerator::ir_function_define(ast_node * node)
 
     // 函数出口指令
     irCode.addInst(new ExitInstruction(newFunc, retValue));
+
+    // 打印最终IR指令
+    printf("DEBUG: 函数 %s 的最终IR指令数量: %zu\n", 
+           name_node->name.c_str(), irCode.getInsts().size());
 
     // 恢复成外部函数
     module->setCurrentFunction(nullptr);
@@ -1755,6 +1765,8 @@ bool IRGenerator::ir_declare_statment(ast_node * node)
         if (!result) {
             break;
         }
+		// 将变量声明生成的指令添加到当前节点的指令列表中-lxg
+        node->blockInsts.addInst(child->blockInsts);
     }
 
     return result;
@@ -1763,13 +1775,114 @@ bool IRGenerator::ir_declare_statment(ast_node * node)
 /// @brief 变量定声明节点翻译成线性中间IR
 /// @param node AST节点
 /// @return 翻译是否成功，true：成功，false：失败
+// bool IRGenerator::ir_variable_declare(ast_node * node)
+// {
+//     // 共有两个孩子，第一个类型，第二个变量名
+
+//     // TODO 这里可强化类型等检查
+
+//     node->val = module->newVarValue(node->sons[0]->type, node->sons[1]->name);
+
+//     return true;
+// }
+//不仅要创建变量，还要处理初始化值-lxg
 bool IRGenerator::ir_variable_declare(ast_node * node)
 {
-    // 共有两个孩子，第一个类型，第二个变量名
-
-    // TODO 这里可强化类型等检查
-
-    node->val = module->newVarValue(node->sons[0]->type, node->sons[1]->name);
-
+    if (!node || node->sons.size() < 2) {
+        setLastError("变量声明节点格式错误");
+        return false;
+    }
+    
+    // 获取变量类型和名称
+    Type* varType = node->sons[0]->type;
+    std::string varName = node->sons[1]->name;
+    
+    printf("DEBUG: 处理变量声明: %s, 子节点数量: %zu\n", varName.c_str(), node->sons.size());
+    
+    // 创建变量
+    Value* var = module->newVarValue(varType, varName);
+    if (!var) {
+        setLastError("创建变量失败: " + varName);
+        return false;
+    }
+    
+    // 获取当前函数
+    Function* currentFunc = module->getCurrentFunction();
+    
+    // 处理变量初始化（只有局部变量才需要生成初始化指令）
+    if (currentFunc) {
+        // 局部变量初始化
+        // 如果有初始化值（第三个子节点）
+        if (node->sons.size() > 2 && node->sons[2]) {
+            printf("DEBUG: 变量 %s 有初始化表达式\n", varName.c_str());
+            
+            // 处理初始化表达式
+            ast_node* init_expr = ir_visit_ast_node(node->sons[2]);
+            if (!init_expr) {
+                setLastError("处理变量 " + varName + " 的初始化表达式失败");
+                return false;
+            }
+            
+            if (!init_expr->val) {
+                // 如果是整数字面量，直接创建常量
+                if (node->sons[2]->node_type == ast_operator_type::AST_OP_LEAF_LITERAL_UINT) {
+                    uint32_t value = node->sons[2]->integer_val;
+                    ConstInt* constVal = module->newConstInt(value);
+                    
+                    // 生成赋值指令
+                    MoveInstruction* moveInst = new MoveInstruction(
+                        currentFunc,
+                        var,
+                        constVal
+                    );
+                    
+                    // 添加赋值指令
+                    node->blockInsts.addInst(moveInst);
+                    printf("DEBUG: 为局部变量 %s 生成了初始化为%u的指令\n", varName.c_str(), value);
+                } else {
+                    setLastError("变量 " + varName + " 的初始化表达式没有产生有效值");
+                    return false;
+                }
+            } else {
+                printf("DEBUG: 初始化表达式生成的值类型: %s\n", 
+                       init_expr->val->getType()->isInt32Type() ? "int32" : "其他");
+                
+                // 生成赋值指令
+                MoveInstruction* moveInst = new MoveInstruction(
+                    currentFunc,
+                    var,
+                    init_expr->val
+                );
+                
+                // 添加初始化表达式的指令和赋值指令
+                node->blockInsts.addInst(init_expr->blockInsts);
+                node->blockInsts.addInst(moveInst);
+                
+                printf("DEBUG: 为局部变量 %s 生成了初始化指令\n", varName.c_str());
+            }
+        } else {
+            // 对于整数类型的变量，我们可以默认初始化为0
+            if (varType->isInt32Type()) {
+                ConstInt* zeroVal = module->newConstInt(0);
+                MoveInstruction* moveInst = new MoveInstruction(
+                    currentFunc,
+                    var,
+                    zeroVal
+                );
+                node->blockInsts.addInst(moveInst);
+                printf("DEBUG: 为局部变量 %s 生成了默认初始化为0的指令\n", varName.c_str());
+            }
+        }
+    } else {
+        // 全局变量不需要在此处生成初始化指令，它们的初始化会在全局初始化部分处理
+        printf("DEBUG: 创建全局变量 %s\n", varName.c_str());
+        
+        // 如果有初始化值，我们可以记录下来，但在这个简单实现中先忽略
+        if (node->sons.size() > 2 && node->sons[2]) {
+            printf("DEBUG: 全局变量 %s 有初始化表达式，但在当前实现中忽略\n", varName.c_str());
+        }
+    }
+    
+    node->val = var;
     return true;
 }

@@ -53,6 +53,9 @@ enum class ast_operator_type : int {
     /// @brief 函数定义运算符，函数名和返回值类型作为节点的属性，自左到右孩子：AST_OP_FUNC_FORMAL_PARAMS、AST_OP_BLOCK
     AST_OP_FUNC_DEF,
 
+	/// @brief 带初始化的变量定义-lxg
+    AST_OP_VAR_DEF_WITH_INIT,
+
     /// @brief 形式参数列表运算符，可包含多个孩子：AST_OP_FUNC_FORMAL_PARAM
     AST_OP_FUNC_FORMAL_PARAMS,
 

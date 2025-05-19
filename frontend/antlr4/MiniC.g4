@@ -33,8 +33,9 @@ varDecl: basicType varDef (T_COMMA varDef)* T_SEMICOLON;
 // 基本类型
 basicType: T_INT;
 
-// 变量定义
-varDef: T_ID;
+// 变量定义 varDef: T_ID;
+// 修改变量定义，使其支持变量初始化
+varDef: T_ID | T_ID T_ASSIGN expr;
 
 // 目前语句支持return和赋值语句
 //statement:T_RETURN expr T_SEMICOLON			# returnStatement | lVal T_ASSIGN expr T_SEMICOLON	# assignStatement | block								# blockStatement | expr? T_SEMICOLON					# expressionStatement;
