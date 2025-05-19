@@ -18,6 +18,7 @@
 
 #include "GlobalValue.h"
 #include "IRConstant.h"
+#include "../Types/PointerType.h" // 添加此行以引入 ArrayType 类的定义-lxg
 
 ///
 /// @brief 全局变量，寻址时通过符号名或变量名来寻址
@@ -87,10 +88,51 @@ public:
     /// @brief Declare指令IR显示
     /// @param str
     ///
-    void toDeclareString(std::string & str)
-    {
-        str = "declare " + getType()->toString() + " " + getIRName();
-    }
+    // void toDeclareString(std::string & str)
+    // {
+    //     str = "declare " + getType()->toString() + " " + getIRName();
+    // }
+	//修改 ir/Values/GlobalVariable.h 中的 toDeclareString 方法，使其支持数组类型-lxg
+	void toDeclareString(std::string & str)
+	{
+		if (getType()->isArrayType()) {
+			// 数组类型，使用新的格式：declare i32 @a[10][10] ;全局数组a
+			auto* arrayType = static_cast<ArrayType*>(getType());
+			Type* elemType = arrayType->getElementType();
+			const std::vector<int>& dimensions = arrayType->getDimensions();
+			
+			// 检查是否为有效数组 - 数组不应该有空维度，并且维度大小都应该大于0
+			bool isValidArray = !dimensions.empty();
+			for (int dim : dimensions) {
+				if (dim <= 0) {
+					isValidArray = false;
+					break;
+				}
+			}
+			
+			if (isValidArray) {
+				// 输出基本类型和变量名：declare i32 @a
+				str = "declare " + elemType->toString() + " " + getIRName();
+				
+				// 添加数组维度信息：[10][10]
+				for (int dim : dimensions) {
+					str += "[" + std::to_string(dim) + "]";
+				}
+				
+				// 添加注释：;全局数组a
+				std::string realName = getName();
+				if (!realName.empty()) {
+					str += " ;全局数组" + realName;
+				}
+			} else {
+				// 无效的数组，按照普通变量处理
+				str = "declare " + getType()->toString() + " " + getIRName();
+			}
+		} else {
+			// 非数组类型使用原有格式
+			str = "declare " + getType()->toString() + " " + getIRName();
+		}
+	}
 
 private:
     ///

@@ -34,10 +34,25 @@ MoveInstruction::MoveInstruction(Function * _func, Value * _result, Value * _src
 
 /// @brief 转换成字符串显示
 /// @param str 转换后的字符串
-void MoveInstruction::toString(std::string & str)
-{
+// void MoveInstruction::toString(std::string & str)
+// {
 
-    Value *dstVal = getOperand(0), *srcVal = getOperand(1);
+//     Value *dstVal = getOperand(0), *srcVal = getOperand(1);
 
-    str = dstVal->getIRName() + " = " + srcVal->getIRName();
+//     str = dstVal->getIRName() + " = " + srcVal->getIRName();
+// }
+//修改 MoveInstruction::toString 方法以支持指针存储操作的打印
+void MoveInstruction::toString(std::string& str) {
+    Value* dstVal = getOperand(0), *srcVal = getOperand(1);
+
+    if (isPointerStore) {
+        // 指针存储格式：*%t8 = %l4
+        str = "*" + dstVal->getIRName() + " = " + srcVal->getIRName();
+    } else if (isPointerLoad) {
+        // 指针加载格式：%l4 = *%t8
+        str = dstVal->getIRName() + " = *" + srcVal->getIRName();
+    } else {
+        // 普通赋值格式：%l0 = %t52
+        str = dstVal->getIRName() + " = " + srcVal->getIRName();
+    }
 }

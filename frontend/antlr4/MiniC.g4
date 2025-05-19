@@ -36,8 +36,9 @@ varDecl: basicType varDef (T_COMMA varDef)* T_SEMICOLON;
 basicType: T_INT;
 
 // 变量定义 varDef: T_ID;
-// 修改变量定义，使其支持变量初始化
-varDef: T_ID | T_ID T_ASSIGN expr;
+// 修改变量定义，使其支持变量初始化 varDef: T_ID | T_ID T_ASSIGN expr;
+// 修改类型声明,使其支持数组
+varDef: T_ID ('[' expr ']')* | T_ID ('[' expr ']')* T_ASSIGN expr;
 
 // 目前语句支持return和赋值语句
 //statement:T_RETURN expr T_SEMICOLON			# returnStatement | lVal T_ASSIGN expr T_SEMICOLON	# assignStatement | block								# blockStatement | expr? T_SEMICOLON					# expressionStatement;
@@ -100,8 +101,9 @@ primaryExp: T_L_PAREN expr T_R_PAREN | T_DIGIT | lVal;
 // 实参列表
 realParamList: expr (T_COMMA expr)*;
 
-// 左值表达式
-lVal: T_ID;
+// 左值表达式 lVal: T_ID;
+// 修改为左值表达式，支持数组访问
+lVal: T_ID ('[' expr ']')*;
 
 // 用正规式来进行词法规则的描述
 

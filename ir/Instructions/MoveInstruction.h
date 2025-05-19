@@ -28,6 +28,12 @@ class Function;
 ///
 class MoveInstruction : public Instruction {
 
+
+// 在 MoveInstruction.h 中添加
+private:
+    bool isPointerStore = false;  // 是否是通过指针存储值
+    bool isPointerLoad = false;   // 是否是通过指针加载值
+
 public:
     ///
     /// @brief 构造函数
@@ -37,6 +43,26 @@ public:
     ///
     MoveInstruction(Function * _func, Value * result, Value * srcVal1);
 
-    /// @brief 转换成字符串
+    /// @brief 转换成字符串-lxg
     void toString(std::string & str) override;
+
+    // 设置为指针存储操作
+    void setIsPointerStore(bool isStore) {
+        isPointerStore = isStore;
+    }
+    
+    // 获取是否为指针存储操作
+    bool getIsPointerStore() const {
+        return isPointerStore;
+    }
+    
+    // 设置为指针加载操作
+    void setIsPointerLoad(bool isLoad) {
+        isPointerLoad = isLoad;
+    }
+    
+    // 获取是否为指针加载操作
+    bool getIsPointerLoad() const {
+        return isPointerLoad;
+    }
 };

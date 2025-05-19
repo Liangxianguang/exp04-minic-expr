@@ -17,6 +17,7 @@
 #include "Function.h"
 #include "Common.h"
 #include "Type.h"
+#include "../Types/PointerType.h"  // 添加这行，因为ArrayType定义在这个文件中-lxg
 
 /// @brief 含有参数的函数调用
 /// @param srcVal 函数的实参Value
@@ -63,20 +64,57 @@ void FuncCallInstruction::toString(std::string & str)
         str = getIRName() + " = call i32 " + calledFunction->getIRName() + "(";
     }
 
-    if (argCount == 0) {
+    // if (argCount == 0) {
 
-        // 如果没有arg指令，则输出函数的实参
-        for (int32_t k = 0; k < operandsNum; ++k) {
+    //     // 如果没有arg指令，则输出函数的实参
+    //     for (int32_t k = 0; k < operandsNum; ++k) {
 
-            auto operand = getOperand(k);
+    //         auto operand = getOperand(k);
 
-            str += operand->getType()->toString() + " " + operand->getIRName();
+    //         str += operand->getType()->toString() + " " + operand->getIRName();
 
-            if (k != (operandsNum - 1)) {
-                str += ", ";
-            }
-        }
-    }
+    //         if (k != (operandsNum - 1)) {
+    //             str += ", ";
+    //         }
+    //     }
+    // }
+	if (argCount == 0) {
+		// 如果没有arg指令，则输出函数的实参
+		for (int32_t k = 0; k < operandsNum; ++k) {
+			auto operand = getOperand(k);
+			
+			// 处理所有类型的变量
+			if (operand->getType()->isArrayType()) {
+				// 对于数组类型，检查其维度是否有效
+				auto* arrayType = static_cast<ArrayType*>(operand->getType());
+				const std::vector<int>& dimensions = arrayType->getDimensions();
+				
+				// 检查是否为有效数组
+				bool isValidArray = !dimensions.empty();
+				for (int dim : dimensions) {
+					if (dim <= 0) {
+						isValidArray = false;
+						break;
+					}
+				}
+				
+				if (isValidArray) {
+					// 是有效数组，使用元素类型
+					str += arrayType->getElementType()->toString() + " " + operand->getIRName();
+				} else {
+					// 不是有效数组，按普通变量处理
+					str += operand->getType()->toString() + " " + operand->getIRName();
+				}
+			} else {
+				// 其他类型正常输出
+				str += operand->getType()->toString() + " " + operand->getIRName();
+			}
+			
+			if (k != (operandsNum - 1)) {
+				str += ", ";
+			}
+		}
+	}
 
     str += ")";
 

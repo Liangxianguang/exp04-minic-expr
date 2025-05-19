@@ -418,16 +418,47 @@ std::any MiniCCSTVisitor::visitPrimaryExp(MiniCParser::PrimaryExpContext * ctx)
     return node;
 }
 
+// std::any MiniCCSTVisitor::visitLVal(MiniCParser::LValContext * ctx)
+// {
+//     // 识别文法产生式：lVal: T_ID;
+//     // 获取ID的名字
+//     auto varId = ctx->T_ID()->getText();
+
+//     // 获取行号
+//     int64_t lineNo = (int64_t) ctx->T_ID()->getSymbol()->getLine();
+
+//     return ast_node::New(varId, lineNo);
+// }
+
+//修改 visitLVal 方法以支持数组访问-lxg
 std::any MiniCCSTVisitor::visitLVal(MiniCParser::LValContext * ctx)
 {
-    // 识别文法产生式：lVal: T_ID;
-    // 获取ID的名字
+    // 语法规则：lVal: T_ID ('[' expr ']')*;
+    
+    // 获取数组名
     auto varId = ctx->T_ID()->getText();
-
-    // 获取行号
     int64_t lineNo = (int64_t) ctx->T_ID()->getSymbol()->getLine();
-
-    return ast_node::New(varId, lineNo);
+    
+    // 创建数组名节点
+    ast_node* name_node = ast_node::New(varId, lineNo);
+    
+    // 检查是否有索引表达式
+    if (ctx->expr().empty()) {
+        // 如果没有索引，就是普通变量访问
+        return name_node;
+    } else {
+        // 有索引，是数组访问
+        std::vector<ast_node*> indices;
+        
+        // 收集所有索引表达式
+        for (auto exprCtx : ctx->expr()) {
+            ast_node* index = std::any_cast<ast_node*>(visitExpr(exprCtx));
+            indices.push_back(index);
+        }
+        
+        // 创建数组访问节点
+        return create_array_access(name_node, indices);
+    }
 }
 
 // std::any MiniCCSTVisitor::visitVarDecl(MiniCParser::VarDeclContext * ctx)
@@ -509,19 +540,53 @@ std::any MiniCCSTVisitor::visitVarDef(MiniCParser::VarDefContext * ctx)
     // 获取行号
     int64_t lineNo = (int64_t) ctx->T_ID()->getSymbol()->getLine();
 
-	// 创建变量名节点
+    // 创建变量名节点
     ast_node* id_node = ast_node::New(varId, lineNo);
     
-    // 如果有初始化表达式
-    if (ctx->T_ASSIGN() && ctx->expr()) {
+    // 检查是否是数组定义 - 需要有方括号才是数组
+    // 通过直接检查方括号的数量来判断是否是数组定义
+    // MiniC.g4中的数组语法是 T_ID ('[' expr ']')*
+    // 所以我们需要检查'['和']'的数量
+    size_t leftBracketCount = 0;
+    for (auto token : ctx->children) {
+        if (token->getText() == "[") {
+            leftBracketCount++;
+        }
+    }
+    
+    if (leftBracketCount > 0) {
+        // 这是数组定义，处理维度表达式
+        std::vector<ast_node*> dimensions;
+        
+        // 收集维度表达式，每个维度占用两个表达式（[和]中间的表达式）
+        for (size_t i = 0; i < leftBracketCount; i++) {
+            ast_node* dimExpr = std::any_cast<ast_node*>(visitExpr(ctx->expr()[i]));
+            dimensions.push_back(dimExpr);
+        }
+        
+        // 检查是否有初始化表达式
+        if (ctx->T_ASSIGN()) {
+            // 获取初始化表达式
+            ast_node* initExpr = std::any_cast<ast_node*>(visitExpr(ctx->expr()[leftBracketCount]));
+            
+            // 创建数组定义节点，包含初始化表达式
+            return create_array_def(id_node, dimensions, initExpr);
+        } else {
+            // 创建数组定义节点，无初始化表达式
+            return create_array_def(id_node, dimensions);
+        }
+    }
+    
+    // 处理普通变量定义（没有方括号）
+    if (ctx->T_ASSIGN() && !ctx->expr().empty()) {
         // 获取初始化表达式节点
-        ast_node* init_expr = std::any_cast<ast_node*>(visitExpr(ctx->expr()));
+        ast_node* init_expr = std::any_cast<ast_node*>(visitExpr(ctx->expr()[0]));
         
         // 返回包含初始化表达式的节点
         return ast_node::New(ast_operator_type::AST_OP_VAR_DEF_WITH_INIT, id_node, init_expr, nullptr);
     }
 
-    return ast_node::New(varId, lineNo);
+    return id_node;
 }
 
 std::any MiniCCSTVisitor::visitBasicType(MiniCParser::BasicTypeContext * ctx)

@@ -86,6 +86,13 @@ enum class ast_operator_type : int {
     /// @brief 变量声明
     AST_OP_VAR_DECL,
 
+    // 添加数组相关操作码-lxg
+    /// @brief 数组定义
+    AST_OP_ARRAY_DEF,
+    
+    /// @brief 数组访问
+    AST_OP_ARRAY_ACCESS,
+
     /// @brief 二元运算符+
     AST_OP_ADD,
 
@@ -163,6 +170,19 @@ public:
     /// @brief 线性IR指令或者运行产生的Value，用于线性IR指令产生用
     Value * val = nullptr;
 
+	// 添加数组相关处理成员-lxg
+    /// @brief 数组访问时，保存数组变量
+    Value* arrayVar = nullptr;
+    
+    /// @brief 数组访问时，保存偏移量值
+    Value* offsetValue = nullptr;
+    
+    /// @brief 数组访问时产生的最终表达式值
+    Value* exprValue = nullptr;
+    
+	/// @brief 数组访问时，保存数组指针
+	Value* arrayPtr = nullptr;
+
     ///
     /// @brief 在进入block等节点时是否要进行作用域管理。默认要做。
     ///
@@ -219,6 +239,7 @@ public:
     /// @param id 词法值
     /// @param line_no 行号
     static ast_node * New(std::string id, int64_t lineno);
+
 
     /// @brief 创建具备指定类型的节点
     /// @param type 节点值类型
@@ -314,3 +335,17 @@ ast_node * create_var_decl_stmt_node(type_attr & type, var_id_attr & id);
 ///
 ast_node * add_var_decl_node(ast_node * stmt_node, var_id_attr & id);
 
+
+// 添加数组相关操作码-lxg
+/// @brief 创建数组定义节点
+/// @param name_node 数组名节点
+/// @param dims 维度节点列表
+/// @param init_node 初始化值节点(可选)
+/// @return 创建的节点
+ast_node* create_array_def(ast_node* name_node, const std::vector<ast_node*>& dims, ast_node* init_node = nullptr);
+
+/// @brief 创建数组访问节点
+/// @param name_node 数组名节点
+/// @param indices 索引节点列表
+/// @return 创建的节点
+ast_node* create_array_access(ast_node* name_node, const std::vector<ast_node*>& indices);

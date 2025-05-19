@@ -17,6 +17,7 @@
 
 #include "Type.h"
 #include "StorageSet.h"
+#include <vector>
 
 ///
 /// @brief 指针类型
@@ -143,4 +144,82 @@ private:
     /// 例如：指针类型[3 x i32]***的深度为3
     ///
     int32_t depth = 1;
+};
+
+//添加 ArrayType 类的定义和实现-lxg
+///
+/// @brief 数组类型
+///
+class ArrayType : public Type {
+private:
+    /// @brief 元素类型
+    Type* elementType;
+    
+    /// @brief 数组维度数量
+    int dimension;
+    
+    /// @brief 每个维度的大小
+    std::vector<int> dimensions;
+    
+public:
+    /// @brief 构造函数
+    /// @param elemType 元素类型
+    /// @param dims 各维度大小
+    ArrayType(Type* elemType, const std::vector<int>& dims)
+        : Type(ArrayTyID), elementType(elemType), dimensions(dims)
+    {
+        dimension = dimensions.size();
+    }
+    
+    /// @brief 获取元素类型
+    /// @return 元素类型
+    Type* getElementType() const { return elementType; }
+    
+    /// @brief 获取维度数量
+    /// @return 维度数量
+    int getDimension() const { return dimension; }
+    
+    /// @brief 获取各维度大小
+    /// @return 各维度大小数组
+    const std::vector<int>& getDimensions() const { return dimensions; }
+    
+    /// @brief 获取单个元素大小（字节）
+    /// @return 单个元素大小
+    int getElementSize() const { return elementType->getSize(); }
+    
+    /// @brief 获取整个数组占用空间大小（字节）
+    /// @return 整个数组大小
+    int getTotalSize() const {
+        int total = getElementSize();
+        for (int dim : dimensions) {
+            total *= dim;
+        }
+        return total;
+    }
+    
+    /// @brief 获取类型大小
+    /// @return 整个数组大小
+    int32_t getSize() const override { return getTotalSize(); }
+    
+    /// @brief 获取类型字符串表示
+    /// @return 类型字符串
+    std::string toString() const override {
+        std::string result = elementType->toString() + "[";
+        for (size_t i = 0; i < dimensions.size(); i++) {
+            if (i > 0) {
+                result += "][";
+            }
+            result += std::to_string(dimensions[i]);
+        }
+        result += "]";
+        return result;
+    }
+    
+    /// @brief 创建数组类型的静态方法
+    /// @param elemType 元素类型
+    /// @param dims 维度大小列表
+    /// @return 数组类型指针
+    static ArrayType* get(Type* elemType, const std::vector<int>& dims) {
+        return new ArrayType(elemType, dims);
+    }
 };

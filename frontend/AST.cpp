@@ -426,3 +426,55 @@ ast_node * create_func_formal_param(Type * type, const std::string & param_name,
     
     return paramNode;
 }
+
+/// @brief 创建数组定义节点-lxg
+/// @param name_node 数组名节点
+/// @param dims 维度节点列表
+/// @param init_node 初始化值节点(可选)
+/// @return 创建的节点
+ast_node* create_array_def(ast_node* name_node, const std::vector<ast_node*>& dims, ast_node* init_node)
+{
+    // 创建数组定义节点
+    ast_node* array_def_node = new ast_node(ast_operator_type::AST_OP_ARRAY_DEF);
+    
+    // 保存数组名
+    array_def_node->name = name_node->name;
+    
+    // 添加数组名节点
+    array_def_node->insert_son_node(name_node);
+    
+    // 添加维度节点
+    for (ast_node* dim : dims) {
+        array_def_node->insert_son_node(dim);
+    }
+    
+    // 添加初始化值节点（如果有）
+    if (init_node) {
+        array_def_node->insert_son_node(init_node);
+    }
+    
+    return array_def_node;
+}
+
+/// @brief 创建数组访问节点
+/// @param name_node 数组名节点
+/// @param indices 索引节点列表
+/// @return 创建的节点
+ast_node* create_array_access(ast_node* name_node, const std::vector<ast_node*>& indices)
+{
+    // 创建数组访问节点
+    ast_node* array_access_node = new ast_node(ast_operator_type::AST_OP_ARRAY_ACCESS);
+    
+    // 保存数组名
+    array_access_node->name = name_node->name;
+    
+    // 添加数组名节点
+    array_access_node->insert_son_node(name_node);
+    
+    // 添加索引节点
+    for (ast_node* index : indices) {
+        array_access_node->insert_son_node(index);
+    }
+    
+    return array_access_node;
+}

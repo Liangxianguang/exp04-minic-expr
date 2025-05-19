@@ -19,6 +19,7 @@
 
 #include "IRConstant.h"
 #include "Function.h"
+#include "Types/PointerType.h"  // 包含 ArrayType 定义-lxg
 
 /// @brief 指定函数名字、函数类型的构造函数
 /// @param _name 函数名称
@@ -100,20 +101,38 @@ void Function::toString(std::string & str)
 
     str += "{\n";
 
-    // 输出局部变量的名字与IR名字
-    for (auto & var: this->varsVector) {
-
-        // 局部变量和临时变量需要输出declare语句
-        str += "\tdeclare " + var->getType()->toString() + " " + var->getIRName();
-
-        std::string extraStr;
-        std::string realName = var->getName();
-        if (!realName.empty()) {
-            str += " ; " + std::to_string(var->getScopeLevel()) + ":" + realName;
-        }
-
-        str += "\n";
-    }
+	// 输出局部变量的名字与IR名字
+	for (auto & var: this->varsVector) {
+		if (var->getType()->isArrayType()) {
+			// 数组类型，使用新的格式：declare i32 %l1[10][10] ;数组a
+			auto* arrayType = static_cast<ArrayType*>(var->getType());
+			Type* elemType = arrayType->getElementType();
+			const std::vector<int>& dimensions = arrayType->getDimensions();
+			
+			// 输出基本类型和变量名：declare i32 %l1
+			str += "\tdeclare " + elemType->toString() + " " + var->getIRName();
+			
+			// 添加数组维度信息：[10][10]
+			for (int dim : dimensions) {
+				str += "[" + std::to_string(dim) + "]";
+			}
+			
+			// 添加注释：;数组a
+			std::string realName = var->getName();
+			if (!realName.empty()) {
+				str += " ;数组" + realName;
+			}
+		} else {
+			// 非数组类型使用原有格式
+			str += "\tdeclare " + var->getType()->toString() + " " + var->getIRName();
+			
+			std::string realName = var->getName();
+			if (!realName.empty()) {
+				str += " ; " + std::to_string(var->getScopeLevel()) + ":" + realName;
+			}
+		}
+		str += "\n";
+	}
 
     // 输出临时变量的declare形式
     // 遍历所有的线性IR指令，文本输出
