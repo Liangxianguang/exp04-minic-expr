@@ -86,6 +86,9 @@ enum class ast_operator_type : int {
     /// @brief 变量声明
     AST_OP_VAR_DECL,
 
+	/// @brief 空语句
+	AST_OP_EMPTY_STMT,
+	
     // 添加数组相关操作码-lxg
     /// @brief 数组定义
     AST_OP_ARRAY_DEF,

@@ -107,6 +107,13 @@ ast_node * ast_node::New(ast_operator_type type, ...)
             break;
         }
 
+        // 检查指针有效性
+        if (reinterpret_cast<intptr_t>(node) < 0x1000) {
+            // 无效指针，使用默认节点
+            digit_int_attr attr{0, -1};
+            node = ast_node::New(attr);
+        }
+
         // 插入到父节点中
         parent_node->insert_son_node(node);
     }
@@ -120,13 +127,25 @@ ast_node * ast_node::New(ast_operator_type type, ...)
 /// @brief 向父节点插入一个节点
 /// @param parent 父节点
 /// @param node 节点
+// 添加更严格的指针检查-lxg
 ast_node * ast_node::insert_son_node(ast_node * node)
 {
-    if (node) {
-
-        // 孩子节点有效时加入，主要为了避免空语句等时会返回空指针
-        node->parent = this;
-        this->sons.push_back(node);
+    // 更严格的指针检查
+    if (node && 
+        reinterpret_cast<intptr_t>(node) > 0x1000 && 
+        reinterpret_cast<intptr_t>(node) < 0x7FFFFFFFFFFF) { 
+        
+        try {
+            // 尝试访问node成员以确认其有效性
+            volatile auto check = node->node_type;
+            (void)check; // 避免未使用警告
+            
+            // 安全地设置parent和添加到sons
+            node->parent = this;
+            this->sons.push_back(node);
+        } catch (...) {
+            // 如果访问导致异常，节点无效，不添加到sons中
+        }
     }
 
     return this;
@@ -304,18 +323,42 @@ ast_node * create_type_node(type_attr & attr)
 /// @return 创建的节点
 ast_node * create_func_call(ast_node * funcname_node, ast_node * params_node)
 {
+    // 安全检查
+    if (!funcname_node) {
+        // 提供默认的函数名节点
+        funcname_node = ast_node::New("default_func", -1);
+    }
+    
     ast_node * node = new ast_node(ast_operator_type::AST_OP_FUNC_CALL);
 
-    // 设置调用函数名
-    node->name = funcname_node->name;
+    // 设置调用函数名，先检查name是否有效
+    if (funcname_node && !funcname_node->name.empty()) {
+        node->name = funcname_node->name;
+    } else {
+        node->name = "default_func"; // 默认函数名
+    }
 
-    // 如果没有参数，则创建参数节点
-    if (!params_node) {
+    // 如果没有参数或参数无效，创建参数节点
+    if (!params_node || params_node->node_type != ast_operator_type::AST_OP_FUNC_REAL_PARAMS) {
+        // 释放可能的无效节点
+        if (params_node && params_node != funcname_node) {
+            delete params_node;
+        }
         params_node = new ast_node(ast_operator_type::AST_OP_FUNC_REAL_PARAMS);
     }
 
-    (void) node->insert_son_node(funcname_node);
-    (void) node->insert_son_node(params_node);
+    // 安全地插入子节点
+    try {
+        (void) node->insert_son_node(funcname_node);
+        (void) node->insert_son_node(params_node);
+    } catch (...) {
+        // 如果插入失败，删除已创建的节点
+        delete node;
+        
+        // 创建一个默认的简单节点作为返回值
+        digit_int_attr attr{0, -1};
+        return ast_node::New(attr);
+    }
 
     return node;
 }

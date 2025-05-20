@@ -124,7 +124,7 @@ string getNodeName(ast_node * astnode)
 		case ast_operator_type::AST_OP_LOGIC_NOT:
 			nodeName = "!";
 			break;
-
+		
 		// 控制流语句
 		case ast_operator_type::AST_OP_IF:
 			nodeName = "if";
@@ -141,6 +141,24 @@ string getNodeName(ast_node * astnode)
 		case ast_operator_type::AST_OP_CONTINUE:
 			nodeName = "continue";
 			break;
+
+		        // 增加以下节点类型处理
+        case ast_operator_type::AST_OP_EMPTY_STMT:
+            nodeName = "empty-stmt";
+            break;
+            
+        case ast_operator_type::AST_OP_ARRAY_DEF:
+            nodeName = "array-def";
+            break;
+            
+        case ast_operator_type::AST_OP_ARRAY_ACCESS:
+            nodeName = "array-access";
+            break;
+            
+        case ast_operator_type::AST_OP_FUNC_FORMAL_PARAM:
+            nodeName = "formal-param";
+            break;
+
         default:
             nodeName = "unknown";
             break;

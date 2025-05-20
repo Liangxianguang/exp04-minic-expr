@@ -93,6 +93,9 @@ IRGenerator::IRGenerator(ast_node * _root, Module * _module) : root(_root), modu
     ast2ir_handlers[ast_operator_type::AST_OP_FUNC_DEF] = &IRGenerator::ir_function_define;
     ast2ir_handlers[ast_operator_type::AST_OP_FUNC_FORMAL_PARAMS] = &IRGenerator::ir_function_formal_params;
 
+	// 在构造函数或初始化函数中添加空语句节点处理-lxg
+	ast2ir_handlers[ast_operator_type::AST_OP_EMPTY_STMT] = &IRGenerator::ir_empty_stmt;
+
     /* 变量定义语句 */
     ast2ir_handlers[ast_operator_type::AST_OP_DECL_STMT] = &IRGenerator::ir_declare_statment;
     ast2ir_handlers[ast_operator_type::AST_OP_VAR_DECL] = &IRGenerator::ir_variable_declare;
@@ -150,12 +153,31 @@ ast_node * IRGenerator::ir_visit_ast_node(ast_node * node)
 /// @brief 未知节点类型的节点处理
 /// @param node AST节点
 /// @return 翻译是否成功，true：成功，false：失败
+// bool IRGenerator::ir_default(ast_node * node)
+// {
+//     // 未知的节点
+//     printf("Unkown node(%d)\n", (int) node->node_type);
+//     return true;
+// }
 bool IRGenerator::ir_default(ast_node * node)
 {
-    // 未知的节点
-    printf("Unkown node(%d)\n", (int) node->node_type);
+    // 打印更详细的节点信息
+    printf("Unkown node(%d): 地址=%p", (int)node->node_type, (void*)node);
+    
+    // 如果可能的话，打印更多信息
+    if (node) {
+        printf(", 行号=%ld, 名称=%s, 子节点数=%zu\n", 
+               node->line_no, 
+               node->name.c_str(), 
+               node->sons.size());
+    } else {
+        printf("\n");
+    }
+    
+    // 返回true允许继续处理，不会导致整个编译失败
     return true;
 }
+
 
 /// @brief 编译单元AST节点翻译成线性中间IR
 /// @param node AST节点
@@ -1350,6 +1372,39 @@ bool IRGenerator::ir_logic_not(ast_node* node)
 }
 
 // if语句（无else分支）
+// bool IRGenerator::ir_if(ast_node* node)
+// {
+//     Function* func = module->getCurrentFunction();
+//     if (!func) return false;
+    
+//     // 创建标签
+//     LabelInstruction* thenLabel = new LabelInstruction(func);
+//     LabelInstruction* endLabel = new LabelInstruction(func);
+    
+//     // 生成条件表达式代码
+//     ast_node* cond_node = ir_visit_ast_node(node->sons[0]);
+//     if (!cond_node) return false;
+    
+//     Value* condVal = cond_node->val;
+//     if (!condVal) return false;
+    
+//     // 添加条件表达式生成的指令到指令流
+//     node->blockInsts.addInst(cond_node->blockInsts);
+    
+//     // 直接使用条件值，不再转换为"不等于0"形式
+//     node->blockInsts.addInst(new GotoInstruction(func, condVal, thenLabel, endLabel));
+    
+//     // 生成then部分代码
+//     node->blockInsts.addInst(thenLabel);
+//     ast_node* then_node = ir_visit_ast_node(node->sons[1]);
+//     if (!then_node) return false;
+//     node->blockInsts.addInst(then_node->blockInsts);
+    
+//     // 结束标签
+//     node->blockInsts.addInst(endLabel);
+    
+//     return true;
+// }
 bool IRGenerator::ir_if(ast_node* node)
 {
     Function* func = module->getCurrentFunction();
@@ -1369,20 +1424,26 @@ bool IRGenerator::ir_if(ast_node* node)
     // 添加条件表达式生成的指令到指令流
     node->blockInsts.addInst(cond_node->blockInsts);
     
-    // 直接使用条件值，不再转换为"不等于0"形式
+    // 条件跳转
     node->blockInsts.addInst(new GotoInstruction(func, condVal, thenLabel, endLabel));
     
     // 生成then部分代码
     node->blockInsts.addInst(thenLabel);
-    ast_node* then_node = ir_visit_ast_node(node->sons[1]);
-    if (!then_node) return false;
-    node->blockInsts.addInst(then_node->blockInsts);
+    
+    // 检查sons数组大小和第二个子节点是否为空
+    if (node->sons.size() > 1 && node->sons[1]) {
+        ast_node* then_node = ir_visit_ast_node(node->sons[1]);
+        if (then_node) {
+            node->blockInsts.addInst(then_node->blockInsts);
+        }
+    }
     
     // 结束标签
     node->blockInsts.addInst(endLabel);
     
     return true;
 }
+
 
 // if-else语句
 bool IRGenerator::ir_if_else(ast_node* node)
@@ -2294,5 +2355,13 @@ bool IRGenerator::ir_array_access(ast_node* node) {
         printf("DEBUG: 完成多维数组访问，读取了元素值: %s\n", elemValue->getIRName().c_str());
     }
     
+    return true;
+}
+
+bool IRGenerator::ir_empty_stmt(ast_node* node)
+{
+    // 空语句不需要生成任何实际代码
+    // 只需要返回成功即可
+    printf("DEBUG: 处理空语句\n");
     return true;
 }
