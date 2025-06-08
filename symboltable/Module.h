@@ -122,6 +122,14 @@ public:
     /// @return 指针有效则找到，空指针未找到
     Value * findVarValue(std::string name);
 
+    /// @brief 使用指定的Value创建变量符号表项（用于数组参数）-lxg
+    /// ! 该函数只有在AST遍历生成线性IR中使用，其它地方不能使用
+    /// @param type 变量类型
+    /// @param name 变量名
+    /// @param value 已存在的Value对象
+    /// @return 成功返回该Value，失败返回nullptr
+    Value * newVarValueWithValue(Type * type, const std::string & name, Value * value);
+
     /// @brief 清理Module中管理的所有信息资源
     void Delete();
 

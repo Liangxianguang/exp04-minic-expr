@@ -1,0 +1,834 @@
+@dp = global [18 x [18 x [18 x [18 x [18 x [7 x i32]]]]]] zeroinitializer, align 16
+@list = global [200 x i32] zeroinitializer, align 16
+@cns = global [20 x i32] zeroinitializer, align 16
+define i32 @equal(i32 %t0, i32 %t1) {
+	%l2 = alloca i32, align 4
+	%l3 = alloca i32, align 4
+	%l4 = alloca i32, align 4
+	%l5 = alloca i1, align 4
+	store i32 %t0, i32* %l2, align 4
+	store i32 %t1, i32* %l3, align 4
+	%t7 = load i32, i32* %l2, align 4
+	%t8 = load i32, i32* %l3, align 4
+	%t6 = icmp eq i32 %t7, %t8
+	store i1 %t6, i1* %l5, align 4
+	%t9 = load i1, i1* %l5, align 4
+	br i1 %t9, label %.L7, label %.L8
+.L7:
+	store i32 1, i32* %l4, align 4
+	br label %.L9
+.L8:
+	store i32 0, i32* %l4, align 4
+	br label %.L9
+.L9:
+	%t10 = load i32, i32* %l4, align 4
+	ret i32 %t10
+}
+define i32 @dfs(i32 %t0, i32 %t1, i32 %t2, i32 %t3, i32 %t4, i32 %t5) {
+	%l10 = alloca i32, align 4
+	%l11 = alloca i32, align 4
+	%l12 = alloca i32, align 4
+	%l13 = alloca i32, align 4
+	%l14 = alloca i32, align 4
+	%l15 = alloca i32, align 4
+	%l16 = alloca i32, align 4
+	%l17 = alloca i32, align 4
+	%l18 = alloca i32, align 4
+	%l19 = alloca i32, align 4
+	%l20 = alloca i32*, align 4
+	%l21 = alloca i32, align 4
+	%l22 = alloca i1, align 4
+	%l23 = alloca i32, align 4
+	%l24 = alloca i32, align 4
+	%l25 = alloca i32, align 4
+	%l26 = alloca i32, align 4
+	%l27 = alloca i32, align 4
+	%l28 = alloca i32, align 4
+	%l29 = alloca i32, align 4
+	%l30 = alloca i32*, align 4
+	%l31 = alloca i32, align 4
+	%l32 = alloca i1, align 4
+	%l33 = alloca i32, align 4
+	%l34 = alloca i32, align 4
+	%l35 = alloca i32, align 4
+	%l36 = alloca i32, align 4
+	%l37 = alloca i32, align 4
+	%l38 = alloca i32, align 4
+	%l39 = alloca i32, align 4
+	%l40 = alloca i32, align 4
+	%l41 = alloca i32*, align 4
+	%l42 = alloca i32, align 4
+	%l43 = alloca i32, align 4
+	%l44 = alloca i32, align 4
+	%l45 = alloca i32, align 4
+	%l46 = alloca i32, align 4
+	%l47 = alloca i32, align 4
+	%l48 = alloca i32, align 4
+	%l49 = alloca i32, align 4
+	%l50 = alloca i32*, align 4
+	%l51 = alloca i32, align 4
+	%l6 = alloca i32, align 4
+	%l7 = alloca i32, align 4
+	%l8 = alloca i32, align 4
+	%l9 = alloca i32, align 4
+	store i32 %t0, i32* %l6, align 4
+	store i32 %t1, i32* %l7, align 4
+	store i32 %t2, i32* %l8, align 4
+	store i32 %t3, i32* %l9, align 4
+	store i32 %t4, i32* %l10, align 4
+	store i32 %t5, i32* %l11, align 4
+	%t144 = load i32, i32* %l6, align 4
+	store i32 %t144, i32* %l13, align 4
+	%t145 = load i32, i32* %l13, align 4
+	%t52 = mul nsw i32 %t145, 734832
+	store i32 %t52, i32* %l14, align 4
+	%t146 = load i32, i32* %l14, align 4
+	%t147 = load i32, i32* %l7, align 4
+	%t53 = add nsw i32 %t146, %t147
+	store i32 %t53, i32* %l13, align 4
+	%t148 = load i32, i32* %l13, align 4
+	%t54 = mul nsw i32 %t148, 40824
+	store i32 %t54, i32* %l15, align 4
+	%t149 = load i32, i32* %l15, align 4
+	%t150 = load i32, i32* %l8, align 4
+	%t55 = add nsw i32 %t149, %t150
+	store i32 %t55, i32* %l13, align 4
+	%t151 = load i32, i32* %l13, align 4
+	%t56 = mul nsw i32 %t151, 2268
+	store i32 %t56, i32* %l16, align 4
+	%t152 = load i32, i32* %l16, align 4
+	%t153 = load i32, i32* %l9, align 4
+	%t57 = add nsw i32 %t152, %t153
+	store i32 %t57, i32* %l13, align 4
+	%t154 = load i32, i32* %l13, align 4
+	%t58 = mul nsw i32 %t154, 126
+	store i32 %t58, i32* %l17, align 4
+	%t155 = load i32, i32* %l17, align 4
+	%t156 = load i32, i32* %l10, align 4
+	%t59 = add nsw i32 %t155, %t156
+	store i32 %t59, i32* %l13, align 4
+	%t157 = load i32, i32* %l13, align 4
+	%t60 = mul nsw i32 %t157, 7
+	store i32 %t60, i32* %l18, align 4
+	%t158 = load i32, i32* %l18, align 4
+	%t159 = load i32, i32* %l11, align 4
+	%t61 = add nsw i32 %t158, %t159
+	store i32 %t61, i32* %l13, align 4
+	%t160 = load i32, i32* %l13, align 4
+	%t62 = mul nsw i32 %t160, 4
+	store i32 %t62, i32* %l19, align 4
+	%t161 = getelementptr inbounds [18 x [18 x [18 x [18 x [18 x [7 x i32]]]]]], [18 x [18 x [18 x [18 x [18 x [7 x i32]]]]]]* @dp, i64 0, i64 0, i64 0, i64 0, i64 0, i64 0, i64 0
+	%t162 = load i32, i32* %l19, align 4
+	%t163 = bitcast i32* %t161 to i8*
+	%t165 = sext i32 %t162 to i64
+	%t164 = getelementptr inbounds i8, i8* %t163, i64 %t165
+	%t63 = bitcast i8* %t164 to i32*
+	store i32* %t63, i32** %l20, align 4
+	%t166 = load i32*, i32** %l20, align 4
+	%t167 = load i32, i32* %t166, align 4
+	store i32 %t167, i32* %l21, align 4
+	%t168 = load i32, i32* %l21, align 4
+	%t64 = icmp ne i32 %t168, -1
+	store i1 %t64, i1* %l22, align 4
+	%t169 = load i1, i1* %l22, align 4
+	br i1 %t169, label %.L65, label %.L78
+.L65:
+	%t170 = load i32, i32* %l6, align 4
+	store i32 %t170, i32* %l23, align 4
+	%t171 = load i32, i32* %l23, align 4
+	%t65 = mul nsw i32 %t171, 734832
+	store i32 %t65, i32* %l24, align 4
+	%t172 = load i32, i32* %l24, align 4
+	%t173 = load i32, i32* %l7, align 4
+	%t66 = add nsw i32 %t172, %t173
+	store i32 %t66, i32* %l23, align 4
+	%t174 = load i32, i32* %l23, align 4
+	%t67 = mul nsw i32 %t174, 40824
+	store i32 %t67, i32* %l25, align 4
+	%t175 = load i32, i32* %l25, align 4
+	%t176 = load i32, i32* %l8, align 4
+	%t68 = add nsw i32 %t175, %t176
+	store i32 %t68, i32* %l23, align 4
+	%t177 = load i32, i32* %l23, align 4
+	%t69 = mul nsw i32 %t177, 2268
+	store i32 %t69, i32* %l26, align 4
+	%t178 = load i32, i32* %l26, align 4
+	%t179 = load i32, i32* %l9, align 4
+	%t70 = add nsw i32 %t178, %t179
+	store i32 %t70, i32* %l23, align 4
+	%t180 = load i32, i32* %l23, align 4
+	%t71 = mul nsw i32 %t180, 126
+	store i32 %t71, i32* %l27, align 4
+	%t181 = load i32, i32* %l27, align 4
+	%t182 = load i32, i32* %l10, align 4
+	%t72 = add nsw i32 %t181, %t182
+	store i32 %t72, i32* %l23, align 4
+	%t183 = load i32, i32* %l23, align 4
+	%t73 = mul nsw i32 %t183, 7
+	store i32 %t73, i32* %l28, align 4
+	%t184 = load i32, i32* %l28, align 4
+	%t185 = load i32, i32* %l11, align 4
+	%t74 = add nsw i32 %t184, %t185
+	store i32 %t74, i32* %l23, align 4
+	%t186 = load i32, i32* %l23, align 4
+	%t75 = mul nsw i32 %t186, 4
+	store i32 %t75, i32* %l29, align 4
+	%t187 = getelementptr inbounds [18 x [18 x [18 x [18 x [18 x [7 x i32]]]]]], [18 x [18 x [18 x [18 x [18 x [7 x i32]]]]]]* @dp, i64 0, i64 0, i64 0, i64 0, i64 0, i64 0, i64 0
+	%t188 = load i32, i32* %l29, align 4
+	%t189 = bitcast i32* %t187 to i8*
+	%t191 = sext i32 %t188 to i64
+	%t190 = getelementptr inbounds i8, i8* %t189, i64 %t191
+	%t76 = bitcast i8* %t190 to i32*
+	store i32* %t76, i32** %l30, align 4
+	%t192 = load i32*, i32** %l30, align 4
+	%t193 = load i32, i32* %t192, align 4
+	store i32 %t193, i32* %l31, align 4
+	%t194 = load i32, i32* %l31, align 4
+	store i32 %t194, i32* %l12, align 4
+	br label %.L158
+.L78:
+	%t195 = load i32, i32* %l6, align 4
+	%t196 = load i32, i32* %l7, align 4
+	%t77 = add nsw i32 %t195, %t196
+	%t197 = load i32, i32* %l8, align 4
+	%t78 = add nsw i32 %t77, %t197
+	%t198 = load i32, i32* %l9, align 4
+	%t79 = add nsw i32 %t78, %t198
+	%t199 = load i32, i32* %l10, align 4
+	%t80 = add nsw i32 %t79, %t199
+	%t81 = icmp eq i32 %t80, 0
+	store i1 %t81, i1* %l32, align 4
+	%t200 = load i1, i1* %l32, align 4
+	br i1 %t200, label %.L84, label %.L85
+.L84:
+	store i32 1, i32* %l12, align 4
+	br label %.L158
+.L85:
+	store i32 0, i32* %l33, align 4
+	store i32 0, i32* %l33, align 4
+	%t201 = load i32, i32* %l6, align 4
+	%t202 = icmp ne i32 %t201, 0
+	br i1 %t202, label %.L86, label %.L94
+.L86:
+	%t203 = load i32, i32* %l11, align 4
+	%t82 = call i32 @equal(i32 %t203, i32 2)
+	%t204 = load i32, i32* %l6, align 4
+	%t83 = sub nsw i32 %t204, %t82
+	%t205 = load i32, i32* %l6, align 4
+	%t84 = sub nsw i32 %t205, 1
+	%t206 = load i32, i32* %l7, align 4
+	%t207 = load i32, i32* %l8, align 4
+	%t208 = load i32, i32* %l9, align 4
+	%t209 = load i32, i32* %l10, align 4
+	%t85 = call i32 @dfs(i32 %t84, i32 %t206, i32 %t207, i32 %t208, i32 %t209, i32 1)
+	%t86 = mul nsw i32 %t83, %t85
+	%t210 = load i32, i32* %l33, align 4
+	%t87 = add nsw i32 %t210, %t86
+	%t88 = srem i32 %t87, 1000000007
+	store i32 %t88, i32* %l33, align 4
+	br label %.L94
+.L94:
+	%t211 = load i32, i32* %l7, align 4
+	%t212 = icmp ne i32 %t211, 0
+	br i1 %t212, label %.L95, label %.L104
+.L95:
+	%t213 = load i32, i32* %l11, align 4
+	%t89 = call i32 @equal(i32 %t213, i32 3)
+	%t214 = load i32, i32* %l7, align 4
+	%t90 = sub nsw i32 %t214, %t89
+	%t215 = load i32, i32* %l6, align 4
+	%t91 = add nsw i32 %t215, 1
+	%t216 = load i32, i32* %l7, align 4
+	%t92 = sub nsw i32 %t216, 1
+	%t217 = load i32, i32* %l8, align 4
+	%t218 = load i32, i32* %l9, align 4
+	%t219 = load i32, i32* %l10, align 4
+	%t93 = call i32 @dfs(i32 %t91, i32 %t92, i32 %t217, i32 %t218, i32 %t219, i32 2)
+	%t94 = mul nsw i32 %t90, %t93
+	%t220 = load i32, i32* %l33, align 4
+	%t95 = add nsw i32 %t220, %t94
+	%t96 = srem i32 %t95, 1000000007
+	store i32 %t96, i32* %l33, align 4
+	br label %.L104
+.L104:
+	%t221 = load i32, i32* %l8, align 4
+	%t222 = icmp ne i32 %t221, 0
+	br i1 %t222, label %.L105, label %.L114
+.L105:
+	%t223 = load i32, i32* %l11, align 4
+	%t97 = call i32 @equal(i32 %t223, i32 4)
+	%t224 = load i32, i32* %l8, align 4
+	%t98 = sub nsw i32 %t224, %t97
+	%t225 = load i32, i32* %l7, align 4
+	%t99 = add nsw i32 %t225, 1
+	%t226 = load i32, i32* %l8, align 4
+	%t100 = sub nsw i32 %t226, 1
+	%t227 = load i32, i32* %l6, align 4
+	%t228 = load i32, i32* %l9, align 4
+	%t229 = load i32, i32* %l10, align 4
+	%t101 = call i32 @dfs(i32 %t227, i32 %t99, i32 %t100, i32 %t228, i32 %t229, i32 3)
+	%t102 = mul nsw i32 %t98, %t101
+	%t230 = load i32, i32* %l33, align 4
+	%t103 = add nsw i32 %t230, %t102
+	%t104 = srem i32 %t103, 1000000007
+	store i32 %t104, i32* %l33, align 4
+	br label %.L114
+.L114:
+	%t231 = load i32, i32* %l9, align 4
+	%t232 = icmp ne i32 %t231, 0
+	br i1 %t232, label %.L115, label %.L124
+.L115:
+	%t233 = load i32, i32* %l11, align 4
+	%t105 = call i32 @equal(i32 %t233, i32 5)
+	%t234 = load i32, i32* %l9, align 4
+	%t106 = sub nsw i32 %t234, %t105
+	%t235 = load i32, i32* %l8, align 4
+	%t107 = add nsw i32 %t235, 1
+	%t236 = load i32, i32* %l9, align 4
+	%t108 = sub nsw i32 %t236, 1
+	%t237 = load i32, i32* %l6, align 4
+	%t238 = load i32, i32* %l7, align 4
+	%t239 = load i32, i32* %l10, align 4
+	%t109 = call i32 @dfs(i32 %t237, i32 %t238, i32 %t107, i32 %t108, i32 %t239, i32 4)
+	%t110 = mul nsw i32 %t106, %t109
+	%t240 = load i32, i32* %l33, align 4
+	%t111 = add nsw i32 %t240, %t110
+	%t112 = srem i32 %t111, 1000000007
+	store i32 %t112, i32* %l33, align 4
+	br label %.L124
+.L124:
+	%t241 = load i32, i32* %l10, align 4
+	%t242 = icmp ne i32 %t241, 0
+	br i1 %t242, label %.L125, label %.L132
+.L125:
+	%t243 = load i32, i32* %l9, align 4
+	%t113 = add nsw i32 %t243, 1
+	%t244 = load i32, i32* %l10, align 4
+	%t114 = sub nsw i32 %t244, 1
+	%t245 = load i32, i32* %l6, align 4
+	%t246 = load i32, i32* %l7, align 4
+	%t247 = load i32, i32* %l8, align 4
+	%t115 = call i32 @dfs(i32 %t245, i32 %t246, i32 %t247, i32 %t113, i32 %t114, i32 5)
+	%t248 = load i32, i32* %l10, align 4
+	%t116 = mul nsw i32 %t248, %t115
+	%t249 = load i32, i32* %l33, align 4
+	%t117 = add nsw i32 %t249, %t116
+	%t118 = srem i32 %t117, 1000000007
+	store i32 %t118, i32* %l33, align 4
+	br label %.L132
+.L132:
+	%t250 = load i32, i32* %l33, align 4
+	%t119 = srem i32 %t250, 1000000007
+	%t251 = load i32, i32* %l6, align 4
+	store i32 %t251, i32* %l34, align 4
+	%t252 = load i32, i32* %l34, align 4
+	%t120 = mul nsw i32 %t252, 734832
+	store i32 %t120, i32* %l35, align 4
+	%t253 = load i32, i32* %l35, align 4
+	%t254 = load i32, i32* %l7, align 4
+	%t121 = add nsw i32 %t253, %t254
+	store i32 %t121, i32* %l34, align 4
+	%t255 = load i32, i32* %l34, align 4
+	%t122 = mul nsw i32 %t255, 40824
+	store i32 %t122, i32* %l36, align 4
+	%t256 = load i32, i32* %l36, align 4
+	%t257 = load i32, i32* %l8, align 4
+	%t123 = add nsw i32 %t256, %t257
+	store i32 %t123, i32* %l34, align 4
+	%t258 = load i32, i32* %l34, align 4
+	%t124 = mul nsw i32 %t258, 2268
+	store i32 %t124, i32* %l37, align 4
+	%t259 = load i32, i32* %l37, align 4
+	%t260 = load i32, i32* %l9, align 4
+	%t125 = add nsw i32 %t259, %t260
+	store i32 %t125, i32* %l34, align 4
+	%t261 = load i32, i32* %l34, align 4
+	%t126 = mul nsw i32 %t261, 126
+	store i32 %t126, i32* %l38, align 4
+	%t262 = load i32, i32* %l38, align 4
+	%t263 = load i32, i32* %l10, align 4
+	%t127 = add nsw i32 %t262, %t263
+	store i32 %t127, i32* %l34, align 4
+	%t264 = load i32, i32* %l34, align 4
+	%t128 = mul nsw i32 %t264, 7
+	store i32 %t128, i32* %l39, align 4
+	%t265 = load i32, i32* %l39, align 4
+	%t266 = load i32, i32* %l11, align 4
+	%t129 = add nsw i32 %t265, %t266
+	store i32 %t129, i32* %l34, align 4
+	%t267 = load i32, i32* %l34, align 4
+	%t130 = mul nsw i32 %t267, 4
+	store i32 %t130, i32* %l40, align 4
+	%t268 = getelementptr inbounds [18 x [18 x [18 x [18 x [18 x [7 x i32]]]]]], [18 x [18 x [18 x [18 x [18 x [7 x i32]]]]]]* @dp, i64 0, i64 0, i64 0, i64 0, i64 0, i64 0, i64 0
+	%t269 = load i32, i32* %l40, align 4
+	%t270 = bitcast i32* %t268 to i8*
+	%t272 = sext i32 %t269 to i64
+	%t271 = getelementptr inbounds i8, i8* %t270, i64 %t272
+	%t131 = bitcast i8* %t271 to i32*
+	store i32* %t131, i32** %l41, align 4
+	%t273 = load i32*, i32** %l41, align 4
+	%t274 = load i32, i32* %t273, align 4
+	store i32 %t274, i32* %l42, align 4
+	%t275 = load i32*, i32** %l41, align 4
+	store i32 %t119, i32* %t275, align 4
+	%t276 = load i32, i32* %l6, align 4
+	store i32 %t276, i32* %l43, align 4
+	%t277 = load i32, i32* %l43, align 4
+	%t132 = mul nsw i32 %t277, 734832
+	store i32 %t132, i32* %l44, align 4
+	%t278 = load i32, i32* %l44, align 4
+	%t279 = load i32, i32* %l7, align 4
+	%t133 = add nsw i32 %t278, %t279
+	store i32 %t133, i32* %l43, align 4
+	%t280 = load i32, i32* %l43, align 4
+	%t134 = mul nsw i32 %t280, 40824
+	store i32 %t134, i32* %l45, align 4
+	%t281 = load i32, i32* %l45, align 4
+	%t282 = load i32, i32* %l8, align 4
+	%t135 = add nsw i32 %t281, %t282
+	store i32 %t135, i32* %l43, align 4
+	%t283 = load i32, i32* %l43, align 4
+	%t136 = mul nsw i32 %t283, 2268
+	store i32 %t136, i32* %l46, align 4
+	%t284 = load i32, i32* %l46, align 4
+	%t285 = load i32, i32* %l9, align 4
+	%t137 = add nsw i32 %t284, %t285
+	store i32 %t137, i32* %l43, align 4
+	%t286 = load i32, i32* %l43, align 4
+	%t138 = mul nsw i32 %t286, 126
+	store i32 %t138, i32* %l47, align 4
+	%t287 = load i32, i32* %l47, align 4
+	%t288 = load i32, i32* %l10, align 4
+	%t139 = add nsw i32 %t287, %t288
+	store i32 %t139, i32* %l43, align 4
+	%t289 = load i32, i32* %l43, align 4
+	%t140 = mul nsw i32 %t289, 7
+	store i32 %t140, i32* %l48, align 4
+	%t290 = load i32, i32* %l48, align 4
+	%t291 = load i32, i32* %l11, align 4
+	%t141 = add nsw i32 %t290, %t291
+	store i32 %t141, i32* %l43, align 4
+	%t292 = load i32, i32* %l43, align 4
+	%t142 = mul nsw i32 %t292, 4
+	store i32 %t142, i32* %l49, align 4
+	%t293 = getelementptr inbounds [18 x [18 x [18 x [18 x [18 x [7 x i32]]]]]], [18 x [18 x [18 x [18 x [18 x [7 x i32]]]]]]* @dp, i64 0, i64 0, i64 0, i64 0, i64 0, i64 0, i64 0
+	%t294 = load i32, i32* %l49, align 4
+	%t295 = bitcast i32* %t293 to i8*
+	%t297 = sext i32 %t294 to i64
+	%t296 = getelementptr inbounds i8, i8* %t295, i64 %t297
+	%t143 = bitcast i8* %t296 to i32*
+	store i32* %t143, i32** %l50, align 4
+	%t298 = load i32*, i32** %l50, align 4
+	%t299 = load i32, i32* %t298, align 4
+	store i32 %t299, i32* %l51, align 4
+	%t300 = load i32, i32* %l51, align 4
+	store i32 %t300, i32* %l12, align 4
+	br label %.L158
+.L158:
+	%t301 = load i32, i32* %l12, align 4
+	ret i32 %t301
+}
+define i32 @main() {
+	%l0 = alloca i32, align 4
+	%l1 = alloca i32, align 4
+	%l10 = alloca i32, align 4
+	%l11 = alloca i1, align 4
+	%l12 = alloca i32, align 4
+	%l13 = alloca i1, align 4
+	%l14 = alloca i32, align 4
+	%l15 = alloca i32, align 4
+	%l16 = alloca i32, align 4
+	%l17 = alloca i32, align 4
+	%l18 = alloca i32, align 4
+	%l19 = alloca i32, align 4
+	%l2 = alloca i32, align 4
+	%l20 = alloca i32, align 4
+	%l21 = alloca i32*, align 4
+	%l22 = alloca i32, align 4
+	%l23 = alloca i1, align 4
+	%l24 = alloca i32, align 4
+	%l25 = alloca i32, align 4
+	%l26 = alloca i32*, align 4
+	%l27 = alloca i32, align 4
+	%l28 = alloca i32, align 4
+	%l29 = alloca i32, align 4
+	%l3 = alloca i1, align 4
+	%l30 = alloca i32*, align 4
+	%l31 = alloca i32, align 4
+	%l32 = alloca i32, align 4
+	%l33 = alloca i32, align 4
+	%l34 = alloca i32*, align 4
+	%l35 = alloca i32, align 4
+	%l36 = alloca i32, align 4
+	%l37 = alloca i32, align 4
+	%l38 = alloca i32*, align 4
+	%l39 = alloca i32, align 4
+	%l4 = alloca i32, align 4
+	%l40 = alloca i32, align 4
+	%l41 = alloca i32, align 4
+	%l42 = alloca i32*, align 4
+	%l43 = alloca i32, align 4
+	%l44 = alloca i32, align 4
+	%l45 = alloca i32, align 4
+	%l46 = alloca i32, align 4
+	%l47 = alloca i32*, align 4
+	%l48 = alloca i32, align 4
+	%l49 = alloca i32, align 4
+	%l5 = alloca i1, align 4
+	%l50 = alloca i32, align 4
+	%l51 = alloca i32*, align 4
+	%l52 = alloca i32, align 4
+	%l53 = alloca i32, align 4
+	%l54 = alloca i32, align 4
+	%l55 = alloca i32*, align 4
+	%l56 = alloca i32, align 4
+	%l57 = alloca i32, align 4
+	%l58 = alloca i32, align 4
+	%l59 = alloca i32*, align 4
+	%l6 = alloca i32, align 4
+	%l60 = alloca i32, align 4
+	%l61 = alloca i32, align 4
+	%l62 = alloca i32, align 4
+	%l63 = alloca i32*, align 4
+	%l64 = alloca i32, align 4
+	%l7 = alloca i1, align 4
+	%l8 = alloca i32, align 4
+	%l9 = alloca i1, align 4
+	store i32 0, i32* %l1, align 4
+	store i32 0, i32* %l2, align 4
+	%t65 = call i32 (...) @getint()
+	store i32 %t65, i32* %l1, align 4
+	store i32 0, i32* %l2, align 4
+	br label %.L66
+.L66:
+	%t115 = load i32, i32* %l2, align 4
+	%t66 = icmp slt i32 %t115, 18
+	store i1 %t66, i1* %l3, align 4
+	%t116 = load i1, i1* %l3, align 4
+	br i1 %t116, label %.L68, label %.L107
+.L68:
+	store i32 0, i32* %l4, align 4
+	store i32 0, i32* %l4, align 4
+	br label %.L69
+.L69:
+	%t117 = load i32, i32* %l4, align 4
+	%t67 = icmp slt i32 %t117, 18
+	store i1 %t67, i1* %l5, align 4
+	%t118 = load i1, i1* %l5, align 4
+	br i1 %t118, label %.L71, label %.L105
+.L71:
+	store i32 0, i32* %l6, align 4
+	store i32 0, i32* %l6, align 4
+	br label %.L72
+.L72:
+	%t119 = load i32, i32* %l6, align 4
+	%t68 = icmp slt i32 %t119, 18
+	store i1 %t68, i1* %l7, align 4
+	%t120 = load i1, i1* %l7, align 4
+	br i1 %t120, label %.L74, label %.L103
+.L74:
+	store i32 0, i32* %l8, align 4
+	store i32 0, i32* %l8, align 4
+	br label %.L75
+.L75:
+	%t121 = load i32, i32* %l8, align 4
+	%t69 = icmp slt i32 %t121, 18
+	store i1 %t69, i1* %l9, align 4
+	%t122 = load i1, i1* %l9, align 4
+	br i1 %t122, label %.L77, label %.L101
+.L77:
+	store i32 0, i32* %l10, align 4
+	store i32 0, i32* %l10, align 4
+	br label %.L78
+.L78:
+	%t123 = load i32, i32* %l10, align 4
+	%t70 = icmp slt i32 %t123, 18
+	store i1 %t70, i1* %l11, align 4
+	%t124 = load i1, i1* %l11, align 4
+	br i1 %t124, label %.L80, label %.L99
+.L80:
+	store i32 0, i32* %l12, align 4
+	store i32 0, i32* %l12, align 4
+	br label %.L81
+.L81:
+	%t125 = load i32, i32* %l12, align 4
+	%t71 = icmp slt i32 %t125, 7
+	store i1 %t71, i1* %l13, align 4
+	%t126 = load i1, i1* %l13, align 4
+	br i1 %t126, label %.L83, label %.L97
+.L83:
+	%t127 = load i32, i32* %l2, align 4
+	store i32 %t127, i32* %l14, align 4
+	%t128 = load i32, i32* %l14, align 4
+	%t72 = mul nsw i32 %t128, 734832
+	store i32 %t72, i32* %l15, align 4
+	%t129 = load i32, i32* %l15, align 4
+	%t130 = load i32, i32* %l4, align 4
+	%t73 = add nsw i32 %t129, %t130
+	store i32 %t73, i32* %l14, align 4
+	%t131 = load i32, i32* %l14, align 4
+	%t74 = mul nsw i32 %t131, 40824
+	store i32 %t74, i32* %l16, align 4
+	%t132 = load i32, i32* %l16, align 4
+	%t133 = load i32, i32* %l6, align 4
+	%t75 = add nsw i32 %t132, %t133
+	store i32 %t75, i32* %l14, align 4
+	%t134 = load i32, i32* %l14, align 4
+	%t76 = mul nsw i32 %t134, 2268
+	store i32 %t76, i32* %l17, align 4
+	%t135 = load i32, i32* %l17, align 4
+	%t136 = load i32, i32* %l8, align 4
+	%t77 = add nsw i32 %t135, %t136
+	store i32 %t77, i32* %l14, align 4
+	%t137 = load i32, i32* %l14, align 4
+	%t78 = mul nsw i32 %t137, 126
+	store i32 %t78, i32* %l18, align 4
+	%t138 = load i32, i32* %l18, align 4
+	%t139 = load i32, i32* %l10, align 4
+	%t79 = add nsw i32 %t138, %t139
+	store i32 %t79, i32* %l14, align 4
+	%t140 = load i32, i32* %l14, align 4
+	%t80 = mul nsw i32 %t140, 7
+	store i32 %t80, i32* %l19, align 4
+	%t141 = load i32, i32* %l19, align 4
+	%t142 = load i32, i32* %l12, align 4
+	%t81 = add nsw i32 %t141, %t142
+	store i32 %t81, i32* %l14, align 4
+	%t143 = load i32, i32* %l14, align 4
+	%t82 = mul nsw i32 %t143, 4
+	store i32 %t82, i32* %l20, align 4
+	%t144 = getelementptr inbounds [18 x [18 x [18 x [18 x [18 x [7 x i32]]]]]], [18 x [18 x [18 x [18 x [18 x [7 x i32]]]]]]* @dp, i64 0, i64 0, i64 0, i64 0, i64 0, i64 0, i64 0
+	%t145 = load i32, i32* %l20, align 4
+	%t146 = bitcast i32* %t144 to i8*
+	%t148 = sext i32 %t145 to i64
+	%t147 = getelementptr inbounds i8, i8* %t146, i64 %t148
+	%t83 = bitcast i8* %t147 to i32*
+	store i32* %t83, i32** %l21, align 4
+	%t149 = load i32*, i32** %l21, align 4
+	%t150 = load i32, i32* %t149, align 4
+	store i32 %t150, i32* %l22, align 4
+	%t151 = load i32*, i32** %l21, align 4
+	store i32 -1, i32* %t151, align 4
+	%t152 = load i32, i32* %l12, align 4
+	%t84 = add nsw i32 %t152, 1
+	store i32 %t84, i32* %l12, align 4
+	br label %.L81
+.L97:
+	%t153 = load i32, i32* %l10, align 4
+	%t85 = add nsw i32 %t153, 1
+	store i32 %t85, i32* %l10, align 4
+	br label %.L78
+.L99:
+	%t154 = load i32, i32* %l8, align 4
+	%t86 = add nsw i32 %t154, 1
+	store i32 %t86, i32* %l8, align 4
+	br label %.L75
+.L101:
+	%t155 = load i32, i32* %l6, align 4
+	%t87 = add nsw i32 %t155, 1
+	store i32 %t87, i32* %l6, align 4
+	br label %.L72
+.L103:
+	%t156 = load i32, i32* %l4, align 4
+	%t88 = add nsw i32 %t156, 1
+	store i32 %t88, i32* %l4, align 4
+	br label %.L69
+.L105:
+	%t157 = load i32, i32* %l2, align 4
+	%t89 = add nsw i32 %t157, 1
+	store i32 %t89, i32* %l2, align 4
+	br label %.L66
+.L107:
+	store i32 0, i32* %l2, align 4
+	br label %.L108
+.L108:
+	%t158 = load i32, i32* %l2, align 4
+	%t159 = load i32, i32* %l1, align 4
+	%t90 = icmp slt i32 %t158, %t159
+	store i1 %t90, i1* %l23, align 4
+	%t160 = load i1, i1* %l23, align 4
+	br i1 %t160, label %.L110, label %.L124
+.L110:
+	%t91 = call i32 (...) @getint()
+	%t161 = load i32, i32* %l2, align 4
+	store i32 %t161, i32* %l24, align 4
+	%t162 = load i32, i32* %l24, align 4
+	%t92 = mul nsw i32 %t162, 4
+	store i32 %t92, i32* %l25, align 4
+	%t163 = getelementptr inbounds [200 x i32], [200 x i32]* @list, i64 0, i64 0
+	%t164 = load i32, i32* %l25, align 4
+	%t165 = bitcast i32* %t163 to i8*
+	%t167 = sext i32 %t164 to i64
+	%t166 = getelementptr inbounds i8, i8* %t165, i64 %t167
+	%t93 = bitcast i8* %t166 to i32*
+	store i32* %t93, i32** %l26, align 4
+	%t168 = load i32*, i32** %l26, align 4
+	%t169 = load i32, i32* %t168, align 4
+	store i32 %t169, i32* %l27, align 4
+	%t170 = load i32*, i32** %l26, align 4
+	store i32 %t91, i32* %t170, align 4
+	%t171 = load i32, i32* %l2, align 4
+	store i32 %t171, i32* %l28, align 4
+	%t172 = load i32, i32* %l28, align 4
+	%t94 = mul nsw i32 %t172, 4
+	store i32 %t94, i32* %l29, align 4
+	%t173 = getelementptr inbounds [200 x i32], [200 x i32]* @list, i64 0, i64 0
+	%t174 = load i32, i32* %l29, align 4
+	%t175 = bitcast i32* %t173 to i8*
+	%t177 = sext i32 %t174 to i64
+	%t176 = getelementptr inbounds i8, i8* %t175, i64 %t177
+	%t95 = bitcast i8* %t176 to i32*
+	store i32* %t95, i32** %l30, align 4
+	%t178 = load i32*, i32** %l30, align 4
+	%t179 = load i32, i32* %t178, align 4
+	store i32 %t179, i32* %l31, align 4
+	%t180 = load i32, i32* %l31, align 4
+	store i32 %t180, i32* %l32, align 4
+	%t181 = load i32, i32* %l32, align 4
+	%t96 = mul nsw i32 %t181, 4
+	store i32 %t96, i32* %l33, align 4
+	%t182 = getelementptr inbounds [20 x i32], [20 x i32]* @cns, i64 0, i64 0
+	%t183 = load i32, i32* %l33, align 4
+	%t184 = bitcast i32* %t182 to i8*
+	%t186 = sext i32 %t183 to i64
+	%t185 = getelementptr inbounds i8, i8* %t184, i64 %t186
+	%t97 = bitcast i8* %t185 to i32*
+	store i32* %t97, i32** %l34, align 4
+	%t187 = load i32*, i32** %l34, align 4
+	%t188 = load i32, i32* %t187, align 4
+	store i32 %t188, i32* %l35, align 4
+	%t189 = load i32, i32* %l35, align 4
+	%t98 = add nsw i32 %t189, 1
+	%t190 = load i32, i32* %l2, align 4
+	store i32 %t190, i32* %l36, align 4
+	%t191 = load i32, i32* %l36, align 4
+	%t99 = mul nsw i32 %t191, 4
+	store i32 %t99, i32* %l37, align 4
+	%t192 = getelementptr inbounds [200 x i32], [200 x i32]* @list, i64 0, i64 0
+	%t193 = load i32, i32* %l37, align 4
+	%t194 = bitcast i32* %t192 to i8*
+	%t196 = sext i32 %t193 to i64
+	%t195 = getelementptr inbounds i8, i8* %t194, i64 %t196
+	%t100 = bitcast i8* %t195 to i32*
+	store i32* %t100, i32** %l38, align 4
+	%t197 = load i32*, i32** %l38, align 4
+	%t198 = load i32, i32* %t197, align 4
+	store i32 %t198, i32* %l39, align 4
+	%t199 = load i32, i32* %l39, align 4
+	store i32 %t199, i32* %l40, align 4
+	%t200 = load i32, i32* %l40, align 4
+	%t101 = mul nsw i32 %t200, 4
+	store i32 %t101, i32* %l41, align 4
+	%t201 = getelementptr inbounds [20 x i32], [20 x i32]* @cns, i64 0, i64 0
+	%t202 = load i32, i32* %l41, align 4
+	%t203 = bitcast i32* %t201 to i8*
+	%t205 = sext i32 %t202 to i64
+	%t204 = getelementptr inbounds i8, i8* %t203, i64 %t205
+	%t102 = bitcast i8* %t204 to i32*
+	store i32* %t102, i32** %l42, align 4
+	%t206 = load i32*, i32** %l42, align 4
+	%t207 = load i32, i32* %t206, align 4
+	store i32 %t207, i32* %l43, align 4
+	%t208 = load i32*, i32** %l42, align 4
+	store i32 %t98, i32* %t208, align 4
+	%t209 = load i32, i32* %l2, align 4
+	%t103 = add nsw i32 %t209, 1
+	store i32 %t103, i32* %l2, align 4
+	br label %.L108
+.L124:
+	store i32 0, i32* %l44, align 4
+	store i32 1, i32* %l45, align 4
+	%t210 = load i32, i32* %l45, align 4
+	%t104 = mul nsw i32 %t210, 4
+	store i32 %t104, i32* %l46, align 4
+	%t211 = getelementptr inbounds [20 x i32], [20 x i32]* @cns, i64 0, i64 0
+	%t212 = load i32, i32* %l46, align 4
+	%t213 = bitcast i32* %t211 to i8*
+	%t215 = sext i32 %t212 to i64
+	%t214 = getelementptr inbounds i8, i8* %t213, i64 %t215
+	%t105 = bitcast i8* %t214 to i32*
+	store i32* %t105, i32** %l47, align 4
+	%t216 = load i32*, i32** %l47, align 4
+	%t217 = load i32, i32* %t216, align 4
+	store i32 %t217, i32* %l48, align 4
+	store i32 2, i32* %l49, align 4
+	%t218 = load i32, i32* %l49, align 4
+	%t106 = mul nsw i32 %t218, 4
+	store i32 %t106, i32* %l50, align 4
+	%t219 = getelementptr inbounds [20 x i32], [20 x i32]* @cns, i64 0, i64 0
+	%t220 = load i32, i32* %l50, align 4
+	%t221 = bitcast i32* %t219 to i8*
+	%t223 = sext i32 %t220 to i64
+	%t222 = getelementptr inbounds i8, i8* %t221, i64 %t223
+	%t107 = bitcast i8* %t222 to i32*
+	store i32* %t107, i32** %l51, align 4
+	%t224 = load i32*, i32** %l51, align 4
+	%t225 = load i32, i32* %t224, align 4
+	store i32 %t225, i32* %l52, align 4
+	store i32 3, i32* %l53, align 4
+	%t226 = load i32, i32* %l53, align 4
+	%t108 = mul nsw i32 %t226, 4
+	store i32 %t108, i32* %l54, align 4
+	%t227 = getelementptr inbounds [20 x i32], [20 x i32]* @cns, i64 0, i64 0
+	%t228 = load i32, i32* %l54, align 4
+	%t229 = bitcast i32* %t227 to i8*
+	%t231 = sext i32 %t228 to i64
+	%t230 = getelementptr inbounds i8, i8* %t229, i64 %t231
+	%t109 = bitcast i8* %t230 to i32*
+	store i32* %t109, i32** %l55, align 4
+	%t232 = load i32*, i32** %l55, align 4
+	%t233 = load i32, i32* %t232, align 4
+	store i32 %t233, i32* %l56, align 4
+	store i32 4, i32* %l57, align 4
+	%t234 = load i32, i32* %l57, align 4
+	%t110 = mul nsw i32 %t234, 4
+	store i32 %t110, i32* %l58, align 4
+	%t235 = getelementptr inbounds [20 x i32], [20 x i32]* @cns, i64 0, i64 0
+	%t236 = load i32, i32* %l58, align 4
+	%t237 = bitcast i32* %t235 to i8*
+	%t239 = sext i32 %t236 to i64
+	%t238 = getelementptr inbounds i8, i8* %t237, i64 %t239
+	%t111 = bitcast i8* %t238 to i32*
+	store i32* %t111, i32** %l59, align 4
+	%t240 = load i32*, i32** %l59, align 4
+	%t241 = load i32, i32* %t240, align 4
+	store i32 %t241, i32* %l60, align 4
+	store i32 5, i32* %l61, align 4
+	%t242 = load i32, i32* %l61, align 4
+	%t112 = mul nsw i32 %t242, 4
+	store i32 %t112, i32* %l62, align 4
+	%t243 = getelementptr inbounds [20 x i32], [20 x i32]* @cns, i64 0, i64 0
+	%t244 = load i32, i32* %l62, align 4
+	%t245 = bitcast i32* %t243 to i8*
+	%t247 = sext i32 %t244 to i64
+	%t246 = getelementptr inbounds i8, i8* %t245, i64 %t247
+	%t113 = bitcast i8* %t246 to i32*
+	store i32* %t113, i32** %l63, align 4
+	%t248 = load i32*, i32** %l63, align 4
+	%t249 = load i32, i32* %t248, align 4
+	store i32 %t249, i32* %l64, align 4
+	%t250 = load i32, i32* %l48, align 4
+	%t251 = load i32, i32* %l52, align 4
+	%t252 = load i32, i32* %l56, align 4
+	%t253 = load i32, i32* %l60, align 4
+	%t254 = load i32, i32* %l64, align 4
+	%t114 = call i32 @dfs(i32 %t250, i32 %t251, i32 %t252, i32 %t253, i32 %t254, i32 0)
+	store i32 %t114, i32* %l44, align 4
+	%t255 = load i32, i32* %l44, align 4
+	call void @putint(i32 %t255)
+	%t256 = load i32, i32* %l44, align 4
+	store i32 %t256, i32* %l0, align 4
+	%t257 = load i32, i32* %l0, align 4
+	ret i32 %t257
+}
+declare i32 @getint(...);
+declare i32 @getch(...);
+declare void @putint(i32);
+declare void @putch(i32);
+declare void @putstr(i8*);
+declare i32 @getarray(i32*);
+declare void @putarray(i32, i32*);
+declare float @getfloat(...);
+declare void @putfloat(float);
+declare i32 @getfarray(float*);
+declare void @putfarray(i32, float*);

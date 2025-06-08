@@ -78,7 +78,4 @@ public:
     {
         return isArrayToPointer;
     }
-
-    // 创建数组到指针转换指令的静态工厂方法
-    static MoveInstruction * createArrayToPointer(Function * func, Value * ptrResult, Value * arraySource);
 };

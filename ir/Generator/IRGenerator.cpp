@@ -458,6 +458,75 @@ bool IRGenerator::ir_function_define(ast_node * node)
 /// @brief 形式参数AST节点翻译成线性中间IR-lxg
 /// @param node AST节点
 /// @return 翻译是否成功，true：成功，false：失败
+// bool IRGenerator::ir_function_formal_params(ast_node * node)
+// {
+//     // 获取当前正在处理的函数
+//     Function * currentFunc = module->getCurrentFunction();
+//     if (!currentFunc) {
+//         setLastError("未在函数上下文中处理形参");
+//         return false;
+//     }
+
+//     // 获取函数的IR代码列表
+//     InterCode & irCode = currentFunc->getInterCode();
+
+//     printf("DEBUG: 处理函数形参，数量: %zu, 函数参数数量: %zu\n", node->sons.size(),
+//     currentFunc->getParams().size());
+
+//     // 获取函数的参数列表
+//     const std::vector<FormalParam *> & functionParams = currentFunc->getParams();
+
+//     // 遍历函数的所有形参，创建对应的局部变量和临时变量
+//     for (size_t i = 0; i < functionParams.size(); i++) {
+//         FormalParam * param = functionParams[i];
+
+//         // 函数参数的类型和名称
+//         Type * paramType = param->getType();
+//         std::string paramName = param->getName();
+
+//         if (!paramType) {
+//             setLastError("函数参数 " + paramName + " 类型无效");
+//             return false;
+//         }
+
+//         // 检查是否是数组参数（通过AST节点类型判断）
+//         bool isArrayParam = false;
+//         if (i < node->sons.size()) {
+//             isArrayParam = (node->sons[i]->node_type == ast_operator_type::AST_OP_FUNC_FORMAL_PARAM_ARRAY);
+//         }
+
+//         // 根据是否是数组参数决定实际的参数类型
+//         Type * actualParamType = paramType;
+//         if (isArrayParam) {
+//             // 数组参数在C语言中实际上是指针类型
+//             actualParamType =
+//                 const_cast<Type *>(static_cast<const Type *>(PointerType::get(IntegerType::getTypeInt())));
+//             printf("DEBUG: 处理函数数组参数: %s, 类型: pointer (i32*)\n", paramName.c_str());
+//         } else {
+//             printf("DEBUG: 处理函数参数: %s, 类型: %s\n", paramName.c_str(), paramType->isInt32Type() ? "int" :
+//             "其他");
+//         }
+
+//         // 1. 创建局部变量作为实际的形参变量（在函数内部使用）
+//         Value * localParam = module->newVarValue(actualParamType, paramName);
+//         if (!localParam) {
+//             setLastError("创建形参局部变量失败: " + paramName);
+//             return false;
+//         }
+
+//         // 2. 获取函数形参本身作为源值
+//         Value * paramValue = param;
+
+//         // 3. 创建赋值指令，将形参值复制到局部变量
+//         MoveInstruction * moveInst =
+//             new MoveInstruction(currentFunc, static_cast<LocalVariable *>(localParam), paramValue);
+
+//         // 4. 将赋值指令添加到函数的IR代码中（在Entry指令之后）
+//         irCode.addInst(moveInst);
+//     }
+
+//     return true;
+// }
 bool IRGenerator::ir_function_formal_params(ast_node * node)
 {
     // 获取当前正在处理的函数
@@ -475,7 +544,7 @@ bool IRGenerator::ir_function_formal_params(ast_node * node)
     // 获取函数的参数列表
     const std::vector<FormalParam *> & functionParams = currentFunc->getParams();
 
-    // 遍历函数的所有形参，创建对应的局部变量和临时变量
+    // 遍历函数的所有形参
     for (size_t i = 0; i < functionParams.size(); i++) {
         FormalParam * param = functionParams[i];
 
@@ -494,33 +563,44 @@ bool IRGenerator::ir_function_formal_params(ast_node * node)
             isArrayParam = (node->sons[i]->node_type == ast_operator_type::AST_OP_FUNC_FORMAL_PARAM_ARRAY);
         }
 
-        // 根据是否是数组参数决定实际的参数类型
-        Type * actualParamType = paramType;
         if (isArrayParam) {
-            // 数组参数在C语言中实际上是指针类型
-            actualParamType =
+            // 数组参数：直接在符号表中注册参数，不创建局部变量
+            Type * actualParamType =
                 const_cast<Type *>(static_cast<const Type *>(PointerType::get(IntegerType::getTypeInt())));
+
             printf("DEBUG: 处理函数数组参数: %s, 类型: pointer (i32*)\n", paramName.c_str());
+
+            // 直接在符号表中注册参数，避免创建局部变量和赋值指令
+            if (!module->newVarValueWithValue(actualParamType, paramName, param)) {
+                setLastError("注册数组形参到符号表失败: " + paramName);
+                return false;
+            }
+
+            printf("DEBUG: 直接注册数组参数到符号表: %s (避免局部变量赋值)\n", paramName.c_str());
+
         } else {
+            // 普通参数：保持原来的方式，创建局部变量并赋值
             printf("DEBUG: 处理函数参数: %s, 类型: %s\n", paramName.c_str(), paramType->isInt32Type() ? "int" : "其他");
+
+            // 1. 创建局部变量作为实际的形参变量（在函数内部使用）
+            Value * localParam = module->newVarValue(paramType, paramName);
+            if (!localParam) {
+                setLastError("创建形参局部变量失败: " + paramName);
+                return false;
+            }
+
+            // 2. 获取函数形参本身作为源值
+            Value * paramValue = param;
+
+            // 3. 创建赋值指令，将形参值复制到局部变量
+            MoveInstruction * moveInst =
+                new MoveInstruction(currentFunc, static_cast<LocalVariable *>(localParam), paramValue);
+
+            // 4. 将赋值指令添加到函数的IR代码中（在Entry指令之后）
+            irCode.addInst(moveInst);
+
+            printf("DEBUG: 为普通参数创建局部变量和赋值: %s\n", paramName.c_str());
         }
-
-        // 1. 创建局部变量作为实际的形参变量（在函数内部使用）
-        Value * localParam = module->newVarValue(actualParamType, paramName);
-        if (!localParam) {
-            setLastError("创建形参局部变量失败: " + paramName);
-            return false;
-        }
-
-        // 2. 获取函数形参本身作为源值
-        Value * paramValue = param;
-
-        // 3. 创建赋值指令，将形参值复制到局部变量
-        MoveInstruction * moveInst =
-            new MoveInstruction(currentFunc, static_cast<LocalVariable *>(localParam), paramValue);
-
-        // 4. 将赋值指令添加到函数的IR代码中（在Entry指令之后）
-        irCode.addInst(moveInst);
     }
 
     return true;
@@ -1699,6 +1779,7 @@ bool IRGenerator::ir_if_else(ast_node * node)
 }
 
 // while循环语句
+// 新增对常量的while判断
 bool IRGenerator::ir_while(ast_node * node)
 {
     Function * func = module->getCurrentFunction();
@@ -1733,8 +1814,30 @@ bool IRGenerator::ir_while(ast_node * node)
     // 添加条件表达式生成的指令到指令流
     node->blockInsts.addInst(cond_node->blockInsts);
 
-    // 直接使用条件值
-    node->blockInsts.addInst(new GotoInstruction(func, condVal, bodyLabel, endLabel));
+    //关键修改：检查条件是否为常量-lxg
+    if (ConstInt * constCond = dynamic_cast<ConstInt *>(condVal)) {
+        // 条件是常量
+        int32_t condValue = constCond->getVal();
+
+        if (condValue != 0) {
+            // while(1) 或 while(非零常量) - 无限循环
+            // 直接无条件跳转到循环体
+            node->blockInsts.addInst(new GotoInstruction(func, bodyLabel));
+        } else {
+            // while(0) - 永远不执行
+            // 直接跳转到结束标签
+            node->blockInsts.addInst(new GotoInstruction(func, endLabel));
+
+            // 恢复标签后直接返回
+            func->setBreakLabel(oldBreakLabel);
+            func->setContinueLabel(oldContinueLabel);
+            node->blockInsts.addInst(endLabel);
+            return true;
+        }
+    } else {
+        // 条件不是常量，使用正常的条件分支
+        node->blockInsts.addInst(new GotoInstruction(func, condVal, bodyLabel, endLabel));
+    }
 
     // 生成循环体代码
     node->blockInsts.addInst(bodyLabel);

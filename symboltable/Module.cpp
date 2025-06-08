@@ -30,16 +30,24 @@ Module::Module(std::string _name) : name(_name)
     // 加入内置函数putint
     (void) newFunction("putint", VoidType::getType(), {new FormalParam{IntegerType::getTypeInt(), ""}}, true);
     (void) newFunction("getint", IntegerType::getTypeInt(), {}, true);
-	// 加入其他内置函数-lxg
-	(void) newFunction("putch", VoidType::getType(), {new FormalParam{IntegerType::getTypeInt(), "c"}}, true);
+    // 加入其他内置函数-lxg
+    (void) newFunction("putch", VoidType::getType(), {new FormalParam{IntegerType::getTypeInt(), "c"}}, true);
     (void) newFunction("getch", IntegerType::getTypeInt(), {}, true);
     (void) newFunction("getarray", IntegerType::getTypeInt(), {new FormalParam{IntegerType::getTypeInt(), "a"}}, true);
-    (void) newFunction("putarray", VoidType::getType(), {new FormalParam{IntegerType::getTypeInt(), "n"}, new FormalParam{IntegerType::getTypeInt(), "a"}}, true);
+    (void) newFunction(
+        "putarray",
+        VoidType::getType(),
+        {new FormalParam{IntegerType::getTypeInt(), "n"}, new FormalParam{IntegerType::getTypeInt(), "a"}},
+        true);
     (void) newFunction("putstr", VoidType::getType(), {new FormalParam{IntegerType::getTypeInt(), "str"}}, true);
     (void) newFunction("getfloat", IntegerType::getTypeInt(), {}, true);
     (void) newFunction("getfarray", IntegerType::getTypeInt(), {new FormalParam{IntegerType::getTypeInt(), "a"}}, true);
     (void) newFunction("putfloat", VoidType::getType(), {new FormalParam{IntegerType::getTypeInt(), "a"}}, true);
-    (void) newFunction("putfarray", VoidType::getType(), {new FormalParam{IntegerType::getTypeInt(), "n"}, new FormalParam{IntegerType::getTypeInt(), "a"}}, true);
+    (void) newFunction(
+        "putfarray",
+        VoidType::getType(),
+        {new FormalParam{IntegerType::getTypeInt(), "n"}, new FormalParam{IntegerType::getTypeInt(), "a"}},
+        true);
     (void) newFunction("putf", VoidType::getType(), {new FormalParam{IntegerType::getTypeInt(), "a"}}, true);
 }
 
@@ -170,7 +178,7 @@ Function * Module::findFunction(std::string name)
         // 查找到
         return pIter->second;
     }
-    
+
     // 不自动创建原型，只返回nullptr
     return nullptr;
 }
@@ -294,6 +302,42 @@ Value * Module::findVarValue(std::string name)
     Value * tempValue = scopeStack->findAllScope(name);
 
     return tempValue;
+}
+
+/// @brief 使用指定的Value创建变量符号表项（用于数组参数）-lxg
+/// ! 该函数只有在AST遍历生成线性IR中使用，其它地方不能使用
+/// @param type 变量类型
+/// @param name 变量名
+/// @param value 已存在的Value对象
+/// @return 成功返回该Value，失败返回nullptr
+Value * Module::newVarValueWithValue(Type * type, const std::string & name, Value * value)
+{
+    if (!value || !type) {
+        minic_log(LOG_ERROR, "newVarValueWithValue: value或type为空");
+        return nullptr;
+    }
+
+    if (name.empty()) {
+        minic_log(LOG_ERROR, "newVarValueWithValue: 变量名为空");
+        return nullptr;
+    }
+
+    // 检查当前作用域中是否已经存在同名变量
+    Value * tempValue = scopeStack->findCurrentScope(name);
+    if (tempValue) {
+        // 变量名已存在，对于函数参数这是正常的（覆盖）
+        printf("DEBUG: 覆盖已存在的变量: %s\n", name.c_str());
+    }
+
+    // 确保Value对象有正确的名称
+    // 由于我们无法直接通过名称插入到ScopeStack，
+    // 我们需要确保Value对象本身包含正确的名称信息
+
+    // 直接在当前作用域中注册这个值（只传递value参数）
+    scopeStack->insertValue(value);
+
+    printf("DEBUG: 成功注册变量到符号表: %s -> %p\n", name.c_str(), (void *) value);
+    return value;
 }
 
 ///
