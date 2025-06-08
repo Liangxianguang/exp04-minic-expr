@@ -53,7 +53,7 @@ enum class ast_operator_type : int {
     /// @brief 函数定义运算符，函数名和返回值类型作为节点的属性，自左到右孩子：AST_OP_FUNC_FORMAL_PARAMS、AST_OP_BLOCK
     AST_OP_FUNC_DEF,
 
-	/// @brief 带初始化的变量定义-lxg
+    /// @brief 带初始化的变量定义-lxg
     AST_OP_VAR_DEF_WITH_INIT,
 
     /// @brief 形式参数列表运算符，可包含多个孩子：AST_OP_FUNC_FORMAL_PARAM
@@ -61,6 +61,9 @@ enum class ast_operator_type : int {
 
     /// @brief 形参运算符，属性包含名字与类型，复杂类型时可能要包含孩子
     AST_OP_FUNC_FORMAL_PARAM,
+
+    /// @brief 数组形参运算符-lxg
+    AST_OP_FUNC_FORMAL_PARAM_ARRAY, // 数组形参
 
     /// @brief 函数调用运算符，函数名作为节点属性，孩子包含AST_OP_FUNC_REAL_PARAMS
     AST_OP_FUNC_CALL,
@@ -86,13 +89,13 @@ enum class ast_operator_type : int {
     /// @brief 变量声明
     AST_OP_VAR_DECL,
 
-	/// @brief 空语句
-	AST_OP_EMPTY_STMT,
-	
+    /// @brief 空语句
+    AST_OP_EMPTY_STMT,
+
     // 添加数组相关操作码-lxg
     /// @brief 数组定义
     AST_OP_ARRAY_DEF,
-    
+
     /// @brief 数组访问
     AST_OP_ARRAY_ACCESS,
 
@@ -103,38 +106,38 @@ enum class ast_operator_type : int {
     AST_OP_SUB, //
 
     // TODO 抽象语法树其它内部节点运算符追加
-	
-	 /// @brief 二元运算符*
+
+    /// @brief 二元运算符*
     AST_OP_MUL,
 
     /// @brief 二元运算符/
     AST_OP_DIV,
 
-	/// @brief 二元运算符%
+    /// @brief 二元运算符%
     AST_OP_MOD,
 
     /// @brief 一元运算符负号
     AST_OP_NEG,
     /// @brief 关系运算符
-    AST_OP_LT,         // <
-    AST_OP_GT,         // >
-    AST_OP_LE,         // <=
-    AST_OP_GE,         // >=
-    AST_OP_EQ,         // ==
-    AST_OP_NE,         // !=
-    
+    AST_OP_LT, // <
+    AST_OP_GT, // >
+    AST_OP_LE, // <=
+    AST_OP_GE, // >=
+    AST_OP_EQ, // ==
+    AST_OP_NE, // !=
+
     /// @brief 逻辑运算符
-    AST_OP_LOGIC_AND,  // &&
-    AST_OP_LOGIC_OR,   // ||
-    AST_OP_LOGIC_NOT,  // !
-    
+    AST_OP_LOGIC_AND, // &&
+    AST_OP_LOGIC_OR,  // ||
+    AST_OP_LOGIC_NOT, // !
+
     /// @brief 控制流语句
-    AST_OP_IF,         // if语句
-    AST_OP_IF_ELSE,    // if-else语句
-    AST_OP_WHILE,      // while循环
-    AST_OP_BREAK,      // break语句
-    AST_OP_CONTINUE,   // continue语句
-	/// @brief 最大标识符，表示非法运算符
+    AST_OP_IF,       // if语句
+    AST_OP_IF_ELSE,  // if-else语句
+    AST_OP_WHILE,    // while循环
+    AST_OP_BREAK,    // break语句
+    AST_OP_CONTINUE, // continue语句
+                     /// @brief 最大标识符，表示非法运算符
     AST_OP_MAX,
 };
 
@@ -173,18 +176,18 @@ public:
     /// @brief 线性IR指令或者运行产生的Value，用于线性IR指令产生用
     Value * val = nullptr;
 
-	// 添加数组相关处理成员-lxg
+    // 添加数组相关处理成员-lxg
     /// @brief 数组访问时，保存数组变量
-    Value* arrayVar = nullptr;
-    
+    Value * arrayVar = nullptr;
+
     /// @brief 数组访问时，保存偏移量值
-    Value* offsetValue = nullptr;
-    
+    Value * offsetValue = nullptr;
+
     /// @brief 数组访问时产生的最终表达式值
-    Value* exprValue = nullptr;
-    
-	/// @brief 数组访问时，保存数组指针
-	Value* arrayPtr = nullptr;
+    Value * exprValue = nullptr;
+
+    /// @brief 数组访问时，保存数组指针
+    Value * arrayPtr = nullptr;
 
     ///
     /// @brief 在进入block等节点时是否要进行作用域管理。默认要做。
@@ -242,7 +245,6 @@ public:
     /// @param id 词法值
     /// @param line_no 行号
     static ast_node * New(std::string id, int64_t lineno);
-
 
     /// @brief 创建具备指定类型的节点
     /// @param type 节点值类型
@@ -338,17 +340,16 @@ ast_node * create_var_decl_stmt_node(type_attr & type, var_id_attr & id);
 ///
 ast_node * add_var_decl_node(ast_node * stmt_node, var_id_attr & id);
 
-
 // 添加数组相关操作码-lxg
 /// @brief 创建数组定义节点
 /// @param name_node 数组名节点
 /// @param dims 维度节点列表
 /// @param init_node 初始化值节点(可选)
 /// @return 创建的节点
-ast_node* create_array_def(ast_node* name_node, const std::vector<ast_node*>& dims, ast_node* init_node = nullptr);
+ast_node * create_array_def(ast_node * name_node, const std::vector<ast_node *> & dims, ast_node * init_node = nullptr);
 
 /// @brief 创建数组访问节点
 /// @param name_node 数组名节点
 /// @param indices 索引节点列表
 /// @return 创建的节点
-ast_node* create_array_access(ast_node* name_node, const std::vector<ast_node*>& indices);
+ast_node * create_array_access(ast_node * name_node, const std::vector<ast_node *> & indices);

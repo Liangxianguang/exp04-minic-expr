@@ -35,9 +35,15 @@ public:
 
     /// @brief 运行产生IR
     bool run();
-	
-	void setLastError(const std::string& error) { lastError = error; }
-    std::string getLastError() const { return lastError; }
+
+    void setLastError(const std::string & error)
+    {
+        lastError = error;
+    }
+    std::string getLastError() const
+    {
+        return lastError;
+    }
 
 protected:
     /// @brief 编译单元AST节点翻译成线性中间IR
@@ -75,76 +81,86 @@ protected:
     /// @return 翻译是否成功，true：成功，false：失败
     bool ir_sub(ast_node * node);
 
-	///添加三个新的函数声明ir-mul,ir-div和ir-mod  -lxg
-	/// @brief 整数乘法AST节点翻译成线性中间IR
-	/// @param node AST节点
-	/// @return 翻译是否成功，true：成功，false：失败
-	bool ir_mul(ast_node * node);
+    ///添加三个新的函数声明ir-mul,ir-div和ir-mod  -lxg
+    /// @brief 整数乘法AST节点翻译成线性中间IR
+    /// @param node AST节点
+    /// @return 翻译是否成功，true：成功，false：失败
+    bool ir_mul(ast_node * node);
 
-	/// @brief 整数除法AST节点翻译成线性中间IR
-	/// @param node AST节点
-	/// @return 翻译是否成功，true：成功，false：失败
-	bool ir_div(ast_node * node);
+    /// @brief 整数除法AST节点翻译成线性中间IR
+    /// @param node AST节点
+    /// @return 翻译是否成功，true：成功，false：失败
+    bool ir_div(ast_node * node);
 
-	/// @brief 整数求余AST节点翻译成线性中间IR
-	/// @param node AST节点
-	/// @return 翻译是否成功，true：成功，false：失败
-	bool ir_mod(ast_node * node);
+    /// @brief 整数求余AST节点翻译成线性中间IR
+    /// @param node AST节点
+    /// @return 翻译是否成功，true：成功，false：失败
+    bool ir_mod(ast_node * node);
 
-	/// @brief 一元负号AST节点翻译成线性中间IR
-	/// @param node AST节点
-	/// @return 翻译是否成功，true：成功，false：失败
-	bool ir_neg(ast_node * node);
-	
+    /// @brief 一元负号AST节点翻译成线性中间IR
+    /// @param node AST节点
+    /// @return 翻译是否成功，true：成功，false：失败
+    bool ir_neg(ast_node * node);
+
     /// @brief 赋值AST节点翻译成线性中间IR
     /// @param node AST节点
     /// @return 翻译是否成功，true：成功，false：失败
 
-	/// 关系运算符
-	bool ir_lt(ast_node* node);
-	bool ir_gt(ast_node* node);
-	bool ir_le(ast_node* node);
-	bool ir_ge(ast_node* node);
-	bool ir_eq(ast_node* node);
-	bool ir_ne(ast_node* node);
+    /// 关系运算符
+    bool ir_lt(ast_node * node);
+    bool ir_gt(ast_node * node);
+    bool ir_le(ast_node * node);
+    bool ir_ge(ast_node * node);
+    bool ir_eq(ast_node * node);
+    bool ir_ne(ast_node * node);
 
-	/// 逻辑运算符
-	bool ir_logic_and(ast_node* node);
-	bool ir_logic_or(ast_node* node);
-	bool ir_logic_not(ast_node* node);
+    /// 逻辑运算符
+    bool ir_logic_and(ast_node * node);
+    bool ir_logic_or(ast_node * node);
+    bool ir_logic_not(ast_node * node);
 
-	/// 控制流语句
-	bool ir_if(ast_node* node);
-	bool ir_if_else(ast_node* node);
-	bool ir_while(ast_node* node);
-	bool ir_break(ast_node* node);
-	bool ir_continue(ast_node* node);
+    /// 控制流语句
+    bool ir_if(ast_node * node);
+    bool ir_if_else(ast_node * node);
+    bool ir_while(ast_node * node);
+    bool ir_break(ast_node * node);
+    bool ir_continue(ast_node * node);
 
-	/// 辅助函数
-	/// 生成条件跳转代码
-	Value* generateConditionCode(ast_node* node, Instruction* trueLabel, Instruction* falseLabel);
-	/// 整数转布尔值
-	bool int_to_bool(Value* val, Value** bool_val);
-	/// 布尔值转整数
-	bool bool_to_int(Value* val, Value** int_val);
+    /// 辅助函数
+    /// 生成条件跳转代码
+    Value * generateConditionCode(ast_node * node, Instruction * trueLabel, Instruction * falseLabel);
+    /// 整数转布尔值
+    bool int_to_bool(Value * val, Value ** bool_val);
+    /// 布尔值转整数
+    bool bool_to_int(Value * val, Value ** int_val);
 
     bool ir_assign(ast_node * node);
 
-	// 添加数组相关方法的声明-lxg
-	/// @brief 数组定义节点翻译成线性中间IR
-	/// @param node AST节点
-	/// @return 翻译是否成功，true：成功，false：失败
-	bool ir_array_def(ast_node * node);
+    // 添加数组相关方法的声明-lxg
+    /// @brief 数组定义节点翻译成线性中间IR
+    /// @param node AST节点
+    /// @return 翻译是否成功，true：成功，false：失败
+    bool ir_array_def(ast_node * node);
 
-	/// @brief 数组访问节点翻译成线性中间IR
-	/// @param node AST节点
-	/// @return 翻译是否成功，true：成功，false：失败
-	bool ir_array_access(ast_node * node);
+    /// @brief 数组访问节点翻译成线性中间IR
+    /// @param node AST节点
+    /// @return 翻译是否成功，true：成功，false：失败
+    bool ir_array_access(ast_node * node);
 
-	/// @brief 空语句节点翻译成线性中间IR-lxg
-	/// @param node AST节点
-	/// @return 翻译是否成功，true：成功，false：失败
-	bool ir_empty_stmt(ast_node* node);
+    /// @brief 空语句节点翻译成线性中间IR-lxg
+    /// @param node AST节点
+    /// @return 翻译是否成功，true：成功，false：失败
+    bool ir_empty_stmt(ast_node * node);
+
+    /// @brief 函数数组形参AST节点翻译成线性中间IR-lxg
+    /// @param node AST节点
+    /// @return 翻译是否成功，true：成功，false：失败
+    bool ir_function_formal_param_array(ast_node * node);
+
+    /// @brief 检查变量是否是当前函数的参数-lxg
+    /// @param varName 变量名
+    /// @return 是否是函数参数
+    bool isCurrentFunctionParameter(const std::string & varName);
 
     /// @brief return节点翻译成线性中间IR
     /// @param node AST节点
@@ -203,5 +219,7 @@ private:
 
     /// @brief 符号表:模块
     Module * module;
-	std::string lastError;
+    std::string lastError;
+    /// @brief 全局变量初始值映射-lxg
+    std::unordered_map<std::string, int> globalVarInitValues;
 };

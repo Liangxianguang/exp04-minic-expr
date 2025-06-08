@@ -42,8 +42,9 @@ MoveInstruction::MoveInstruction(Function * _func, Value * _result, Value * _src
 //     str = dstVal->getIRName() + " = " + srcVal->getIRName();
 // }
 //修改 MoveInstruction::toString 方法以支持指针存储操作的打印
-void MoveInstruction::toString(std::string& str) {
-    Value* dstVal = getOperand(0), *srcVal = getOperand(1);
+void MoveInstruction::toString(std::string & str)
+{
+    Value *dstVal = getOperand(0), *srcVal = getOperand(1);
 
     if (isPointerStore) {
         // 指针存储格式：*%t8 = %l4
@@ -55,4 +56,16 @@ void MoveInstruction::toString(std::string& str) {
         // 普通赋值格式：%l0 = %t52
         str = dstVal->getIRName() + " = " + srcVal->getIRName();
     }
+}
+
+/// @brief 创建数组到指针转换指令的静态工厂方法
+/// @param func 所属函数
+/// @param ptrResult 目标指针变量
+/// @param arraySource 源数组变量
+/// @return MoveInstruction* 数组到指针转换指令
+MoveInstruction * MoveInstruction::createArrayToPointer(Function * func, Value * ptrResult, Value * arraySource)
+{
+    MoveInstruction * inst = new MoveInstruction(func, ptrResult, arraySource);
+    inst->setIsArrayToPointer(true);
+    return inst;
 }

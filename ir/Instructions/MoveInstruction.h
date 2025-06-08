@@ -33,6 +33,7 @@ class MoveInstruction : public Instruction {
 private:
     bool isPointerStore = false;  // 是否是通过指针存储值
     bool isPointerLoad = false;   // 是否是通过指针加载值
+    bool isArrayToPointer = false; // 是否是数组到指针的转换
 
 public:
     ///
@@ -65,4 +66,19 @@ public:
     bool getIsPointerLoad() const {
         return isPointerLoad;
     }
+
+    // 设置为数组到指针转换操作
+    void setIsArrayToPointer(bool isConvert)
+    {
+        isArrayToPointer = isConvert;
+    }
+
+    // 获取是否为数组到指针转换操作
+    bool getIsArrayToPointer() const
+    {
+        return isArrayToPointer;
+    }
+
+    // 创建数组到指针转换指令的静态工厂方法
+    static MoveInstruction * createArrayToPointer(Function * func, Value * ptrResult, Value * arraySource);
 };

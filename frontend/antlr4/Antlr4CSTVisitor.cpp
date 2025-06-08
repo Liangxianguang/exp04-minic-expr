@@ -100,7 +100,8 @@ std::any MiniCCSTVisitor::visitCompileUnit(MiniCParser::CompileUnitContext * ctx
 //     auto blockNode = std::any_cast<ast_node *>(visitBlock(ctx->block()));
 
 //     // 创建函数定义的节点，孩子有类型，函数名，语句块和形参(实际上无)
-//     // create_func_def函数内会释放funcId中指向的标识符空间，切记，之后不要再释放，之前一定要是通过strdup函数或者malloc分配的空间
+//     //
+//     create_func_def函数内会释放funcId中指向的标识符空间，切记，之后不要再释放，之前一定要是通过strdup函数或者malloc分配的空间
 //     return create_func_def(funcReturnType, funcId, blockNode, formalParamsNode);
 // }
 // 修改 visitFuncDef 方法,使其支持void类型-lxg
@@ -129,7 +130,7 @@ std::any MiniCCSTVisitor::visitFuncDef(MiniCParser::FuncDefContext * ctx)
         // 如果没有参数，创建一个空的形参列表节点
         formalParamsNode = new ast_node(ast_operator_type::AST_OP_FUNC_FORMAL_PARAMS);
     }
-    
+
     // 遍历block结点创建函数体节点，非终结符
     auto blockNode = std::any_cast<ast_node *>(visitBlock(ctx->block()));
 
@@ -201,7 +202,7 @@ std::any MiniCCSTVisitor::visitStatement(MiniCParser::StatementContext * ctx)
     // | T_RETURN expr T_SEMICOLON # returnStatement
     // | block  # blockStatement
     // | expr ? T_SEMICOLON #expressionStatement;
-	// 识别的文法产生式：statement:
+    // 识别的文法产生式：statement:
     // T_RETURN expr T_SEMICOLON                 # returnStatement
     // | lVal T_ASSIGN expr T_SEMICOLON          # assignStatement
     // | block                                   # blockStatement
@@ -238,13 +239,27 @@ std::any MiniCCSTVisitor::visitStatement(MiniCParser::StatementContext * ctx)
 ///
 std::any MiniCCSTVisitor::visitReturnStatement(MiniCParser::ReturnStatementContext * ctx)
 {
-    // 识别的文法产生式：returnStatement -> T_RETURN expr T_SEMICOLON
+    // // 识别的文法产生式：returnStatement -> T_RETURN expr T_SEMICOLON
 
-    // 非终结符，表达式expr遍历
-    auto exprNode = std::any_cast<ast_node *>(visitExpr(ctx->expr()));
+    // // 非终结符，表达式expr遍历
+    // auto exprNode = std::any_cast<ast_node *>(visitExpr(ctx->expr()));
 
-    // 创建返回节点，其孩子为Expr
-    return create_contain_node(ast_operator_type::AST_OP_RETURN, exprNode);
+    // // 创建返回节点，其孩子为Expr
+    // return create_contain_node(ast_operator_type::AST_OP_RETURN, exprNode);
+    // 识别的文法产生式：returnStatement -> T_RETURN expr? T_SEMICOLON -lxg
+    // 检查是否有返回值表达式
+    if (ctx->expr() != nullptr) {
+        // 有返回值：return expression;
+        // 非终结符，表达式expr遍历
+        auto exprNode = std::any_cast<ast_node *>(visitExpr(ctx->expr()));
+
+        // 创建返回节点，其孩子为Expr
+        return create_contain_node(ast_operator_type::AST_OP_RETURN, exprNode);
+    } else {
+        // 无返回值：return;（void函数）
+        // 创建返回节点，没有子节点
+        return create_contain_node(ast_operator_type::AST_OP_RETURN);
+    }
 }
 
 /// @brief 非终结运算符expr的遍历
@@ -253,8 +268,8 @@ std::any MiniCCSTVisitor::visitExpr(MiniCParser::ExprContext * ctx)
 {
     // 识别产生式：expr: addExp;
     // return visitAddExp(ctx->addExp());
-	// 修改为: expr: lorExp;-lxg
-    return visitLorExp(ctx->lorExp());  
+    // 修改为: expr: lorExp;-lxg
+    return visitLorExp(ctx->lorExp());
 }
 
 std::any MiniCCSTVisitor::visitAssignStatement(MiniCParser::AssignStatementContext * ctx)
@@ -282,7 +297,7 @@ std::any MiniCCSTVisitor::visitBlockStatement(MiniCParser::BlockStatementContext
 std::any MiniCCSTVisitor::visitAddExp(MiniCParser::AddExpContext * ctx)
 {
     // 识别的文法产生式：addExp : mulDivExp (addOp mulDivExp)*;
-    
+
     if (ctx->addOp().empty()) {
         // 没有addOp运算符，则说明闭包识别为0，只识别了第一个非终结符mulDivExp
         return visitMulDivExp(ctx->mulDivExp()[0]);
@@ -329,10 +344,10 @@ std::any MiniCCSTVisitor::visitAddOp(MiniCParser::AddOpContext * ctx)
 std::any MiniCCSTVisitor::visitUnaryExp(MiniCParser::UnaryExpContext * ctx)
 {
     // 识别文法产生式：unaryExp: primaryExp | T_ID T_L_PAREN realParamList? T_R_PAREN;
- 	// 识别文法产生式：unaryExp: T_SUB primaryExp | primaryExp | T_ID T_L_PAREN realParamList? T_R_PAREN;-lxg
+    // 识别文法产生式：unaryExp: T_SUB primaryExp | primaryExp | T_ID T_L_PAREN realParamList? T_R_PAREN;-lxg
     // 识别文法产生式：unaryExp: T_SUB unaryExp | primaryExp | T_ID T_L_PAREN realParamList? T_R_PAREN;-lxg
-    // 识别文法产生式：unaryExp: T_SUB unaryExp | T_LOGIC_NOT unaryExp | primaryExp | T_ID T_L_PAREN realParamList? T_R_PAREN;-lxg
-	// 添加对逻辑非的支持
+    // 识别文法产生式：unaryExp: T_SUB unaryExp | T_LOGIC_NOT unaryExp | primaryExp | T_ID T_L_PAREN realParamList?
+    // T_R_PAREN;-lxg 添加对逻辑非的支持
     try {
         if (ctx->T_LOGIC_NOT()) {
             // 逻辑非表达式
@@ -342,21 +357,21 @@ std::any MiniCCSTVisitor::visitUnaryExp(MiniCParser::UnaryExpContext * ctx)
                 digit_int_attr attr{0, -1};
                 return ast_node::New(attr);
             }
-            
-            ast_node *unaryNode = std::any_cast<ast_node *>(result);
+
+            ast_node * unaryNode = std::any_cast<ast_node *>(result);
             if (!unaryNode || reinterpret_cast<intptr_t>(unaryNode) < 0x1000) {
                 // 无效节点，提供默认值
                 digit_int_attr attr{0, -1};
                 unaryNode = ast_node::New(attr);
             }
-            
+
             return ast_node::New(ast_operator_type::AST_OP_LOGIC_NOT, unaryNode, nullptr, nullptr);
-            
+
         } else if (ctx->T_SUB()) {
             // 安全获取表达式
             std::any result = visitUnaryExp(ctx->unaryExp());
-            ast_node *unaryNode = nullptr;
-            
+            ast_node * unaryNode = nullptr;
+
             if (result.has_value()) {
                 try {
                     unaryNode = std::any_cast<ast_node *>(result);
@@ -370,36 +385,36 @@ std::any MiniCCSTVisitor::visitUnaryExp(MiniCParser::UnaryExpContext * ctx)
                 digit_int_attr attr{0, -1};
                 unaryNode = ast_node::New(attr);
             }
-            
+
             // 确保节点有效
             if (!unaryNode || reinterpret_cast<intptr_t>(unaryNode) < 0x1000) {
                 digit_int_attr attr{0, -1};
                 unaryNode = ast_node::New(attr);
             }
-            
+
             // 处理常量情况
             if (unaryNode->node_type == ast_operator_type::AST_OP_LEAF_LITERAL_UINT) {
-                unaryNode->integer_val = -((int32_t)unaryNode->integer_val);
+                unaryNode->integer_val = -((int32_t) unaryNode->integer_val);
                 return unaryNode;
             }
-            
+
             // 创建负号节点
             return ast_node::New(ast_operator_type::AST_OP_NEG, unaryNode, nullptr, nullptr);
-            
+
         } else if (ctx->primaryExp()) {
             // 普通表达式
             return visitPrimaryExp(ctx->primaryExp());
-            
+
         } else if (ctx->T_ID()) {
             // 函数调用 - 安全处理
             std::string funcName = ctx->T_ID()->getText();
             int64_t lineNo = ctx->T_ID()->getSymbol()->getLine();
-            
+
             // 创建函数名节点
-            ast_node *funcname_node = ast_node::New(funcName, lineNo);
-            
+            ast_node * funcname_node = ast_node::New(funcName, lineNo);
+
             // 安全处理参数
-            ast_node *paramListNode = nullptr;
+            ast_node * paramListNode = nullptr;
             if (ctx->realParamList()) {
                 try {
                     auto result = visitRealParamList(ctx->realParamList());
@@ -411,15 +426,15 @@ std::any MiniCCSTVisitor::visitUnaryExp(MiniCParser::UnaryExpContext * ctx)
                     paramListNode = nullptr;
                 }
             }
-            
+
             // 创建函数调用
             return create_func_call(funcname_node, paramListNode);
         }
-        
+
         // 默认情况：创建默认节点
         digit_int_attr attr{0, -1};
         return ast_node::New(attr);
-        
+
     } catch (...) {
         // 任何异常情况：创建默认节点
         digit_int_attr attr{0, -1};
@@ -449,15 +464,15 @@ std::any MiniCCSTVisitor::visitPrimaryExp(MiniCParser::PrimaryExpContext * ctx)
     //     // primaryExp: T_L_PAREN expr T_R_PAREN
     //     node = std::any_cast<ast_node *>(visitExpr(ctx->expr()));
     // }
-	//修改visitPrimaryExp函数，可识别八进制、十六进制-lxg
-	if (ctx->T_DIGIT()) {
+    //修改visitPrimaryExp函数，可识别八进制、十六进制-lxg
+    if (ctx->T_DIGIT()) {
         // 支持十进制、八进制、十六进制
         std::string text = ctx->T_DIGIT()->getText();
         uint32_t val = 0;
         if (text.size() > 2 && text[0] == '0' && (text[1] == 'x' || text[1] == 'X')) {
             val = std::stoul(text, nullptr, 16); // 十六进制
         } else if (text.size() > 1 && text[0] == '0') {
-            val = std::stoul(text, nullptr, 8);  // 八进制
+            val = std::stoul(text, nullptr, 8); // 八进制
         } else {
             val = std::stoul(text, nullptr, 10); // 十进制
         }
@@ -490,28 +505,28 @@ std::any MiniCCSTVisitor::visitPrimaryExp(MiniCParser::PrimaryExpContext * ctx)
 std::any MiniCCSTVisitor::visitLVal(MiniCParser::LValContext * ctx)
 {
     // 语法规则：lVal: T_ID ('[' expr ']')*;
-    
+
     // 获取数组名
     auto varId = ctx->T_ID()->getText();
     int64_t lineNo = (int64_t) ctx->T_ID()->getSymbol()->getLine();
-    
+
     // 创建数组名节点
-    ast_node* name_node = ast_node::New(varId, lineNo);
-    
+    ast_node * name_node = ast_node::New(varId, lineNo);
+
     // 检查是否有索引表达式
     if (ctx->expr().empty()) {
         // 如果没有索引，就是普通变量访问
         return name_node;
     } else {
         // 有索引，是数组访问
-        std::vector<ast_node*> indices;
-        
+        std::vector<ast_node *> indices;
+
         // 收集所有索引表达式
-        for (auto exprCtx : ctx->expr()) {
-            ast_node* index = std::any_cast<ast_node*>(visitExpr(exprCtx));
+        for (auto exprCtx: ctx->expr()) {
+            ast_node * index = std::any_cast<ast_node *>(visitExpr(exprCtx));
             indices.push_back(index);
         }
-        
+
         // 创建数组访问节点
         return create_array_access(name_node, indices);
     }
@@ -547,84 +562,85 @@ std::any MiniCCSTVisitor::visitLVal(MiniCParser::LValContext * ctx)
 std::any MiniCCSTVisitor::visitVarDecl(MiniCParser::VarDeclContext * ctx)
 {
     // varDecl: basicType varDef (T_COMMA varDef)* T_SEMICOLON;
-    
+
     // 声明语句节点
     ast_node * stmt_node = create_contain_node(ast_operator_type::AST_OP_DECL_STMT);
-    
+
     // 类型节点
     type_attr typeAttr = std::any_cast<type_attr>(visitBasicType(ctx->basicType()));
-    
+
     for (auto & varCtx: ctx->varDef()) {
         // 获取变量定义节点
-        ast_node* var_node = std::any_cast<ast_node*>(visitVarDef(varCtx));
-        
+        ast_node * var_node = std::any_cast<ast_node *>(visitVarDef(varCtx));
+
         // 创建类型节点
-        ast_node* type_node = create_type_node(typeAttr);
-        
+        ast_node * type_node = create_type_node(typeAttr);
+
         // 如果是带初始化的变量定义
         if (var_node->node_type == ast_operator_type::AST_OP_VAR_DEF_WITH_INIT) {
             // 提取变量名和初始化表达式
-            ast_node* id_node = var_node->sons[0];
-            ast_node* init_expr = var_node->sons[1];
-            
+            ast_node * id_node = var_node->sons[0];
+            ast_node * init_expr = var_node->sons[1];
+
             // 创建变量定义节点，包含三个子节点：类型、变量名、初始化表达式
-            ast_node* decl_node = create_contain_node(ast_operator_type::AST_OP_VAR_DECL, type_node, id_node, init_expr);
-            
+            ast_node * decl_node =
+                create_contain_node(ast_operator_type::AST_OP_VAR_DECL, type_node, id_node, init_expr);
+
             // 插入到变量声明语句
-            (void)stmt_node->insert_son_node(decl_node);
-            
+            (void) stmt_node->insert_son_node(decl_node);
+
             // 释放临时节点
             delete var_node;
         } else {
             // 普通变量定义，没有初始化表达式
-            ast_node* decl_node = create_contain_node(ast_operator_type::AST_OP_VAR_DECL, type_node, var_node);
-            
+            ast_node * decl_node = create_contain_node(ast_operator_type::AST_OP_VAR_DECL, type_node, var_node);
+
             // 插入到变量声明语句
-            (void)stmt_node->insert_son_node(decl_node);
+            (void) stmt_node->insert_son_node(decl_node);
         }
     }
-    
+
     return stmt_node;
 }
 
 std::any MiniCCSTVisitor::visitVarDef(MiniCParser::VarDefContext * ctx)
 {
     // varDef: T_ID;
-	// varDef: T_ID | T_ID T_ASSIGN expr;-lxg
+    // varDef: T_ID | T_ID T_ASSIGN expr;-lxg
     auto varId = ctx->T_ID()->getText();
 
     // 获取行号
     int64_t lineNo = (int64_t) ctx->T_ID()->getSymbol()->getLine();
 
     // 创建变量名节点
-    ast_node* id_node = ast_node::New(varId, lineNo);
-    
+    ast_node * id_node = ast_node::New(varId, lineNo);
+
     // 检查是否是数组定义 - 需要有方括号才是数组
     // 通过直接检查方括号的数量来判断是否是数组定义
     // MiniC.g4中的数组语法是 T_ID ('[' expr ']')*
     // 所以我们需要检查'['和']'的数量
     size_t leftBracketCount = 0;
-    for (auto token : ctx->children) {
+    for (auto token: ctx->children) {
         if (token->getText() == "[") {
             leftBracketCount++;
         }
     }
-    
+
     if (leftBracketCount > 0) {
         // 这是数组定义，处理维度表达式
-        std::vector<ast_node*> dimensions;
-        
+        std::vector<ast_node *> dimensions;
+
         // 收集维度表达式，每个维度占用两个表达式（[和]中间的表达式）
         for (size_t i = 0; i < leftBracketCount; i++) {
-            ast_node* dimExpr = std::any_cast<ast_node*>(visitExpr(ctx->expr()[i]));
+            ast_node * dimExpr = std::any_cast<ast_node *>(visitExpr(ctx->expr()[i]));
             dimensions.push_back(dimExpr);
         }
-        
+
         // 检查是否有初始化表达式
         if (ctx->T_ASSIGN()) {
             // 获取初始化表达式
-            ast_node* initExpr = std::any_cast<ast_node*>(visitExpr(ctx->expr()[leftBracketCount]));
-            
+            ast_node * initExpr = std::any_cast<ast_node *>(visitExpr(ctx->expr()[leftBracketCount]));
+
             // 创建数组定义节点，包含初始化表达式
             return create_array_def(id_node, dimensions, initExpr);
         } else {
@@ -632,12 +648,12 @@ std::any MiniCCSTVisitor::visitVarDef(MiniCParser::VarDefContext * ctx)
             return create_array_def(id_node, dimensions);
         }
     }
-    
+
     // 处理普通变量定义（没有方括号）
     if (ctx->T_ASSIGN() && !ctx->expr().empty()) {
         // 获取初始化表达式节点
-        ast_node* init_expr = std::any_cast<ast_node*>(visitExpr(ctx->expr()[0]));
-        
+        ast_node * init_expr = std::any_cast<ast_node *>(visitExpr(ctx->expr()[0]));
+
         // 返回包含初始化表达式的节点
         return ast_node::New(ast_operator_type::AST_OP_VAR_DEF_WITH_INIT, id_node, init_expr, nullptr);
     }
@@ -672,13 +688,13 @@ std::any MiniCCSTVisitor::visitRealParamList(MiniCParser::RealParamListContext *
                         paramListNode->insert_son_node(paramNode);
                     } else {
                         // 参数为空，添加默认参数
-                        digit_int_attr attr{0, (int64_t)paramCtx->getStart()->getLine()};
+                        digit_int_attr attr{0, (int64_t) paramCtx->getStart()->getLine()};
                         auto defaultParam = ast_node::New(attr);
                         paramListNode->insert_son_node(defaultParam);
                     }
                 } else {
                     // 没有返回值，添加默认参数
-                    digit_int_attr attr{0, (int64_t)paramCtx->getStart()->getLine()};
+                    digit_int_attr attr{0, (int64_t) paramCtx->getStart()->getLine()};
                     auto defaultParam = ast_node::New(attr);
                     paramListNode->insert_son_node(defaultParam);
                 }
@@ -724,11 +740,11 @@ std::any MiniCCSTVisitor::visitExpressionStatement(MiniCParser::ExpressionStatem
         // 空语句
         // 创建一个空语句节点，而不是返回nullptr
         int64_t lineNo = ctx->getStart()->getLine(); // 获取语句的行号
-        
+
         // 创建空语句节点
-        ast_node* emptyStmt = create_contain_node(ast_operator_type::AST_OP_EMPTY_STMT);
+        ast_node * emptyStmt = create_contain_node(ast_operator_type::AST_OP_EMPTY_STMT);
         emptyStmt->line_no = lineNo;
-        
+
         return emptyStmt;
     }
 }
@@ -737,7 +753,7 @@ std::any MiniCCSTVisitor::visitExpressionStatement(MiniCParser::ExpressionStatem
 std::any MiniCCSTVisitor::visitMulDivExp(MiniCParser::MulDivExpContext * ctx)
 {
     // 识别的文法产生式：mulDivExp: unaryExp (mulDivOp unaryExp)*;
-    
+
     if (ctx->mulDivOp().empty()) {
         // 没有mulDivOp运算符，则说明闭包识别为0，只识别了第一个非终结符unaryExp
         return visitUnaryExp(ctx->unaryExp()[0]);
@@ -784,7 +800,7 @@ std::any MiniCCSTVisitor::visitMulDivOp(MiniCParser::MulDivOpContext * ctx)
 std::any MiniCCSTVisitor::visitLorExp(MiniCParser::LorExpContext * ctx)
 {
     // 识别的文法产生式：lorExp: landExp (T_LOGIC_OR landExp)*;
-    
+
     try {
         if (ctx->T_LOGIC_OR().empty()) {
             // 没有逻辑或运算符，只有一个landExp
@@ -800,8 +816,8 @@ std::any MiniCCSTVisitor::visitLorExp(MiniCParser::LorExpContext * ctx)
 
         // 获取第一个表达式作为基础
         auto firstExprResult = visitLandExp(ctx->landExp()[0]);
-        ast_node *expr = nullptr;
-        
+        ast_node * expr = nullptr;
+
         if (firstExprResult.has_value()) {
             try {
                 expr = std::any_cast<ast_node *>(firstExprResult);
@@ -818,13 +834,13 @@ std::any MiniCCSTVisitor::visitLorExp(MiniCParser::LorExpContext * ctx)
             digit_int_attr attr{0, -1};
             expr = ast_node::New(attr);
         }
-        
+
         // 逐个处理后续的逻辑或表达式
         for (size_t i = 0; i < ctx->T_LOGIC_OR().size(); i++) {
             // 获取右侧表达式
             auto rightExprResult = visitLandExp(ctx->landExp()[i + 1]);
-            ast_node *rightExpr = nullptr;
-            
+            ast_node * rightExpr = nullptr;
+
             if (rightExprResult.has_value()) {
                 try {
                     rightExpr = std::any_cast<ast_node *>(rightExprResult);
@@ -841,18 +857,18 @@ std::any MiniCCSTVisitor::visitLorExp(MiniCParser::LorExpContext * ctx)
                 digit_int_attr attr{0, -1};
                 rightExpr = ast_node::New(attr);
             }
-            
+
             // 创建逻辑或节点，使用标准的函数添加子节点
-            ast_node *tempNode = create_contain_node(ast_operator_type::AST_OP_LOGIC_OR);
-            
+            ast_node * tempNode = create_contain_node(ast_operator_type::AST_OP_LOGIC_OR);
+
             // 使用标准的insert_son_node函数添加子节点
             tempNode->insert_son_node(expr);
             tempNode->insert_son_node(rightExpr);
-            
+
             // 更新表达式节点为新创建的节点
             expr = tempNode;
         }
-        
+
         return expr;
     } catch (...) {
         // 为任何未处理的异常提供安全的返回值
@@ -865,7 +881,7 @@ std::any MiniCCSTVisitor::visitLorExp(MiniCParser::LorExpContext * ctx)
 std::any MiniCCSTVisitor::visitLandExp(MiniCParser::LandExpContext * ctx)
 {
     // 识别的文法产生式：landExp: eqExp (T_LOGIC_AND eqExp)*;
-    
+
     try {
         if (ctx->T_LOGIC_AND().empty()) {
             // 没有逻辑与运算符，只有一个eqExp
@@ -881,8 +897,8 @@ std::any MiniCCSTVisitor::visitLandExp(MiniCParser::LandExpContext * ctx)
 
         // 获取第一个表达式作为基础
         auto firstExprResult = visitEqExp(ctx->eqExp()[0]);
-        ast_node *expr = nullptr;
-        
+        ast_node * expr = nullptr;
+
         if (firstExprResult.has_value()) {
             try {
                 expr = std::any_cast<ast_node *>(firstExprResult);
@@ -899,13 +915,13 @@ std::any MiniCCSTVisitor::visitLandExp(MiniCParser::LandExpContext * ctx)
             digit_int_attr attr{0, -1};
             expr = ast_node::New(attr);
         }
-        
+
         // 逐个处理后续的逻辑与表达式
         for (size_t i = 0; i < ctx->T_LOGIC_AND().size(); i++) {
             // 获取右侧表达式
             auto rightExprResult = visitEqExp(ctx->eqExp()[i + 1]);
-            ast_node *rightExpr = nullptr;
-            
+            ast_node * rightExpr = nullptr;
+
             if (rightExprResult.has_value()) {
                 try {
                     rightExpr = std::any_cast<ast_node *>(rightExprResult);
@@ -922,18 +938,18 @@ std::any MiniCCSTVisitor::visitLandExp(MiniCParser::LandExpContext * ctx)
                 digit_int_attr attr{0, -1};
                 rightExpr = ast_node::New(attr);
             }
-            
+
             // 创建逻辑与节点，使用标准的函数添加子节点
-            ast_node *tempNode = create_contain_node(ast_operator_type::AST_OP_LOGIC_AND);
-            
+            ast_node * tempNode = create_contain_node(ast_operator_type::AST_OP_LOGIC_AND);
+
             // 使用标准的insert_son_node函数添加子节点
             tempNode->insert_son_node(expr);
             tempNode->insert_son_node(rightExpr);
-            
+
             // 更新表达式节点为新创建的节点
             expr = tempNode;
         }
-        
+
         return expr;
     } catch (...) {
         // 为任何未处理的异常提供安全的返回值
@@ -946,7 +962,7 @@ std::any MiniCCSTVisitor::visitLandExp(MiniCParser::LandExpContext * ctx)
 std::any MiniCCSTVisitor::visitEqExp(MiniCParser::EqExpContext * ctx)
 {
     // 识别的文法产生式：eqExp: relExp ((T_EQ | T_NE) relExp)*;
-    
+
     try {
         // 没有相等运算符时直接返回relExp
         if (ctx->T_EQ().empty() && ctx->T_NE().empty()) {
@@ -958,11 +974,11 @@ std::any MiniCCSTVisitor::visitEqExp(MiniCParser::EqExpContext * ctx)
             }
             return result;
         }
-        
+
         // 获取第一个关系表达式作为初始左操作数
         auto leftResult = visitRelExp(ctx->relExp()[0]);
-        ast_node *left = nullptr;
-        
+        ast_node * left = nullptr;
+
         if (leftResult.has_value()) {
             try {
                 left = std::any_cast<ast_node *>(leftResult);
@@ -978,31 +994,30 @@ std::any MiniCCSTVisitor::visitEqExp(MiniCParser::EqExpContext * ctx)
             digit_int_attr attr{0, -1};
             left = ast_node::New(attr);
         }
-        
+
         // 跟踪当前处理的操作符位置
         size_t eqPos = 0;
         size_t nePos = 0;
-        
+
         // 处理所有后续的操作符和操作数
         for (size_t i = 1; i < ctx->relExp().size(); i++) {
             ast_operator_type op;
-            
+
             // 确定使用哪个操作符
-            if (eqPos < ctx->T_EQ().size() && 
-                (nePos >= ctx->T_NE().size() || 
-                ctx->T_EQ()[eqPos]->getSymbol()->getTokenIndex() < 
-                ctx->T_NE()[nePos]->getSymbol()->getTokenIndex())) {
+            if (eqPos < ctx->T_EQ().size() &&
+                (nePos >= ctx->T_NE().size() ||
+                 ctx->T_EQ()[eqPos]->getSymbol()->getTokenIndex() < ctx->T_NE()[nePos]->getSymbol()->getTokenIndex())) {
                 op = ast_operator_type::AST_OP_EQ;
                 eqPos++;
             } else {
                 op = ast_operator_type::AST_OP_NE;
                 nePos++;
             }
-            
+
             // 获取右操作数
             auto rightResult = visitRelExp(ctx->relExp()[i]);
-            ast_node *right = nullptr;
-            
+            ast_node * right = nullptr;
+
             if (rightResult.has_value()) {
                 try {
                     right = std::any_cast<ast_node *>(rightResult);
@@ -1018,11 +1033,11 @@ std::any MiniCCSTVisitor::visitEqExp(MiniCParser::EqExpContext * ctx)
                 digit_int_attr attr{0, -1};
                 right = ast_node::New(attr);
             }
-            
+
             // 创建新的表达式节点
             left = ast_node::New(op, left, right, nullptr);
         }
-        
+
         return left;
     } catch (...) {
         digit_int_attr attr{0, -1};
@@ -1033,11 +1048,10 @@ std::any MiniCCSTVisitor::visitEqExp(MiniCParser::EqExpContext * ctx)
 std::any MiniCCSTVisitor::visitRelExp(MiniCParser::RelExpContext * ctx)
 {
     // 识别的文法产生式：relExp: addExp ((T_LT | T_GT | T_LE | T_GE) addExp)*;
-    
+
     try {
         // 没有关系运算符时直接返回addExp
-        if (ctx->T_LT().empty() && ctx->T_GT().empty() && 
-            ctx->T_LE().empty() && ctx->T_GE().empty()) {
+        if (ctx->T_LT().empty() && ctx->T_GT().empty() && ctx->T_LE().empty() && ctx->T_GE().empty()) {
             auto result = visitAddExp(ctx->addExp()[0]);
             if (!result.has_value()) {
                 digit_int_attr attr{0, -1};
@@ -1045,11 +1059,11 @@ std::any MiniCCSTVisitor::visitRelExp(MiniCParser::RelExpContext * ctx)
             }
             return result;
         }
-        
+
         // 获取第一个加法表达式作为初始左操作数
         auto leftResult = visitAddExp(ctx->addExp()[0]);
-        ast_node *left = nullptr;
-        
+        ast_node * left = nullptr;
+
         if (leftResult.has_value()) {
             try {
                 left = std::any_cast<ast_node *>(leftResult);
@@ -1065,16 +1079,16 @@ std::any MiniCCSTVisitor::visitRelExp(MiniCParser::RelExpContext * ctx)
             digit_int_attr attr{0, -1};
             left = ast_node::New(attr);
         }
-        
+
         // 跟踪操作符位置
         size_t ltPos = 0, gtPos = 0, lePos = 0, gePos = 0;
-        
+
         // 处理所有后续操作符和操作数
         for (size_t i = 1; i < ctx->addExp().size(); i++) {
             ast_operator_type op;
             int minIndex = INT_MAX;
             int tokenIndex;
-            
+
             // 找出最早出现的操作符
             if (ltPos < ctx->T_LT().size()) {
                 tokenIndex = ctx->T_LT()[ltPos]->getSymbol()->getTokenIndex();
@@ -1083,7 +1097,7 @@ std::any MiniCCSTVisitor::visitRelExp(MiniCParser::RelExpContext * ctx)
                     op = ast_operator_type::AST_OP_LT;
                 }
             }
-            
+
             if (gtPos < ctx->T_GT().size()) {
                 tokenIndex = ctx->T_GT()[gtPos]->getSymbol()->getTokenIndex();
                 if (tokenIndex < minIndex) {
@@ -1091,7 +1105,7 @@ std::any MiniCCSTVisitor::visitRelExp(MiniCParser::RelExpContext * ctx)
                     op = ast_operator_type::AST_OP_GT;
                 }
             }
-            
+
             if (lePos < ctx->T_LE().size()) {
                 tokenIndex = ctx->T_LE()[lePos]->getSymbol()->getTokenIndex();
                 if (tokenIndex < minIndex) {
@@ -1099,7 +1113,7 @@ std::any MiniCCSTVisitor::visitRelExp(MiniCParser::RelExpContext * ctx)
                     op = ast_operator_type::AST_OP_LE;
                 }
             }
-            
+
             if (gePos < ctx->T_GE().size()) {
                 tokenIndex = ctx->T_GE()[gePos]->getSymbol()->getTokenIndex();
                 if (tokenIndex < minIndex) {
@@ -1107,17 +1121,21 @@ std::any MiniCCSTVisitor::visitRelExp(MiniCParser::RelExpContext * ctx)
                     op = ast_operator_type::AST_OP_GE;
                 }
             }
-            
+
             // 更新操作符位置计数器
-            if (op == ast_operator_type::AST_OP_LT) ltPos++;
-            else if (op == ast_operator_type::AST_OP_GT) gtPos++;
-            else if (op == ast_operator_type::AST_OP_LE) lePos++;
-            else if (op == ast_operator_type::AST_OP_GE) gePos++;
-            
+            if (op == ast_operator_type::AST_OP_LT)
+                ltPos++;
+            else if (op == ast_operator_type::AST_OP_GT)
+                gtPos++;
+            else if (op == ast_operator_type::AST_OP_LE)
+                lePos++;
+            else if (op == ast_operator_type::AST_OP_GE)
+                gePos++;
+
             // 获取右操作数
             auto rightResult = visitAddExp(ctx->addExp()[i]);
-            ast_node *right = nullptr;
-            
+            ast_node * right = nullptr;
+
             if (rightResult.has_value()) {
                 try {
                     right = std::any_cast<ast_node *>(rightResult);
@@ -1133,11 +1151,11 @@ std::any MiniCCSTVisitor::visitRelExp(MiniCParser::RelExpContext * ctx)
                 digit_int_attr attr{0, -1};
                 right = ast_node::New(attr);
             }
-            
+
             // 创建新的表达式节点
             left = ast_node::New(op, left, right, nullptr);
         }
-        
+
         return left;
     } catch (...) {
         digit_int_attr attr{0, -1};
@@ -1150,14 +1168,14 @@ std::any MiniCCSTVisitor::visitIfStatement(MiniCParser::IfStatementContext * ctx
 {
     // 处理if语句
     // 语法: T_IF T_L_PAREN expr T_R_PAREN statement (T_ELSE statement)?
-    
+
     // 条件表达式
-    ast_node* condExpr = nullptr;
+    ast_node * condExpr = nullptr;
     try {
         auto result = visitExpr(ctx->expr());
         if (result.has_value()) {
-            condExpr = std::any_cast<ast_node*>(result);
-            
+            condExpr = std::any_cast<ast_node *>(result);
+
             // 健壮性检查 - 确保condExpr指针有效
             if (!condExpr || reinterpret_cast<intptr_t>(condExpr) < 0x1000) {
                 // 创建默认条件表达式
@@ -1169,18 +1187,18 @@ std::any MiniCCSTVisitor::visitIfStatement(MiniCParser::IfStatementContext * ctx
             condExpr = ast_node::New(ast_operator_type::AST_OP_LEAF_LITERAL_UINT);
             condExpr->integer_val = 1; // 设为true
         }
-    } catch (const std::exception& e) {
+    } catch (const std::exception & e) {
         // 创建默认条件表达式
         condExpr = ast_node::New(ast_operator_type::AST_OP_LEAF_LITERAL_UINT);
         condExpr->integer_val = 1; // 设为true
     }
-    
+
     // if语句体
-    ast_node* thenStmt = nullptr;
+    ast_node * thenStmt = nullptr;
     try {
         auto result = visitStatement(ctx->statement(0));
         if (result.has_value()) {
-            thenStmt = std::any_cast<ast_node*>(result);
+            thenStmt = std::any_cast<ast_node *>(result);
             // 验证语句节点的有效性
             if (!thenStmt || reinterpret_cast<intptr_t>(thenStmt) < 0x1000) {
                 thenStmt = ast_node::New(ast_operator_type::AST_OP_BLOCK);
@@ -1189,18 +1207,18 @@ std::any MiniCCSTVisitor::visitIfStatement(MiniCParser::IfStatementContext * ctx
             // 空语句创建空块
             thenStmt = ast_node::New(ast_operator_type::AST_OP_BLOCK);
         }
-    } catch (const std::exception& e) {
+    } catch (const std::exception & e) {
         // 创建空块作为默认语句体
         thenStmt = ast_node::New(ast_operator_type::AST_OP_BLOCK);
     }
-    
+
     if (ctx->T_ELSE()) {
         // if-else语句
-        ast_node* elseStmt = nullptr;
+        ast_node * elseStmt = nullptr;
         try {
             auto result = visitStatement(ctx->statement(1));
             if (result.has_value()) {
-                elseStmt = std::any_cast<ast_node*>(result);
+                elseStmt = std::any_cast<ast_node *>(result);
                 // 验证语句节点的有效性
                 if (!elseStmt || reinterpret_cast<intptr_t>(elseStmt) < 0x1000) {
                     elseStmt = ast_node::New(ast_operator_type::AST_OP_BLOCK);
@@ -1208,12 +1226,12 @@ std::any MiniCCSTVisitor::visitIfStatement(MiniCParser::IfStatementContext * ctx
             } else {
                 elseStmt = ast_node::New(ast_operator_type::AST_OP_BLOCK);
             }
-        } catch (const std::exception& e) {
+        } catch (const std::exception & e) {
             elseStmt = ast_node::New(ast_operator_type::AST_OP_BLOCK);
         }
-        
+
         // 创建if-else节点，确保所有子节点有效
-        ast_node* ifElseNode = nullptr;
+        ast_node * ifElseNode = nullptr;
         try {
             ifElseNode = ast_node::New(ast_operator_type::AST_OP_IF_ELSE, condExpr, thenStmt, elseStmt, nullptr);
         } catch (...) {
@@ -1223,7 +1241,7 @@ std::any MiniCCSTVisitor::visitIfStatement(MiniCParser::IfStatementContext * ctx
         return ifElseNode;
     } else {
         // 单独的if语句
-        ast_node* ifNode = nullptr;
+        ast_node * ifNode = nullptr;
         try {
             ifNode = ast_node::New(ast_operator_type::AST_OP_IF, condExpr, thenStmt, nullptr);
         } catch (...) {
@@ -1238,13 +1256,13 @@ std::any MiniCCSTVisitor::visitWhileStatement(MiniCParser::WhileStatementContext
 {
     // 处理while循环语句
     // 语法: T_WHILE T_L_PAREN expr T_R_PAREN statement
-    
+
     // 条件表达式
     auto condExpr = std::any_cast<ast_node *>(visitExpr(ctx->expr()));
-    
+
     // 循环体
     auto bodyStmt = std::any_cast<ast_node *>(visitStatement(ctx->statement()));
-    
+
     return ast_node::New(ast_operator_type::AST_OP_WHILE, condExpr, bodyStmt, nullptr);
 }
 
@@ -1269,7 +1287,7 @@ std::any MiniCCSTVisitor::visitParamList(MiniCParser::ParamListContext * ctx)
     ast_node * paramsNode = new ast_node(ast_operator_type::AST_OP_FUNC_FORMAL_PARAMS);
 
     // 遍历所有参数
-    for (auto paramCtx : ctx->param()) {
+    for (auto paramCtx: ctx->param()) {
         // 处理每个参数
         ast_node * paramNode = std::any_cast<ast_node *>(visitParam(paramCtx));
         paramsNode->insert_son_node(paramNode);
@@ -1282,22 +1300,39 @@ std::any MiniCCSTVisitor::visitParam(MiniCParser::ParamContext * ctx)
 {
     // 获取参数类型
     type_attr paramType{BasicType::TYPE_INT, (int64_t) ctx->T_INT()->getSymbol()->getLine()};
-    
+
     // 创建类型节点 - 直接使用 create_type_node 而不是先转换类型再创建
     ast_node * typeNode = create_type_node(paramType);
-    
+
     // 获取参数名称
     std::string paramName = ctx->T_ID()->getText();
     int64_t lineno = (int64_t) ctx->T_ID()->getSymbol()->getLine();
-    
+
     // 创建名称节点
     ast_node * nameNode = ast_node::New(paramName, lineno);
-    
-    // 创建形参节点
-    ast_node * paramNode = new ast_node(ast_operator_type::AST_OP_FUNC_FORMAL_PARAM);
-    paramNode->insert_son_node(typeNode);
-    paramNode->insert_son_node(nameNode);
-    
-    return paramNode;
-}
 
+    // 检查是否是数组参数
+    // 通过检查语法树中是否有 '[' 来判断
+    int arrayDimCount = 0;
+
+    // 计算数组维度数量
+    for (auto child: ctx->children) {
+        if (child->getText() == "[") {
+            arrayDimCount++;
+        }
+    }
+
+    if (arrayDimCount > 0) {
+        // 数组参数
+        ast_node * paramNode = new ast_node(ast_operator_type::AST_OP_FUNC_FORMAL_PARAM_ARRAY);
+        paramNode->insert_son_node(typeNode);
+        paramNode->insert_son_node(nameNode);
+        return paramNode;
+    } else {
+        // 普通参数
+        ast_node * paramNode = new ast_node(ast_operator_type::AST_OP_FUNC_FORMAL_PARAM);
+        paramNode->insert_son_node(typeNode);
+        paramNode->insert_son_node(nameNode);
+        return paramNode;
+    }
+}

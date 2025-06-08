@@ -82,10 +82,10 @@ string getNodeName(ast_node * astnode)
             nodeName = "real-params";
             break;
             // TODO 这里追加其它类型的结点，返回对应结点的字符串
-		case ast_operator_type::AST_OP_NEG:
+        case ast_operator_type::AST_OP_NEG:
             nodeName = "-";
-            break;			
-		case ast_operator_type::AST_OP_MUL:
+            break;
+        case ast_operator_type::AST_OP_MUL:
             nodeName = "*";
             break;
         case ast_operator_type::AST_OP_DIV:
@@ -94,71 +94,74 @@ string getNodeName(ast_node * astnode)
         case ast_operator_type::AST_OP_MOD:
             nodeName = "%";
             break;
-		// 关系运算符
-		case ast_operator_type::AST_OP_LT:
-			nodeName = "<";
-			break;
-		case ast_operator_type::AST_OP_GT:
-			nodeName = ">";
-			break;
-		case ast_operator_type::AST_OP_LE:
-			nodeName = "<=";
-			break;
-		case ast_operator_type::AST_OP_GE:
-			nodeName = ">=";
-			break;
-		case ast_operator_type::AST_OP_EQ:
-			nodeName = "==";
-			break;
-		case ast_operator_type::AST_OP_NE:
-			nodeName = "!=";
-			break;
+        // 关系运算符
+        case ast_operator_type::AST_OP_LT:
+            nodeName = "<";
+            break;
+        case ast_operator_type::AST_OP_GT:
+            nodeName = ">";
+            break;
+        case ast_operator_type::AST_OP_LE:
+            nodeName = "<=";
+            break;
+        case ast_operator_type::AST_OP_GE:
+            nodeName = ">=";
+            break;
+        case ast_operator_type::AST_OP_EQ:
+            nodeName = "==";
+            break;
+        case ast_operator_type::AST_OP_NE:
+            nodeName = "!=";
+            break;
 
-		// 逻辑运算符
-		case ast_operator_type::AST_OP_LOGIC_AND:
-			nodeName = "&&";
-			break;
-		case ast_operator_type::AST_OP_LOGIC_OR:
-			nodeName = "||";
-			break;
-		case ast_operator_type::AST_OP_LOGIC_NOT:
-			nodeName = "!";
-			break;
-		
-		// 控制流语句
-		case ast_operator_type::AST_OP_IF:
-			nodeName = "if";
-			break;
-		case ast_operator_type::AST_OP_IF_ELSE:
-			nodeName = "if-else";
-			break;
-		case ast_operator_type::AST_OP_WHILE:
-			nodeName = "while";
-			break;
-		case ast_operator_type::AST_OP_BREAK:
-			nodeName = "break";
-			break;
-		case ast_operator_type::AST_OP_CONTINUE:
-			nodeName = "continue";
-			break;
+        // 逻辑运算符
+        case ast_operator_type::AST_OP_LOGIC_AND:
+            nodeName = "&&";
+            break;
+        case ast_operator_type::AST_OP_LOGIC_OR:
+            nodeName = "||";
+            break;
+        case ast_operator_type::AST_OP_LOGIC_NOT:
+            nodeName = "!";
+            break;
 
-		        // 增加以下节点类型处理
+        // 控制流语句
+        case ast_operator_type::AST_OP_IF:
+            nodeName = "if";
+            break;
+        case ast_operator_type::AST_OP_IF_ELSE:
+            nodeName = "if-else";
+            break;
+        case ast_operator_type::AST_OP_WHILE:
+            nodeName = "while";
+            break;
+        case ast_operator_type::AST_OP_BREAK:
+            nodeName = "break";
+            break;
+        case ast_operator_type::AST_OP_CONTINUE:
+            nodeName = "continue";
+            break;
+
+        // 增加以下节点类型处理-lxg
         case ast_operator_type::AST_OP_EMPTY_STMT:
             nodeName = "empty-stmt";
             break;
-            
+
         case ast_operator_type::AST_OP_ARRAY_DEF:
             nodeName = "array-def";
             break;
-            
+
         case ast_operator_type::AST_OP_ARRAY_ACCESS:
             nodeName = "array-access";
             break;
-            
+
         case ast_operator_type::AST_OP_FUNC_FORMAL_PARAM:
             nodeName = "formal-param";
             break;
 
+        case ast_operator_type::AST_OP_FUNC_FORMAL_PARAM_ARRAY:
+            nodeName = "param-array";
+            break;
         default:
             nodeName = "unknown";
             break;

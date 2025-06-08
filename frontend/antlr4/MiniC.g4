@@ -13,12 +13,12 @@ grammar MiniC;
 // 源文件编译单元定义
 compileUnit: (funcDef | varDecl)* EOF;
 
-// 函数定义，目前不支持形参，也不支持返回void类型等 funcDef: T_INT T_ID T_L_PAREN T_R_PAREN block;
-// funcDef: T_INT T_ID T_L_PAREN paramList? T_R_PAREN block;
-// 修改函数定义，目前支持形参，也支持返回void类型等-lxg
-funcDef: (T_INT|T_VOID) T_ID T_L_PAREN paramList? T_R_PAREN block;
+// 函数定义，目前不支持形参，也不支持返回void类型等 funcDef: T_INT T_ID T_L_PAREN T_R_PAREN block; funcDef: T_INT T_ID
+// T_L_PAREN paramList? T_R_PAREN block; 修改函数定义，目前支持形参，也支持返回void类型等-lxg
+funcDef: (T_INT | T_VOID) T_ID T_L_PAREN paramList? T_R_PAREN block;
 paramList: param (',' param)*;
-param: T_INT T_ID;
+// 修改 param 规则以支持数组参数 param: T_INT T_ID;
+param: T_INT T_ID ('[' ']')*;
 
 // 语句块看用作函数体，这里允许多个语句，并且不含任何语句
 block: T_L_BRACE blockItemList? T_R_BRACE;
@@ -35,28 +35,26 @@ varDecl: basicType varDef (T_COMMA varDef)* T_SEMICOLON;
 // 基本类型
 basicType: T_INT;
 
-// 变量定义 varDef: T_ID;
-// 修改变量定义，使其支持变量初始化 varDef: T_ID | T_ID T_ASSIGN expr;
-// 修改类型声明,使其支持数组
-varDef: T_ID ('[' expr ']')* | T_ID ('[' expr ']')* T_ASSIGN expr;
+// 变量定义 varDef: T_ID; 修改变量定义，使其支持变量初始化 varDef: T_ID | T_ID T_ASSIGN expr; 修改类型声明,使其支持数组
+varDef:
+	T_ID ('[' expr ']')*
+	| T_ID ('[' expr ']')* T_ASSIGN expr;
 
-// 目前语句支持return和赋值语句
-//statement:T_RETURN expr T_SEMICOLON			# returnStatement | lVal T_ASSIGN expr T_SEMICOLON	# assignStatement | block								# blockStatement | expr? T_SEMICOLON					# expressionStatement;
+// 目前语句支持return和赋值语句 statement:T_RETURN expr T_SEMICOLON # returnStatement | lVal T_ASSIGN expr
+// T_SEMICOLON # assignStatement | block # blockStatement | expr? T_SEMICOLON # expressionStatement;
 
 // 修改语句规则，增加分支和循环语句-lxg
 statement:
-    T_RETURN expr T_SEMICOLON                 # returnStatement
-    | lVal T_ASSIGN expr T_SEMICOLON          # assignStatement
-    | block                                   # blockStatement
-    | T_IF T_L_PAREN expr T_R_PAREN statement (T_ELSE statement)?  # ifStatement
-    | T_WHILE T_L_PAREN expr T_R_PAREN statement  # whileStatement
-    | T_BREAK T_SEMICOLON                     # breakStatement
-    | T_CONTINUE T_SEMICOLON                  # continueStatement
-    | expr? T_SEMICOLON                       # expressionStatement
-    ;
+	T_RETURN expr? T_SEMICOLON										# returnStatement // 支持return;语句
+	| lVal T_ASSIGN expr T_SEMICOLON								# assignStatement
+	| block															# blockStatement
+	| T_IF T_L_PAREN expr T_R_PAREN statement (T_ELSE statement)?	# ifStatement
+	| T_WHILE T_L_PAREN expr T_R_PAREN statement					# whileStatement
+	| T_BREAK T_SEMICOLON											# breakStatement
+	| T_CONTINUE T_SEMICOLON										# continueStatement
+	| expr? T_SEMICOLON												# expressionStatement;
 
-// 表达式文法 expr : AddExp 表达式目前只支持加法与减法运算 expr: addExp; 表达支持加减乘除模运算
-// 修改表达式文法，增加关系和逻辑表达式-lxg
+// 表达式文法 expr : AddExp 表达式目前只支持加法与减法运算 expr: addExp; 表达支持加减乘除模运算 修改表达式文法，增加关系和逻辑表达式-lxg
 expr: lorExp;
 
 // 逻辑或表达式
@@ -71,7 +69,6 @@ eqExp: relExp ((T_EQ | T_NE) relExp)*;
 // 关系表达式
 relExp: addExp ((T_LT | T_GT | T_LE | T_GE) addExp)*;
 
-
 // 加减表达式 addExp: unaryExp (addOp unaryExp)*;
 addExp: mulDivExp (addOp mulDivExp)*;
 
@@ -84,16 +81,15 @@ mulDivExp: unaryExp (mulDivOp unaryExp)*;
 // 乘除求余运算符
 mulDivOp: T_MUL | T_DIV | T_MOD;
 
-// 一元表达式 unaryExp: primaryExp | T_ID T_L_PAREN realParamList? T_R_PAREN;
-// unaryExp: T_SUB unaryExp | primaryExp | T_ID T_L_PAREN realParamList? T_R_PAREN;
+// 一元表达式 unaryExp: primaryExp | T_ID T_L_PAREN realParamList? T_R_PAREN; unaryExp: T_SUB unaryExp |
+// primaryExp | T_ID T_L_PAREN realParamList? T_R_PAREN;
 
 // 修改一元表达式，增加逻辑非
 unaryExp:
-    T_SUB unaryExp
-    | T_LOGIC_NOT unaryExp
-    | primaryExp
-    | T_ID T_L_PAREN realParamList? T_R_PAREN
-    ;
+	T_SUB unaryExp
+	| T_LOGIC_NOT unaryExp
+	| primaryExp
+	| T_ID T_L_PAREN realParamList? T_R_PAREN;
 
 // 基本表达式：括号表达式、整数、左值表达式
 primaryExp: T_L_PAREN expr T_R_PAREN | T_DIGIT | lVal;
@@ -101,8 +97,7 @@ primaryExp: T_L_PAREN expr T_R_PAREN | T_DIGIT | lVal;
 // 实参列表
 realParamList: expr (T_COMMA expr)*;
 
-// 左值表达式 lVal: T_ID;
-// 修改为左值表达式，支持数组访问
+// 左值表达式 lVal: T_ID; 修改为左值表达式，支持数组访问
 lVal: T_ID ('[' expr ']')*;
 
 // 用正规式来进行词法规则的描述
@@ -150,11 +145,9 @@ T_DIGIT:
 	| '0' [0-7]+
 	| '0' [xX][0-9a-fA-F]+;
 
-
-
 // 添加注释规则-lxg
-COMMENT: '//' ~[\r\n]* -> skip;  // 单行注释
-BLOCK_COMMENT: '/*' .*? '*/' -> skip;  // 多行注释
+COMMENT: '//' ~[\r\n]* -> skip; // 单行注释
+BLOCK_COMMENT: '/*' .*? '*/' -> skip; // 多行注释
 
 /* 空白符丢弃 */
 WS: [ \r\n\t]+ -> skip;

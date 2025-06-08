@@ -64,90 +64,93 @@ void minicParserInitialize() {
     }
   );
   static const int32_t serializedATNSegment[] = {
-  	4,1,36,260,2,0,7,0,2,1,7,1,2,2,7,2,2,3,7,3,2,4,7,4,2,5,7,5,2,6,7,6,2,
+  	4,1,36,267,2,0,7,0,2,1,7,1,2,2,7,2,2,3,7,3,2,4,7,4,2,5,7,5,2,6,7,6,2,
   	7,7,7,2,8,7,8,2,9,7,9,2,10,7,10,2,11,7,11,2,12,7,12,2,13,7,13,2,14,7,
   	14,2,15,7,15,2,16,7,16,2,17,7,17,2,18,7,18,2,19,7,19,2,20,7,20,2,21,7,
   	21,2,22,7,22,2,23,7,23,1,0,1,0,5,0,51,8,0,10,0,12,0,54,9,0,1,0,1,0,1,
   	1,1,1,1,1,1,1,3,1,62,8,1,1,1,1,1,1,1,1,2,1,2,1,2,5,2,70,8,2,10,2,12,2,
-  	73,9,2,1,3,1,3,1,3,1,4,1,4,3,4,80,8,4,1,4,1,4,1,5,4,5,85,8,5,11,5,12,
-  	5,86,1,6,1,6,3,6,91,8,6,1,7,1,7,1,7,1,7,5,7,97,8,7,10,7,12,7,100,9,7,
-  	1,7,1,7,1,8,1,8,1,9,1,9,1,9,1,9,1,9,5,9,111,8,9,10,9,12,9,114,9,9,1,9,
-  	1,9,1,9,1,9,1,9,5,9,121,8,9,10,9,12,9,124,9,9,1,9,1,9,3,9,128,8,9,1,10,
-  	1,10,1,10,1,10,1,10,1,10,1,10,1,10,1,10,1,10,1,10,1,10,1,10,1,10,1,10,
-  	1,10,1,10,3,10,147,8,10,1,10,1,10,1,10,1,10,1,10,1,10,1,10,1,10,1,10,
-  	1,10,1,10,3,10,160,8,10,1,10,3,10,163,8,10,1,11,1,11,1,12,1,12,1,12,5,
-  	12,170,8,12,10,12,12,12,173,9,12,1,13,1,13,1,13,5,13,178,8,13,10,13,12,
-  	13,181,9,13,1,14,1,14,1,14,5,14,186,8,14,10,14,12,14,189,9,14,1,15,1,
-  	15,1,15,5,15,194,8,15,10,15,12,15,197,9,15,1,16,1,16,1,16,1,16,5,16,203,
-  	8,16,10,16,12,16,206,9,16,1,17,1,17,1,18,1,18,1,18,1,18,5,18,214,8,18,
-  	10,18,12,18,217,9,18,1,19,1,19,1,20,1,20,1,20,1,20,1,20,1,20,1,20,1,20,
-  	3,20,229,8,20,1,20,3,20,232,8,20,1,21,1,21,1,21,1,21,1,21,1,21,3,21,240,
-  	8,21,1,22,1,22,1,22,5,22,245,8,22,10,22,12,22,248,9,22,1,23,1,23,1,23,
-  	1,23,1,23,5,23,255,8,23,10,23,12,23,258,9,23,1,23,0,0,24,0,2,4,6,8,10,
-  	12,14,16,18,20,22,24,26,28,30,32,34,36,38,40,42,44,46,0,5,1,0,30,31,1,
-  	0,19,20,1,0,15,18,1,0,10,11,1,0,12,14,269,0,52,1,0,0,0,2,57,1,0,0,0,4,
-  	66,1,0,0,0,6,74,1,0,0,0,8,77,1,0,0,0,10,84,1,0,0,0,12,90,1,0,0,0,14,92,
-  	1,0,0,0,16,103,1,0,0,0,18,127,1,0,0,0,20,162,1,0,0,0,22,164,1,0,0,0,24,
-  	166,1,0,0,0,26,174,1,0,0,0,28,182,1,0,0,0,30,190,1,0,0,0,32,198,1,0,0,
-  	0,34,207,1,0,0,0,36,209,1,0,0,0,38,218,1,0,0,0,40,231,1,0,0,0,42,239,
-  	1,0,0,0,44,241,1,0,0,0,46,249,1,0,0,0,48,51,3,2,1,0,49,51,3,14,7,0,50,
-  	48,1,0,0,0,50,49,1,0,0,0,51,54,1,0,0,0,52,50,1,0,0,0,52,53,1,0,0,0,53,
-  	55,1,0,0,0,54,52,1,0,0,0,55,56,5,0,0,1,56,1,1,0,0,0,57,58,7,0,0,0,58,
-  	59,5,32,0,0,59,61,5,3,0,0,60,62,3,4,2,0,61,60,1,0,0,0,61,62,1,0,0,0,62,
-  	63,1,0,0,0,63,64,5,4,0,0,64,65,3,8,4,0,65,3,1,0,0,0,66,71,3,6,3,0,67,
-  	68,5,9,0,0,68,70,3,6,3,0,69,67,1,0,0,0,70,73,1,0,0,0,71,69,1,0,0,0,71,
-  	72,1,0,0,0,72,5,1,0,0,0,73,71,1,0,0,0,74,75,5,30,0,0,75,76,5,32,0,0,76,
-  	7,1,0,0,0,77,79,5,6,0,0,78,80,3,10,5,0,79,78,1,0,0,0,79,80,1,0,0,0,80,
-  	81,1,0,0,0,81,82,5,7,0,0,82,9,1,0,0,0,83,85,3,12,6,0,84,83,1,0,0,0,85,
-  	86,1,0,0,0,86,84,1,0,0,0,86,87,1,0,0,0,87,11,1,0,0,0,88,91,3,20,10,0,
-  	89,91,3,14,7,0,90,88,1,0,0,0,90,89,1,0,0,0,91,13,1,0,0,0,92,93,3,16,8,
-  	0,93,98,3,18,9,0,94,95,5,9,0,0,95,97,3,18,9,0,96,94,1,0,0,0,97,100,1,
-  	0,0,0,98,96,1,0,0,0,98,99,1,0,0,0,99,101,1,0,0,0,100,98,1,0,0,0,101,102,
-  	5,5,0,0,102,15,1,0,0,0,103,104,5,30,0,0,104,17,1,0,0,0,105,112,5,32,0,
-  	0,106,107,5,1,0,0,107,108,3,22,11,0,108,109,5,2,0,0,109,111,1,0,0,0,110,
-  	106,1,0,0,0,111,114,1,0,0,0,112,110,1,0,0,0,112,113,1,0,0,0,113,128,1,
-  	0,0,0,114,112,1,0,0,0,115,122,5,32,0,0,116,117,5,1,0,0,117,118,3,22,11,
-  	0,118,119,5,2,0,0,119,121,1,0,0,0,120,116,1,0,0,0,121,124,1,0,0,0,122,
-  	120,1,0,0,0,122,123,1,0,0,0,123,125,1,0,0,0,124,122,1,0,0,0,125,126,5,
-  	8,0,0,126,128,3,22,11,0,127,105,1,0,0,0,127,115,1,0,0,0,128,19,1,0,0,
-  	0,129,130,5,29,0,0,130,131,3,22,11,0,131,132,5,5,0,0,132,163,1,0,0,0,
-  	133,134,3,46,23,0,134,135,5,8,0,0,135,136,3,22,11,0,136,137,5,5,0,0,137,
-  	163,1,0,0,0,138,163,3,8,4,0,139,140,5,24,0,0,140,141,5,3,0,0,141,142,
-  	3,22,11,0,142,143,5,4,0,0,143,146,3,20,10,0,144,145,5,25,0,0,145,147,
-  	3,20,10,0,146,144,1,0,0,0,146,147,1,0,0,0,147,163,1,0,0,0,148,149,5,26,
-  	0,0,149,150,5,3,0,0,150,151,3,22,11,0,151,152,5,4,0,0,152,153,3,20,10,
-  	0,153,163,1,0,0,0,154,155,5,27,0,0,155,163,5,5,0,0,156,157,5,28,0,0,157,
-  	163,5,5,0,0,158,160,3,22,11,0,159,158,1,0,0,0,159,160,1,0,0,0,160,161,
-  	1,0,0,0,161,163,5,5,0,0,162,129,1,0,0,0,162,133,1,0,0,0,162,138,1,0,0,
-  	0,162,139,1,0,0,0,162,148,1,0,0,0,162,154,1,0,0,0,162,156,1,0,0,0,162,
-  	159,1,0,0,0,163,21,1,0,0,0,164,165,3,24,12,0,165,23,1,0,0,0,166,171,3,
-  	26,13,0,167,168,5,22,0,0,168,170,3,26,13,0,169,167,1,0,0,0,170,173,1,
-  	0,0,0,171,169,1,0,0,0,171,172,1,0,0,0,172,25,1,0,0,0,173,171,1,0,0,0,
-  	174,179,3,28,14,0,175,176,5,21,0,0,176,178,3,28,14,0,177,175,1,0,0,0,
-  	178,181,1,0,0,0,179,177,1,0,0,0,179,180,1,0,0,0,180,27,1,0,0,0,181,179,
-  	1,0,0,0,182,187,3,30,15,0,183,184,7,1,0,0,184,186,3,30,15,0,185,183,1,
-  	0,0,0,186,189,1,0,0,0,187,185,1,0,0,0,187,188,1,0,0,0,188,29,1,0,0,0,
-  	189,187,1,0,0,0,190,195,3,32,16,0,191,192,7,2,0,0,192,194,3,32,16,0,193,
-  	191,1,0,0,0,194,197,1,0,0,0,195,193,1,0,0,0,195,196,1,0,0,0,196,31,1,
-  	0,0,0,197,195,1,0,0,0,198,204,3,36,18,0,199,200,3,34,17,0,200,201,3,36,
-  	18,0,201,203,1,0,0,0,202,199,1,0,0,0,203,206,1,0,0,0,204,202,1,0,0,0,
-  	204,205,1,0,0,0,205,33,1,0,0,0,206,204,1,0,0,0,207,208,7,3,0,0,208,35,
-  	1,0,0,0,209,215,3,40,20,0,210,211,3,38,19,0,211,212,3,40,20,0,212,214,
-  	1,0,0,0,213,210,1,0,0,0,214,217,1,0,0,0,215,213,1,0,0,0,215,216,1,0,0,
-  	0,216,37,1,0,0,0,217,215,1,0,0,0,218,219,7,4,0,0,219,39,1,0,0,0,220,221,
-  	5,11,0,0,221,232,3,40,20,0,222,223,5,23,0,0,223,232,3,40,20,0,224,232,
-  	3,42,21,0,225,226,5,32,0,0,226,228,5,3,0,0,227,229,3,44,22,0,228,227,
-  	1,0,0,0,228,229,1,0,0,0,229,230,1,0,0,0,230,232,5,4,0,0,231,220,1,0,0,
-  	0,231,222,1,0,0,0,231,224,1,0,0,0,231,225,1,0,0,0,232,41,1,0,0,0,233,
-  	234,5,3,0,0,234,235,3,22,11,0,235,236,5,4,0,0,236,240,1,0,0,0,237,240,
-  	5,33,0,0,238,240,3,46,23,0,239,233,1,0,0,0,239,237,1,0,0,0,239,238,1,
-  	0,0,0,240,43,1,0,0,0,241,246,3,22,11,0,242,243,5,9,0,0,243,245,3,22,11,
-  	0,244,242,1,0,0,0,245,248,1,0,0,0,246,244,1,0,0,0,246,247,1,0,0,0,247,
-  	45,1,0,0,0,248,246,1,0,0,0,249,256,5,32,0,0,250,251,5,1,0,0,251,252,3,
-  	22,11,0,252,253,5,2,0,0,253,255,1,0,0,0,254,250,1,0,0,0,255,258,1,0,0,
-  	0,256,254,1,0,0,0,256,257,1,0,0,0,257,47,1,0,0,0,258,256,1,0,0,0,25,50,
-  	52,61,71,79,86,90,98,112,122,127,146,159,162,171,179,187,195,204,215,
-  	228,231,239,246,256
+  	73,9,2,1,3,1,3,1,3,1,3,5,3,79,8,3,10,3,12,3,82,9,3,1,4,1,4,3,4,86,8,4,
+  	1,4,1,4,1,5,4,5,91,8,5,11,5,12,5,92,1,6,1,6,3,6,97,8,6,1,7,1,7,1,7,1,
+  	7,5,7,103,8,7,10,7,12,7,106,9,7,1,7,1,7,1,8,1,8,1,9,1,9,1,9,1,9,1,9,5,
+  	9,117,8,9,10,9,12,9,120,9,9,1,9,1,9,1,9,1,9,1,9,5,9,127,8,9,10,9,12,9,
+  	130,9,9,1,9,1,9,3,9,134,8,9,1,10,1,10,3,10,138,8,10,1,10,1,10,1,10,1,
+  	10,1,10,1,10,1,10,1,10,1,10,1,10,1,10,1,10,1,10,1,10,3,10,154,8,10,1,
+  	10,1,10,1,10,1,10,1,10,1,10,1,10,1,10,1,10,1,10,1,10,3,10,167,8,10,1,
+  	10,3,10,170,8,10,1,11,1,11,1,12,1,12,1,12,5,12,177,8,12,10,12,12,12,180,
+  	9,12,1,13,1,13,1,13,5,13,185,8,13,10,13,12,13,188,9,13,1,14,1,14,1,14,
+  	5,14,193,8,14,10,14,12,14,196,9,14,1,15,1,15,1,15,5,15,201,8,15,10,15,
+  	12,15,204,9,15,1,16,1,16,1,16,1,16,5,16,210,8,16,10,16,12,16,213,9,16,
+  	1,17,1,17,1,18,1,18,1,18,1,18,5,18,221,8,18,10,18,12,18,224,9,18,1,19,
+  	1,19,1,20,1,20,1,20,1,20,1,20,1,20,1,20,1,20,3,20,236,8,20,1,20,3,20,
+  	239,8,20,1,21,1,21,1,21,1,21,1,21,1,21,3,21,247,8,21,1,22,1,22,1,22,5,
+  	22,252,8,22,10,22,12,22,255,9,22,1,23,1,23,1,23,1,23,1,23,5,23,262,8,
+  	23,10,23,12,23,265,9,23,1,23,0,0,24,0,2,4,6,8,10,12,14,16,18,20,22,24,
+  	26,28,30,32,34,36,38,40,42,44,46,0,5,1,0,30,31,1,0,19,20,1,0,15,18,1,
+  	0,10,11,1,0,12,14,278,0,52,1,0,0,0,2,57,1,0,0,0,4,66,1,0,0,0,6,74,1,0,
+  	0,0,8,83,1,0,0,0,10,90,1,0,0,0,12,96,1,0,0,0,14,98,1,0,0,0,16,109,1,0,
+  	0,0,18,133,1,0,0,0,20,169,1,0,0,0,22,171,1,0,0,0,24,173,1,0,0,0,26,181,
+  	1,0,0,0,28,189,1,0,0,0,30,197,1,0,0,0,32,205,1,0,0,0,34,214,1,0,0,0,36,
+  	216,1,0,0,0,38,225,1,0,0,0,40,238,1,0,0,0,42,246,1,0,0,0,44,248,1,0,0,
+  	0,46,256,1,0,0,0,48,51,3,2,1,0,49,51,3,14,7,0,50,48,1,0,0,0,50,49,1,0,
+  	0,0,51,54,1,0,0,0,52,50,1,0,0,0,52,53,1,0,0,0,53,55,1,0,0,0,54,52,1,0,
+  	0,0,55,56,5,0,0,1,56,1,1,0,0,0,57,58,7,0,0,0,58,59,5,32,0,0,59,61,5,3,
+  	0,0,60,62,3,4,2,0,61,60,1,0,0,0,61,62,1,0,0,0,62,63,1,0,0,0,63,64,5,4,
+  	0,0,64,65,3,8,4,0,65,3,1,0,0,0,66,71,3,6,3,0,67,68,5,9,0,0,68,70,3,6,
+  	3,0,69,67,1,0,0,0,70,73,1,0,0,0,71,69,1,0,0,0,71,72,1,0,0,0,72,5,1,0,
+  	0,0,73,71,1,0,0,0,74,75,5,30,0,0,75,80,5,32,0,0,76,77,5,1,0,0,77,79,5,
+  	2,0,0,78,76,1,0,0,0,79,82,1,0,0,0,80,78,1,0,0,0,80,81,1,0,0,0,81,7,1,
+  	0,0,0,82,80,1,0,0,0,83,85,5,6,0,0,84,86,3,10,5,0,85,84,1,0,0,0,85,86,
+  	1,0,0,0,86,87,1,0,0,0,87,88,5,7,0,0,88,9,1,0,0,0,89,91,3,12,6,0,90,89,
+  	1,0,0,0,91,92,1,0,0,0,92,90,1,0,0,0,92,93,1,0,0,0,93,11,1,0,0,0,94,97,
+  	3,20,10,0,95,97,3,14,7,0,96,94,1,0,0,0,96,95,1,0,0,0,97,13,1,0,0,0,98,
+  	99,3,16,8,0,99,104,3,18,9,0,100,101,5,9,0,0,101,103,3,18,9,0,102,100,
+  	1,0,0,0,103,106,1,0,0,0,104,102,1,0,0,0,104,105,1,0,0,0,105,107,1,0,0,
+  	0,106,104,1,0,0,0,107,108,5,5,0,0,108,15,1,0,0,0,109,110,5,30,0,0,110,
+  	17,1,0,0,0,111,118,5,32,0,0,112,113,5,1,0,0,113,114,3,22,11,0,114,115,
+  	5,2,0,0,115,117,1,0,0,0,116,112,1,0,0,0,117,120,1,0,0,0,118,116,1,0,0,
+  	0,118,119,1,0,0,0,119,134,1,0,0,0,120,118,1,0,0,0,121,128,5,32,0,0,122,
+  	123,5,1,0,0,123,124,3,22,11,0,124,125,5,2,0,0,125,127,1,0,0,0,126,122,
+  	1,0,0,0,127,130,1,0,0,0,128,126,1,0,0,0,128,129,1,0,0,0,129,131,1,0,0,
+  	0,130,128,1,0,0,0,131,132,5,8,0,0,132,134,3,22,11,0,133,111,1,0,0,0,133,
+  	121,1,0,0,0,134,19,1,0,0,0,135,137,5,29,0,0,136,138,3,22,11,0,137,136,
+  	1,0,0,0,137,138,1,0,0,0,138,139,1,0,0,0,139,170,5,5,0,0,140,141,3,46,
+  	23,0,141,142,5,8,0,0,142,143,3,22,11,0,143,144,5,5,0,0,144,170,1,0,0,
+  	0,145,170,3,8,4,0,146,147,5,24,0,0,147,148,5,3,0,0,148,149,3,22,11,0,
+  	149,150,5,4,0,0,150,153,3,20,10,0,151,152,5,25,0,0,152,154,3,20,10,0,
+  	153,151,1,0,0,0,153,154,1,0,0,0,154,170,1,0,0,0,155,156,5,26,0,0,156,
+  	157,5,3,0,0,157,158,3,22,11,0,158,159,5,4,0,0,159,160,3,20,10,0,160,170,
+  	1,0,0,0,161,162,5,27,0,0,162,170,5,5,0,0,163,164,5,28,0,0,164,170,5,5,
+  	0,0,165,167,3,22,11,0,166,165,1,0,0,0,166,167,1,0,0,0,167,168,1,0,0,0,
+  	168,170,5,5,0,0,169,135,1,0,0,0,169,140,1,0,0,0,169,145,1,0,0,0,169,146,
+  	1,0,0,0,169,155,1,0,0,0,169,161,1,0,0,0,169,163,1,0,0,0,169,166,1,0,0,
+  	0,170,21,1,0,0,0,171,172,3,24,12,0,172,23,1,0,0,0,173,178,3,26,13,0,174,
+  	175,5,22,0,0,175,177,3,26,13,0,176,174,1,0,0,0,177,180,1,0,0,0,178,176,
+  	1,0,0,0,178,179,1,0,0,0,179,25,1,0,0,0,180,178,1,0,0,0,181,186,3,28,14,
+  	0,182,183,5,21,0,0,183,185,3,28,14,0,184,182,1,0,0,0,185,188,1,0,0,0,
+  	186,184,1,0,0,0,186,187,1,0,0,0,187,27,1,0,0,0,188,186,1,0,0,0,189,194,
+  	3,30,15,0,190,191,7,1,0,0,191,193,3,30,15,0,192,190,1,0,0,0,193,196,1,
+  	0,0,0,194,192,1,0,0,0,194,195,1,0,0,0,195,29,1,0,0,0,196,194,1,0,0,0,
+  	197,202,3,32,16,0,198,199,7,2,0,0,199,201,3,32,16,0,200,198,1,0,0,0,201,
+  	204,1,0,0,0,202,200,1,0,0,0,202,203,1,0,0,0,203,31,1,0,0,0,204,202,1,
+  	0,0,0,205,211,3,36,18,0,206,207,3,34,17,0,207,208,3,36,18,0,208,210,1,
+  	0,0,0,209,206,1,0,0,0,210,213,1,0,0,0,211,209,1,0,0,0,211,212,1,0,0,0,
+  	212,33,1,0,0,0,213,211,1,0,0,0,214,215,7,3,0,0,215,35,1,0,0,0,216,222,
+  	3,40,20,0,217,218,3,38,19,0,218,219,3,40,20,0,219,221,1,0,0,0,220,217,
+  	1,0,0,0,221,224,1,0,0,0,222,220,1,0,0,0,222,223,1,0,0,0,223,37,1,0,0,
+  	0,224,222,1,0,0,0,225,226,7,4,0,0,226,39,1,0,0,0,227,228,5,11,0,0,228,
+  	239,3,40,20,0,229,230,5,23,0,0,230,239,3,40,20,0,231,239,3,42,21,0,232,
+  	233,5,32,0,0,233,235,5,3,0,0,234,236,3,44,22,0,235,234,1,0,0,0,235,236,
+  	1,0,0,0,236,237,1,0,0,0,237,239,5,4,0,0,238,227,1,0,0,0,238,229,1,0,0,
+  	0,238,231,1,0,0,0,238,232,1,0,0,0,239,41,1,0,0,0,240,241,5,3,0,0,241,
+  	242,3,22,11,0,242,243,5,4,0,0,243,247,1,0,0,0,244,247,5,33,0,0,245,247,
+  	3,46,23,0,246,240,1,0,0,0,246,244,1,0,0,0,246,245,1,0,0,0,247,43,1,0,
+  	0,0,248,253,3,22,11,0,249,250,5,9,0,0,250,252,3,22,11,0,251,249,1,0,0,
+  	0,252,255,1,0,0,0,253,251,1,0,0,0,253,254,1,0,0,0,254,45,1,0,0,0,255,
+  	253,1,0,0,0,256,263,5,32,0,0,257,258,5,1,0,0,258,259,3,22,11,0,259,260,
+  	5,2,0,0,260,262,1,0,0,0,261,257,1,0,0,0,262,265,1,0,0,0,263,261,1,0,0,
+  	0,263,264,1,0,0,0,264,47,1,0,0,0,265,263,1,0,0,0,27,50,52,61,71,80,85,
+  	92,96,104,118,128,133,137,153,166,169,178,186,194,202,211,222,235,238,
+  	246,253,263
   };
   staticData->serializedATN = antlr4::atn::SerializedATNView(serializedATNSegment, sizeof(serializedATNSegment) / sizeof(serializedATNSegment[0]));
 
@@ -493,6 +496,7 @@ std::any MiniCParser::ParamContext::accept(tree::ParseTreeVisitor *visitor) {
 MiniCParser::ParamContext* MiniCParser::param() {
   ParamContext *_localctx = _tracker.createInstance<ParamContext>(_ctx, getState());
   enterRule(_localctx, 6, MiniCParser::RuleParam);
+  size_t _la = 0;
 
 #if __cplusplus > 201703L
   auto onExit = finally([=, this] {
@@ -507,6 +511,18 @@ MiniCParser::ParamContext* MiniCParser::param() {
     match(MiniCParser::T_INT);
     setState(75);
     match(MiniCParser::T_ID);
+    setState(80);
+    _errHandler->sync(this);
+    _la = _input->LA(1);
+    while (_la == MiniCParser::T__0) {
+      setState(76);
+      match(MiniCParser::T__0);
+      setState(77);
+      match(MiniCParser::T__1);
+      setState(82);
+      _errHandler->sync(this);
+      _la = _input->LA(1);
+    }
    
   }
   catch (RecognitionException &e) {
@@ -563,18 +579,18 @@ MiniCParser::BlockContext* MiniCParser::block() {
   });
   try {
     enterOuterAlt(_localctx, 1);
-    setState(77);
+    setState(83);
     match(MiniCParser::T_L_BRACE);
-    setState(79);
+    setState(85);
     _errHandler->sync(this);
 
     _la = _input->LA(1);
     if ((((_la & ~ 0x3fULL) == 0) &&
       ((1ULL << _la) & 14990444648) != 0)) {
-      setState(78);
+      setState(84);
       blockItemList();
     }
-    setState(81);
+    setState(87);
     match(MiniCParser::T_R_BRACE);
    
   }
@@ -628,13 +644,13 @@ MiniCParser::BlockItemListContext* MiniCParser::blockItemList() {
   });
   try {
     enterOuterAlt(_localctx, 1);
-    setState(84); 
+    setState(90); 
     _errHandler->sync(this);
     _la = _input->LA(1);
     do {
-      setState(83);
+      setState(89);
       blockItem();
-      setState(86); 
+      setState(92); 
       _errHandler->sync(this);
       _la = _input->LA(1);
     } while ((((_la & ~ 0x3fULL) == 0) &&
@@ -689,7 +705,7 @@ MiniCParser::BlockItemContext* MiniCParser::blockItem() {
     exitRule();
   });
   try {
-    setState(90);
+    setState(96);
     _errHandler->sync(this);
     switch (_input->LA(1)) {
       case MiniCParser::T_L_PAREN:
@@ -705,14 +721,14 @@ MiniCParser::BlockItemContext* MiniCParser::blockItem() {
       case MiniCParser::T_ID:
       case MiniCParser::T_DIGIT: {
         enterOuterAlt(_localctx, 1);
-        setState(88);
+        setState(94);
         statement();
         break;
       }
 
       case MiniCParser::T_INT: {
         enterOuterAlt(_localctx, 2);
-        setState(89);
+        setState(95);
         varDecl();
         break;
       }
@@ -788,23 +804,23 @@ MiniCParser::VarDeclContext* MiniCParser::varDecl() {
   });
   try {
     enterOuterAlt(_localctx, 1);
-    setState(92);
-    basicType();
-    setState(93);
-    varDef();
     setState(98);
+    basicType();
+    setState(99);
+    varDef();
+    setState(104);
     _errHandler->sync(this);
     _la = _input->LA(1);
     while (_la == MiniCParser::T_COMMA) {
-      setState(94);
-      match(MiniCParser::T_COMMA);
-      setState(95);
-      varDef();
       setState(100);
+      match(MiniCParser::T_COMMA);
+      setState(101);
+      varDef();
+      setState(106);
       _errHandler->sync(this);
       _la = _input->LA(1);
     }
-    setState(101);
+    setState(107);
     match(MiniCParser::T_SEMICOLON);
    
   }
@@ -853,7 +869,7 @@ MiniCParser::BasicTypeContext* MiniCParser::basicType() {
   });
   try {
     enterOuterAlt(_localctx, 1);
-    setState(103);
+    setState(109);
     match(MiniCParser::T_INT);
    
   }
@@ -914,24 +930,24 @@ MiniCParser::VarDefContext* MiniCParser::varDef() {
     exitRule();
   });
   try {
-    setState(127);
+    setState(133);
     _errHandler->sync(this);
-    switch (getInterpreter<atn::ParserATNSimulator>()->adaptivePredict(_input, 10, _ctx)) {
+    switch (getInterpreter<atn::ParserATNSimulator>()->adaptivePredict(_input, 11, _ctx)) {
     case 1: {
       enterOuterAlt(_localctx, 1);
-      setState(105);
+      setState(111);
       match(MiniCParser::T_ID);
-      setState(112);
+      setState(118);
       _errHandler->sync(this);
       _la = _input->LA(1);
       while (_la == MiniCParser::T__0) {
-        setState(106);
+        setState(112);
         match(MiniCParser::T__0);
-        setState(107);
+        setState(113);
         expr();
-        setState(108);
-        match(MiniCParser::T__1);
         setState(114);
+        match(MiniCParser::T__1);
+        setState(120);
         _errHandler->sync(this);
         _la = _input->LA(1);
       }
@@ -940,25 +956,25 @@ MiniCParser::VarDefContext* MiniCParser::varDef() {
 
     case 2: {
       enterOuterAlt(_localctx, 2);
-      setState(115);
+      setState(121);
       match(MiniCParser::T_ID);
-      setState(122);
+      setState(128);
       _errHandler->sync(this);
       _la = _input->LA(1);
       while (_la == MiniCParser::T__0) {
-        setState(116);
+        setState(122);
         match(MiniCParser::T__0);
-        setState(117);
+        setState(123);
         expr();
-        setState(118);
-        match(MiniCParser::T__1);
         setState(124);
+        match(MiniCParser::T__1);
+        setState(130);
         _errHandler->sync(this);
         _la = _input->LA(1);
       }
-      setState(125);
+      setState(131);
       match(MiniCParser::T_ASSIGN);
-      setState(126);
+      setState(132);
       expr();
       break;
     }
@@ -1128,12 +1144,12 @@ tree::TerminalNode* MiniCParser::ReturnStatementContext::T_RETURN() {
   return getToken(MiniCParser::T_RETURN, 0);
 }
 
-MiniCParser::ExprContext* MiniCParser::ReturnStatementContext::expr() {
-  return getRuleContext<MiniCParser::ExprContext>(0);
-}
-
 tree::TerminalNode* MiniCParser::ReturnStatementContext::T_SEMICOLON() {
   return getToken(MiniCParser::T_SEMICOLON, 0);
+}
+
+MiniCParser::ExprContext* MiniCParser::ReturnStatementContext::expr() {
+  return getRuleContext<MiniCParser::ExprContext>(0);
 }
 
 MiniCParser::ReturnStatementContext::ReturnStatementContext(StatementContext *ctx) { copyFrom(ctx); }
@@ -1197,17 +1213,24 @@ MiniCParser::StatementContext* MiniCParser::statement() {
     exitRule();
   });
   try {
-    setState(162);
+    setState(169);
     _errHandler->sync(this);
-    switch (getInterpreter<atn::ParserATNSimulator>()->adaptivePredict(_input, 13, _ctx)) {
+    switch (getInterpreter<atn::ParserATNSimulator>()->adaptivePredict(_input, 15, _ctx)) {
     case 1: {
       _localctx = _tracker.createInstance<MiniCParser::ReturnStatementContext>(_localctx);
       enterOuterAlt(_localctx, 1);
-      setState(129);
+      setState(135);
       match(MiniCParser::T_RETURN);
-      setState(130);
-      expr();
-      setState(131);
+      setState(137);
+      _errHandler->sync(this);
+
+      _la = _input->LA(1);
+      if ((((_la & ~ 0x3fULL) == 0) &&
+        ((1ULL << _la) & 12893292552) != 0)) {
+        setState(136);
+        expr();
+      }
+      setState(139);
       match(MiniCParser::T_SEMICOLON);
       break;
     }
@@ -1215,13 +1238,13 @@ MiniCParser::StatementContext* MiniCParser::statement() {
     case 2: {
       _localctx = _tracker.createInstance<MiniCParser::AssignStatementContext>(_localctx);
       enterOuterAlt(_localctx, 2);
-      setState(133);
+      setState(140);
       lVal();
-      setState(134);
+      setState(141);
       match(MiniCParser::T_ASSIGN);
-      setState(135);
+      setState(142);
       expr();
-      setState(136);
+      setState(143);
       match(MiniCParser::T_SEMICOLON);
       break;
     }
@@ -1229,7 +1252,7 @@ MiniCParser::StatementContext* MiniCParser::statement() {
     case 3: {
       _localctx = _tracker.createInstance<MiniCParser::BlockStatementContext>(_localctx);
       enterOuterAlt(_localctx, 3);
-      setState(138);
+      setState(145);
       block();
       break;
     }
@@ -1237,24 +1260,24 @@ MiniCParser::StatementContext* MiniCParser::statement() {
     case 4: {
       _localctx = _tracker.createInstance<MiniCParser::IfStatementContext>(_localctx);
       enterOuterAlt(_localctx, 4);
-      setState(139);
-      match(MiniCParser::T_IF);
-      setState(140);
-      match(MiniCParser::T_L_PAREN);
-      setState(141);
-      expr();
-      setState(142);
-      match(MiniCParser::T_R_PAREN);
-      setState(143);
-      statement();
       setState(146);
+      match(MiniCParser::T_IF);
+      setState(147);
+      match(MiniCParser::T_L_PAREN);
+      setState(148);
+      expr();
+      setState(149);
+      match(MiniCParser::T_R_PAREN);
+      setState(150);
+      statement();
+      setState(153);
       _errHandler->sync(this);
 
-      switch (getInterpreter<atn::ParserATNSimulator>()->adaptivePredict(_input, 11, _ctx)) {
+      switch (getInterpreter<atn::ParserATNSimulator>()->adaptivePredict(_input, 13, _ctx)) {
       case 1: {
-        setState(144);
+        setState(151);
         match(MiniCParser::T_ELSE);
-        setState(145);
+        setState(152);
         statement();
         break;
       }
@@ -1268,15 +1291,15 @@ MiniCParser::StatementContext* MiniCParser::statement() {
     case 5: {
       _localctx = _tracker.createInstance<MiniCParser::WhileStatementContext>(_localctx);
       enterOuterAlt(_localctx, 5);
-      setState(148);
+      setState(155);
       match(MiniCParser::T_WHILE);
-      setState(149);
+      setState(156);
       match(MiniCParser::T_L_PAREN);
-      setState(150);
+      setState(157);
       expr();
-      setState(151);
+      setState(158);
       match(MiniCParser::T_R_PAREN);
-      setState(152);
+      setState(159);
       statement();
       break;
     }
@@ -1284,9 +1307,9 @@ MiniCParser::StatementContext* MiniCParser::statement() {
     case 6: {
       _localctx = _tracker.createInstance<MiniCParser::BreakStatementContext>(_localctx);
       enterOuterAlt(_localctx, 6);
-      setState(154);
+      setState(161);
       match(MiniCParser::T_BREAK);
-      setState(155);
+      setState(162);
       match(MiniCParser::T_SEMICOLON);
       break;
     }
@@ -1294,9 +1317,9 @@ MiniCParser::StatementContext* MiniCParser::statement() {
     case 7: {
       _localctx = _tracker.createInstance<MiniCParser::ContinueStatementContext>(_localctx);
       enterOuterAlt(_localctx, 7);
-      setState(156);
+      setState(163);
       match(MiniCParser::T_CONTINUE);
-      setState(157);
+      setState(164);
       match(MiniCParser::T_SEMICOLON);
       break;
     }
@@ -1304,16 +1327,16 @@ MiniCParser::StatementContext* MiniCParser::statement() {
     case 8: {
       _localctx = _tracker.createInstance<MiniCParser::ExpressionStatementContext>(_localctx);
       enterOuterAlt(_localctx, 8);
-      setState(159);
+      setState(166);
       _errHandler->sync(this);
 
       _la = _input->LA(1);
       if ((((_la & ~ 0x3fULL) == 0) &&
         ((1ULL << _la) & 12893292552) != 0)) {
-        setState(158);
+        setState(165);
         expr();
       }
-      setState(161);
+      setState(168);
       match(MiniCParser::T_SEMICOLON);
       break;
     }
@@ -1368,7 +1391,7 @@ MiniCParser::ExprContext* MiniCParser::expr() {
   });
   try {
     enterOuterAlt(_localctx, 1);
-    setState(164);
+    setState(171);
     lorExp();
    
   }
@@ -1430,17 +1453,17 @@ MiniCParser::LorExpContext* MiniCParser::lorExp() {
   });
   try {
     enterOuterAlt(_localctx, 1);
-    setState(166);
+    setState(173);
     landExp();
-    setState(171);
+    setState(178);
     _errHandler->sync(this);
     _la = _input->LA(1);
     while (_la == MiniCParser::T_LOGIC_OR) {
-      setState(167);
+      setState(174);
       match(MiniCParser::T_LOGIC_OR);
-      setState(168);
+      setState(175);
       landExp();
-      setState(173);
+      setState(180);
       _errHandler->sync(this);
       _la = _input->LA(1);
     }
@@ -1504,17 +1527,17 @@ MiniCParser::LandExpContext* MiniCParser::landExp() {
   });
   try {
     enterOuterAlt(_localctx, 1);
-    setState(174);
+    setState(181);
     eqExp();
-    setState(179);
+    setState(186);
     _errHandler->sync(this);
     _la = _input->LA(1);
     while (_la == MiniCParser::T_LOGIC_AND) {
-      setState(175);
+      setState(182);
       match(MiniCParser::T_LOGIC_AND);
-      setState(176);
+      setState(183);
       eqExp();
-      setState(181);
+      setState(188);
       _errHandler->sync(this);
       _la = _input->LA(1);
     }
@@ -1586,15 +1609,15 @@ MiniCParser::EqExpContext* MiniCParser::eqExp() {
   });
   try {
     enterOuterAlt(_localctx, 1);
-    setState(182);
+    setState(189);
     relExp();
-    setState(187);
+    setState(194);
     _errHandler->sync(this);
     _la = _input->LA(1);
     while (_la == MiniCParser::T_EQ
 
     || _la == MiniCParser::T_NE) {
-      setState(183);
+      setState(190);
       _la = _input->LA(1);
       if (!(_la == MiniCParser::T_EQ
 
@@ -1605,9 +1628,9 @@ MiniCParser::EqExpContext* MiniCParser::eqExp() {
         _errHandler->reportMatch(this);
         consume();
       }
-      setState(184);
+      setState(191);
       relExp();
-      setState(189);
+      setState(196);
       _errHandler->sync(this);
       _la = _input->LA(1);
     }
@@ -1695,14 +1718,14 @@ MiniCParser::RelExpContext* MiniCParser::relExp() {
   });
   try {
     enterOuterAlt(_localctx, 1);
-    setState(190);
+    setState(197);
     addExp();
-    setState(195);
+    setState(202);
     _errHandler->sync(this);
     _la = _input->LA(1);
     while ((((_la & ~ 0x3fULL) == 0) &&
       ((1ULL << _la) & 491520) != 0)) {
-      setState(191);
+      setState(198);
       _la = _input->LA(1);
       if (!((((_la & ~ 0x3fULL) == 0) &&
         ((1ULL << _la) & 491520) != 0))) {
@@ -1712,9 +1735,9 @@ MiniCParser::RelExpContext* MiniCParser::relExp() {
         _errHandler->reportMatch(this);
         consume();
       }
-      setState(192);
+      setState(199);
       addExp();
-      setState(197);
+      setState(204);
       _errHandler->sync(this);
       _la = _input->LA(1);
     }
@@ -1778,19 +1801,19 @@ MiniCParser::AddExpContext* MiniCParser::addExp() {
   });
   try {
     enterOuterAlt(_localctx, 1);
-    setState(198);
+    setState(205);
     mulDivExp();
-    setState(204);
+    setState(211);
     _errHandler->sync(this);
     _la = _input->LA(1);
     while (_la == MiniCParser::T_ADD
 
     || _la == MiniCParser::T_SUB) {
-      setState(199);
-      addOp();
-      setState(200);
-      mulDivExp();
       setState(206);
+      addOp();
+      setState(207);
+      mulDivExp();
+      setState(213);
       _errHandler->sync(this);
       _la = _input->LA(1);
     }
@@ -1846,7 +1869,7 @@ MiniCParser::AddOpContext* MiniCParser::addOp() {
   });
   try {
     enterOuterAlt(_localctx, 1);
-    setState(207);
+    setState(214);
     _la = _input->LA(1);
     if (!(_la == MiniCParser::T_ADD
 
@@ -1917,18 +1940,18 @@ MiniCParser::MulDivExpContext* MiniCParser::mulDivExp() {
   });
   try {
     enterOuterAlt(_localctx, 1);
-    setState(209);
+    setState(216);
     unaryExp();
-    setState(215);
+    setState(222);
     _errHandler->sync(this);
     _la = _input->LA(1);
     while ((((_la & ~ 0x3fULL) == 0) &&
       ((1ULL << _la) & 28672) != 0)) {
-      setState(210);
-      mulDivOp();
-      setState(211);
-      unaryExp();
       setState(217);
+      mulDivOp();
+      setState(218);
+      unaryExp();
+      setState(224);
       _errHandler->sync(this);
       _la = _input->LA(1);
     }
@@ -1988,7 +2011,7 @@ MiniCParser::MulDivOpContext* MiniCParser::mulDivOp() {
   });
   try {
     enterOuterAlt(_localctx, 1);
-    setState(218);
+    setState(225);
     _la = _input->LA(1);
     if (!((((_la & ~ 0x3fULL) == 0) &&
       ((1ULL << _la) & 28672) != 0))) {
@@ -2073,50 +2096,50 @@ MiniCParser::UnaryExpContext* MiniCParser::unaryExp() {
     exitRule();
   });
   try {
-    setState(231);
+    setState(238);
     _errHandler->sync(this);
-    switch (getInterpreter<atn::ParserATNSimulator>()->adaptivePredict(_input, 21, _ctx)) {
+    switch (getInterpreter<atn::ParserATNSimulator>()->adaptivePredict(_input, 23, _ctx)) {
     case 1: {
       enterOuterAlt(_localctx, 1);
-      setState(220);
+      setState(227);
       match(MiniCParser::T_SUB);
-      setState(221);
+      setState(228);
       unaryExp();
       break;
     }
 
     case 2: {
       enterOuterAlt(_localctx, 2);
-      setState(222);
+      setState(229);
       match(MiniCParser::T_LOGIC_NOT);
-      setState(223);
+      setState(230);
       unaryExp();
       break;
     }
 
     case 3: {
       enterOuterAlt(_localctx, 3);
-      setState(224);
+      setState(231);
       primaryExp();
       break;
     }
 
     case 4: {
       enterOuterAlt(_localctx, 4);
-      setState(225);
+      setState(232);
       match(MiniCParser::T_ID);
-      setState(226);
+      setState(233);
       match(MiniCParser::T_L_PAREN);
-      setState(228);
+      setState(235);
       _errHandler->sync(this);
 
       _la = _input->LA(1);
       if ((((_la & ~ 0x3fULL) == 0) &&
         ((1ULL << _la) & 12893292552) != 0)) {
-        setState(227);
+        setState(234);
         realParamList();
       }
-      setState(230);
+      setState(237);
       match(MiniCParser::T_R_PAREN);
       break;
     }
@@ -2186,30 +2209,30 @@ MiniCParser::PrimaryExpContext* MiniCParser::primaryExp() {
     exitRule();
   });
   try {
-    setState(239);
+    setState(246);
     _errHandler->sync(this);
     switch (_input->LA(1)) {
       case MiniCParser::T_L_PAREN: {
         enterOuterAlt(_localctx, 1);
-        setState(233);
+        setState(240);
         match(MiniCParser::T_L_PAREN);
-        setState(234);
+        setState(241);
         expr();
-        setState(235);
+        setState(242);
         match(MiniCParser::T_R_PAREN);
         break;
       }
 
       case MiniCParser::T_DIGIT: {
         enterOuterAlt(_localctx, 2);
-        setState(237);
+        setState(244);
         match(MiniCParser::T_DIGIT);
         break;
       }
 
       case MiniCParser::T_ID: {
         enterOuterAlt(_localctx, 3);
-        setState(238);
+        setState(245);
         lVal();
         break;
       }
@@ -2277,17 +2300,17 @@ MiniCParser::RealParamListContext* MiniCParser::realParamList() {
   });
   try {
     enterOuterAlt(_localctx, 1);
-    setState(241);
+    setState(248);
     expr();
-    setState(246);
+    setState(253);
     _errHandler->sync(this);
     _la = _input->LA(1);
     while (_la == MiniCParser::T_COMMA) {
-      setState(242);
+      setState(249);
       match(MiniCParser::T_COMMA);
-      setState(243);
+      setState(250);
       expr();
-      setState(248);
+      setState(255);
       _errHandler->sync(this);
       _la = _input->LA(1);
     }
@@ -2347,19 +2370,19 @@ MiniCParser::LValContext* MiniCParser::lVal() {
   });
   try {
     enterOuterAlt(_localctx, 1);
-    setState(249);
-    match(MiniCParser::T_ID);
     setState(256);
+    match(MiniCParser::T_ID);
+    setState(263);
     _errHandler->sync(this);
     _la = _input->LA(1);
     while (_la == MiniCParser::T__0) {
-      setState(250);
+      setState(257);
       match(MiniCParser::T__0);
-      setState(251);
-      expr();
-      setState(252);
-      match(MiniCParser::T__1);
       setState(258);
+      expr();
+      setState(259);
+      match(MiniCParser::T__1);
+      setState(265);
       _errHandler->sync(this);
       _la = _input->LA(1);
     }
