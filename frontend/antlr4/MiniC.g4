@@ -17,8 +17,12 @@ compileUnit: (funcDef | varDecl)* EOF;
 // T_L_PAREN paramList? T_R_PAREN block; 修改函数定义，目前支持形参，也支持返回void类型等-lxg
 funcDef: (T_INT | T_VOID) T_ID T_L_PAREN paramList? T_R_PAREN block;
 paramList: param (',' param)*;
-// 修改 param 规则以支持数组参数 param: T_INT T_ID;
-param: T_INT T_ID ('[' ']')*;
+// 修改 param 规则以支持数组参数 param: T_INT T_ID; param: T_INT T_ID ('[' ']')*;
+// 修改参数规则，使其支持inta[][3]之类的数组定义-lxg
+param:
+	T_INT T_ID // 简单参数
+	| T_INT T_ID ('[' ']') ('[' T_DIGIT ']')* // 第一维省略，其余必须指定
+	| T_INT T_ID ( '[' T_DIGIT ']')+; // 所有维度都指定
 
 // 语句块看用作函数体，这里允许多个语句，并且不含任何语句
 block: T_L_BRACE blockItemList? T_R_BRACE;

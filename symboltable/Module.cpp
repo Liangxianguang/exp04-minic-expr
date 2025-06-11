@@ -33,15 +33,27 @@ Module::Module(std::string _name) : name(_name)
     // 加入其他内置函数-lxg
     (void) newFunction("putch", VoidType::getType(), {new FormalParam{IntegerType::getTypeInt(), "c"}}, true);
     (void) newFunction("getch", IntegerType::getTypeInt(), {}, true);
-    (void) newFunction("getarray", IntegerType::getTypeInt(), {new FormalParam{IntegerType::getTypeInt(), "a"}}, true);
+    (void) newFunction(
+        "getarray",
+        IntegerType::getTypeInt(),
+        {new FormalParam{const_cast<Type *>(static_cast<const Type *>(PointerType::get(IntegerType::getTypeInt()))),
+                         "a"}},
+        true);
     (void) newFunction(
         "putarray",
         VoidType::getType(),
-        {new FormalParam{IntegerType::getTypeInt(), "n"}, new FormalParam{IntegerType::getTypeInt(), "a"}},
+        {new FormalParam{IntegerType::getTypeInt(), "n"},
+         new FormalParam{const_cast<Type *>(static_cast<const Type *>(PointerType::get(IntegerType::getTypeInt()))),
+                         "a"}},
         true);
     (void) newFunction("putstr", VoidType::getType(), {new FormalParam{IntegerType::getTypeInt(), "str"}}, true);
     (void) newFunction("getfloat", IntegerType::getTypeInt(), {}, true);
-    (void) newFunction("getfarray", IntegerType::getTypeInt(), {new FormalParam{IntegerType::getTypeInt(), "a"}}, true);
+    (void) newFunction(
+        "getfarray",
+        IntegerType::getTypeInt(),
+        {new FormalParam{const_cast<Type *>(static_cast<const Type *>(PointerType::get(IntegerType::getTypeInt()))),
+                         "a"}},
+        true);
     (void) newFunction("putfloat", VoidType::getType(), {new FormalParam{IntegerType::getTypeInt(), "a"}}, true);
     (void) newFunction(
         "putfarray",

@@ -17,6 +17,9 @@
 #pragma once
 
 #include <unordered_map>
+#include <map>
+#include <vector>
+#include <string>
 
 #include "AST.h"
 #include "Module.h"
@@ -162,6 +165,49 @@ protected:
     /// @return 是否是函数参数
     bool isCurrentFunctionParameter(const std::string & varName);
 
+    /// @brief 计算数组访问的深度
+    /// @param node 数组访问节点
+    /// @return 访问深度
+    int calculateArrayAccessDepth(ast_node * node);
+
+    /// @brief 根据访问深度计算行大小
+    /// @param dimensions 数组维度
+    /// @param accessDepth 访问深度
+    /// @return 行大小
+    int calculateRowSize(const std::vector<int> & dimensions, int accessDepth);
+
+    /// @brief 计算线性偏移量（处理多维索引）
+    /// @param node 数组访问节点
+    /// @return 线性偏移量
+    Value * calculateLinearOffset(ast_node * node, InterCode & blockInsts);
+
+    /// @brief 根据形参类型计算参数传递的偏移量-lxg
+    /// @param arrayAccessNode 数组访问节点
+    /// @param paramDimensions 形参的维度信息（第一维为0）
+    /// @return 字节偏移量
+    Value * calculateParameterOffset(ast_node * arrayAccessNode,
+                                     const std::vector<int> & paramDimensions,
+                                     InterCode & blockInsts);
+
+    /// @brief 计算数组访问的字节偏移量
+    /// @param arrayAccessNode 数组访问节点
+    /// @param blockInsts 指令容器
+    /// @return 字节偏移量
+    Value * calculateArrayAccessOffset(ast_node * arrayAccessNode, InterCode & blockInsts);
+
+    /// @brief 处理简单指针参数访问 (int* 类型)
+    bool handleSimplePointerParamAccess(ast_node * node, Value * arrayVar);
+
+    /// @brief 处理多维数组参数访问 (int(*)[2][2]... 类型)
+    bool handleMultiDimArrayParamAccess(ast_node * node, Value * arrayVar, const std::vector<int> & dimensions);
+
+    /// @brief 处理普通数组访问（保持原有逻辑）
+    bool handleRegularArrayAccess(ast_node * node, Value * arrayVar, const std::vector<int> & dimensions);
+
+    /// @brief 处理数组访问维度信息
+    bool
+    handleParameterArrayAccessWithDimensions(ast_node * node, Value * arrayVar, const std::vector<int> & dimensions);
+
     /// @brief return节点翻译成线性中间IR
     /// @param node AST节点
     /// @return 翻译是否成功，true：成功，false：失败
@@ -222,4 +268,6 @@ private:
     std::string lastError;
     /// @brief 全局变量初始值映射-lxg
     std::unordered_map<std::string, int> globalVarInitValues;
+    // 保存函数参数的原始维度信息-lxg
+    std::map<std::string, std::map<int, std::vector<int>>> functionParameterDimensions;
 };

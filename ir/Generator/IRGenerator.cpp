@@ -230,14 +230,37 @@ bool IRGenerator::ir_compile_unit(ast_node * node)
             std::vector<FormalParam *> params;
 
             if (param_node && !param_node->sons.empty()) {
-                for (auto & paramSon: param_node->sons) {
+                for (size_t paramIdx = 0; paramIdx < param_node->sons.size(); paramIdx++) {
+                    auto & paramSon = param_node->sons[paramIdx];
                     if (paramSon->sons.size() >= 2) {
                         Type * paramType = paramSon->sons[0]->type;
                         std::string paramName = paramSon->sons[1]->name;
 
                         // 检查是否是数组参数
                         if (paramSon->node_type == ast_operator_type::AST_OP_FUNC_FORMAL_PARAM_ARRAY) {
-                            // 数组参数注册为指针类型
+                            // 🔧 关键修改：保存原始维度信息
+                            std::vector<int> dimensions;
+
+                            // 从AST节点中提取维度信息（从第3个子节点开始是维度）
+                            for (size_t dimIdx = 2; dimIdx < paramSon->sons.size(); dimIdx++) {
+                                if (paramSon->sons[dimIdx]->node_type == ast_operator_type::AST_OP_LEAF_LITERAL_UINT) {
+                                    dimensions.push_back(paramSon->sons[dimIdx]->integer_val);
+                                    printf("DEBUG: 提取维度 %zu: %d\n",
+                                           dimIdx - 2,
+                                           paramSon->sons[dimIdx]->integer_val);
+                                }
+                            }
+
+                            // 保存维度信息到映射表
+                            functionParameterDimensions[name_node->name][paramIdx] = dimensions;
+
+                            printf("DEBUG: 保存函数 %s 参数 %d (%s) 的维度信息，维度数: %zu\n",
+                                   name_node->name.c_str(),
+                                   (int) paramIdx,
+                                   paramName.c_str(),
+                                   dimensions.size());
+
+                            // 统一使用简单指针类型注册参数
                             paramType = const_cast<Type *>(
                                 static_cast<const Type *>(PointerType::get(IntegerType::getTypeInt())));
                             printf("DEBUG: 注册数组参数: %s 为指针类型 (i32*)\n", paramName.c_str());
@@ -789,8 +812,81 @@ bool IRGenerator::ir_function_call(ast_node * node)
                    static_cast<int>(son->node_type),
                    son->name.c_str());
 
-            // 检查是否传递数组参数
-            if (son->node_type == ast_operator_type::AST_OP_LEAF_VAR_ID) {
+            // 检查形参是否为指针类型（即数组参数）
+            bool shouldPassAsPointer = false;
+            if (i < formalParams.size()) {
+                Type * formalParamType = formalParams[i]->getType();
+                shouldPassAsPointer = formalParamType && formalParamType->isPointerType();
+                printf("DEBUG: 形参 #%zu 类型检查 - isPointerType: %s\n", i, shouldPassAsPointer ? "是" : "否");
+            }
+
+            // 关键修改：正确处理不同维度的数组参数传递
+            if (son->node_type == ast_operator_type::AST_OP_ARRAY_ACCESS && shouldPassAsPointer) {
+                printf("DEBUG: *** 处理数组访问作为指针参数: %s[...] ***\n", son->sons[0]->name.c_str());
+
+                // 获取形参的实际类型
+                Type * formalParamType = formalParams[i]->getType();
+
+                // 手动处理数组访问，但返回地址而不是值
+                std::string arrayName = son->sons[0]->name;
+                Value * arrayVar = module->findVarValue(arrayName);
+
+                if (!arrayVar) {
+                    setLastError("未找到数组: " + arrayName);
+                    return false;
+                }
+
+                if (ArrayType * arrayParamType = dynamic_cast<ArrayType *>(formalParamType)) {
+                    // 形参是数组类型 int[0][2][3]...
+                    const std::vector<int> & paramDimensions = arrayParamType->getDimensions();
+                    printf("DEBUG: 形参是多维数组类型，维度数: %zu\n", paramDimensions.size());
+
+                    // 计算正确的偏移量，考虑形参的维度信息
+                    Value * correctOffset = calculateParameterOffset(son, paramDimensions, node->blockInsts);
+                    if (!correctOffset) {
+                        return false;
+                    }
+
+                    // 生成正确的地址传递
+                    Type * ptrType =
+                        const_cast<Type *>(static_cast<const Type *>(PointerType::get(IntegerType::getTypeInt())));
+                    BinaryInstruction * addInst = new BinaryInstruction(currentFunc,
+                                                                        IRInstOperator::IRINST_OP_ADD_I,
+                                                                        arrayVar,
+                                                                        correctOffset,
+                                                                        ptrType);
+                    node->blockInsts.addInst(addInst);
+                    realParams.push_back(addInst);
+
+                    printf("DEBUG: 生成多维数组参数传递: %s -> 偏移量计算\n", arrayName.c_str());
+                } else {
+                    // 形参是简单指针类型 int*，按照原有逻辑处理
+                    printf("DEBUG: 形参是简单指针类型，使用原逻辑\n");
+
+                    // 计算实际的数组偏移量
+                    Value * totalOffset = calculateArrayAccessOffset(son, node->blockInsts);
+                    if (!totalOffset) {
+                        return false;
+                    }
+
+                    // 计算最终地址：@array + totalOffset
+                    Type * ptrType =
+                        const_cast<Type *>(static_cast<const Type *>(PointerType::get(IntegerType::getTypeInt())));
+                    BinaryInstruction * finalAddrInst = new BinaryInstruction(currentFunc,
+                                                                              IRInstOperator::IRINST_OP_ADD_I,
+                                                                              arrayVar,
+                                                                              totalOffset,
+                                                                              ptrType);
+                    node->blockInsts.addInst(finalAddrInst);
+                    realParams.push_back(finalAddrInst);
+                }
+
+                printf("DEBUG: 完成数组访问参数传递\n");
+                continue;
+            }
+
+            // 然后处理简单变量名（数组名）
+            else if (son->node_type == ast_operator_type::AST_OP_LEAF_VAR_ID) {
                 Value * paramVar = module->findVarValue(son->name);
 
                 printf("DEBUG: 找到变量: %s, 变量存在: %s\n", son->name.c_str(), paramVar ? "是" : "否");
@@ -802,35 +898,6 @@ bool IRGenerator::ir_function_call(ast_node * node)
                            paramVar->getType()->isPointerType() ? "是" : "否");
                 }
 
-                // 检查形参是否为指针类型（即数组参数）
-                bool shouldPassAsPointer = false;
-                if (i < formalParams.size()) {
-                    Type * formalParamType = formalParams[i]->getType();
-                    shouldPassAsPointer = formalParamType && formalParamType->isPointerType();
-                    printf("DEBUG: 形参 #%zu 类型检查 - isPointerType: %s\n", i, shouldPassAsPointer ? "是" : "否");
-                }
-
-                // if (paramVar && paramVar->getType()->isArrayType() && shouldPassAsPointer) {
-                //     // 数组参数：使用扩展的MoveInstruction进行数组到指针转换
-                //     printf("DEBUG: *** 传递数组参数: %s (使用ArrayToPointer转换) ***\n", son->name.c_str());
-
-                //     // 创建指针类型的临时变量
-                //     Type * ptrType =
-                //         const_cast<Type *>(static_cast<const Type *>(PointerType::get(IntegerType::getTypeInt())));
-                //     LocalVariable * ptrVar = static_cast<LocalVariable *>(module->newVarValue(ptrType));
-
-                //     // 使用静态工厂方法创建数组到指针转换指令
-                //     MoveInstruction * arrayToPtrInst =
-                //         MoveInstruction::createArrayToPointer(currentFunc, ptrVar, paramVar);
-
-                //     node->blockInsts.addInst(arrayToPtrInst);
-                //     realParams.push_back(ptrVar);
-
-                //     printf("DEBUG: 创建了数组到指针转换: %s -> %s\n",
-                //            paramVar->getIRName().c_str(),
-                //            ptrVar->getIRName().c_str());
-                //     continue;
-                // }
                 if (paramVar && paramVar->getType()->isArrayType() && shouldPassAsPointer) {
                     // 数组参数：生成 add %array, 0 得到指针
                     printf("DEBUG: *** 传递数组参数: %s (add %%array, 0 得到指针) ***\n", son->name.c_str());
@@ -2131,7 +2198,7 @@ bool IRGenerator::ir_leaf_node_var_id(ast_node * node)
         return false;
     }
 
-    printf("DEBUG: 查找变量: %s\n", node->name.c_str());
+    // printf("DEBUG: 查找变量: %s\n", node->name.c_str());
 
     // 查找ID型Value
     // 变量，则需要在符号表中查找对应的值
@@ -2433,14 +2500,6 @@ bool IRGenerator::ir_array_access(ast_node * node)
         return false;
     }
 
-    // // 确保是数组类型
-    // if (!arrayVar->getType()->isArrayType()) {
-    //     setLastError(arrayName + " 不是数组类型");
-    //     return false;
-    // }
-
-    // printf("DEBUG: 处理数组访问: %s\n", arrayName.c_str());
-
     // 获取当前函数
     Function * currentFunc = module->getCurrentFunction();
     if (!currentFunc) {
@@ -2448,58 +2507,548 @@ bool IRGenerator::ir_array_access(ast_node * node)
         return false;
     }
 
-    // 如果是函数参数（数组参数），直接处理为一维数组访问
-    if (isCurrentFunctionParameter(arrayName) && !arrayVar->getType()->isArrayType()) {
+    // 检查是否是函数参数（数组参数）
+    if (isCurrentFunctionParameter(arrayName)) {
         printf("DEBUG: 处理函数数组参数访问: %s\n", arrayName.c_str());
 
-        // 处理索引表达式
+        // 🔧 关键修改：获取保存的维度信息
+        std::string funcName = currentFunc->getName();
+
+        // 找到参数索引
+        int paramIndex = -1;
+        for (size_t i = 0; i < currentFunc->getParams().size(); i++) {
+            if (currentFunc->getParams()[i]->getName() == arrayName) {
+                paramIndex = i;
+                break;
+            }
+        }
+
+        if (paramIndex >= 0 && functionParameterDimensions.count(funcName) > 0 &&
+            functionParameterDimensions[funcName].count(paramIndex) > 0) {
+
+            // 使用保存的维度信息进行正确的偏移计算
+            const std::vector<int> & dimensions = functionParameterDimensions[funcName][paramIndex];
+
+            printf("DEBUG: 使用保存的维度信息，维度数: %zu\n", dimensions.size());
+            for (size_t i = 0; i < dimensions.size(); i++) {
+                printf("DEBUG: 维度 %zu: %d\n", i, dimensions[i]);
+            }
+
+            return handleParameterArrayAccessWithDimensions(node, arrayVar, dimensions);
+        } else {
+            // 没有维度信息，按简单指针处理
+            printf("DEBUG: 没有找到维度信息，按简单指针处理\n");
+            return handleSimplePointerParamAccess(node, arrayVar);
+        }
+    }
+
+    // 处理普通数组（非参数）
+    if (!arrayVar->getType()->isArrayType()) {
+        setLastError(arrayName + " 不是数组类型");
+        return false;
+    }
+
+    ArrayType * arrayType = static_cast<ArrayType *>(arrayVar->getType());
+    std::vector<int> dimensions = arrayType->getDimensions();
+
+    // 处理普通数组访问
+    return handleRegularArrayAccess(node, arrayVar, dimensions);
+}
+
+bool IRGenerator::ir_empty_stmt(ast_node * node)
+{
+    // 空语句不需要生成任何实际代码
+    // 只需要返回成功即可
+    printf("DEBUG: 处理空语句\n");
+    return true;
+}
+
+/// @brief 函数数组形参AST节点翻译成线性中间IR
+/// @param node AST节点
+/// @return 翻译是否成功，true：成功，false：失败
+bool IRGenerator::ir_function_formal_param_array(ast_node * node)
+{
+    // 数组参数在C语言中实际上是指针
+    // 这里不需要特殊处理，因为在ir_function_formal_params中已经处理了
+    // 这个函数主要是为了防止ir_default被调用
+
+    printf("DEBUG: 处理数组形参节点: %s\n", node->sons.size() > 1 ? node->sons[1]->name.c_str() : "未知");
+
+    return true;
+}
+
+/// @brief 检查变量是否是当前函数的参数
+/// @param varName 变量名
+/// @return 是否是函数参数
+bool IRGenerator::isCurrentFunctionParameter(const std::string & varName)
+{
+    Function * currentFunc = module->getCurrentFunction();
+    if (!currentFunc)
+        return false;
+
+    for (auto param: currentFunc->getParams()) {
+        if (param->getName() == varName) {
+            return true;
+        }
+    }
+    return false;
+}
+
+/// @brief 计算数组访问的深度
+/// @param node 数组访问节点
+/// @return 访问深度
+int IRGenerator::calculateArrayAccessDepth(ast_node * node)
+{
+    // 计算实际的索引数量
+    // sons[0] 是数组名，sons[1], sons[2], ... 是索引
+    return node->sons.size() - 1;
+}
+
+/// @brief 根据访问深度计算行大小
+/// @param dimensions 数组维度
+/// @param accessDepth 访问深度
+/// @return 行大小
+int IRGenerator::calculateRowSize(const std::vector<int> & dimensions, int accessDepth)
+{
+    // 行大小 = 从 accessDepth 维开始的所有维度的乘积
+    int rowSize = 1;
+    for (size_t i = accessDepth; i < dimensions.size(); i++) {
+        rowSize *= dimensions[i];
+    }
+    return rowSize;
+}
+
+/// @brief 计算线性偏移量（处理多维索引）
+/// @param node 数组访问节点
+/// @param blockInsts 指令容器，用于添加生成的指令
+/// @return 线性偏移量
+Value * IRGenerator::calculateLinearOffset(ast_node * node, InterCode & blockInsts)
+{
+    Function * currentFunc = module->getCurrentFunction();
+    if (!currentFunc) {
+        setLastError("当前函数为空");
+        return nullptr;
+    }
+
+    // 如果所有索引都是0，直接返回常量0，避免复杂计算
+    bool allZeros = true;
+    for (size_t i = 1; i < node->sons.size(); i++) {
+        ast_node * indexNode = node->sons[i];
+        if (indexNode->node_type != ast_operator_type::AST_OP_LEAF_LITERAL_UINT || indexNode->integer_val != 0) {
+            allZeros = false;
+            break;
+        }
+    }
+
+    // 如果所有索引都是0，直接返回0，避免复杂计算
+    if (allZeros) {
+        printf("DEBUG: 所有索引都是0，返回常量0\n");
+        return module->newConstInt(0);
+    }
+
+    // 获取数组名
+    std::string arrayName = node->sons[0]->name;
+    Value * arrayVar = module->findVarValue(arrayName);
+    if (!arrayVar) {
+        setLastError("未找到数组: " + arrayName);
+        return nullptr;
+    }
+
+    // 如果只有一个索引，直接处理
+    if (node->sons.size() == 2) {
         ast_node * indexNode = ir_visit_ast_node(node->sons[1]);
+        if (!indexNode || !indexNode->val) {
+            setLastError("无效的数组索引表达式");
+            return nullptr;
+        }
+        // 添加索引计算的指令
+        blockInsts.addInst(indexNode->blockInsts);
+        return indexNode->val;
+    }
+
+    // 获取数组维度信息
+    ArrayType * arrayType = dynamic_cast<ArrayType *>(arrayVar->getType());
+    if (!arrayType) {
+        printf("DEBUG: 数组参数无法获取维度信息，使用简化计算\n");
+        return module->newConstInt(0);
+    }
+
+    const std::vector<int> & dimensions = arrayType->getDimensions();
+
+    // 初始化线性偏移为0
+    Value * linearOffset = module->newConstInt(0);
+
+    // 计算每个维度的贡献
+    for (size_t i = 1; i < node->sons.size(); i++) {
+        ast_node * indexNode = ir_visit_ast_node(node->sons[i]);
+        if (!indexNode || !indexNode->val) {
+            setLastError("无效的数组索引表达式");
+            return nullptr;
+        }
+
+        // 添加索引计算的指令
+        blockInsts.addInst(indexNode->blockInsts);
+
+        // 计算该维度的系数
+        int coefficient = 1;
+        for (size_t j = i; j < dimensions.size(); j++) {
+            coefficient *= dimensions[j];
+        }
+
+        // printf("DEBUG: 维度 %zu 的系数: %d\n", i - 1, coefficient);
+
+        if (coefficient == 1) {
+            BinaryInstruction * addInst = new BinaryInstruction(currentFunc,
+                                                                IRInstOperator::IRINST_OP_ADD_I,
+                                                                linearOffset,
+                                                                indexNode->val,
+                                                                IntegerType::getTypeInt());
+            // 将指令添加到指令流
+            blockInsts.addInst(addInst);
+            linearOffset = addInst;
+        } else {
+            BinaryInstruction * mulInst = new BinaryInstruction(currentFunc,
+                                                                IRInstOperator::IRINST_OP_MUL_I,
+                                                                indexNode->val,
+                                                                module->newConstInt(coefficient),
+                                                                IntegerType::getTypeInt());
+            // 将乘法指令添加到指令流
+            blockInsts.addInst(mulInst);
+
+            BinaryInstruction * addInst = new BinaryInstruction(currentFunc,
+                                                                IRInstOperator::IRINST_OP_ADD_I,
+                                                                linearOffset,
+                                                                mulInst,
+                                                                IntegerType::getTypeInt());
+            // 将加法指令添加到指令流
+            blockInsts.addInst(addInst);
+            linearOffset = addInst;
+        }
+    }
+
+    return linearOffset;
+}
+
+/// @brief 根据形参类型计算参数传递的偏移量
+Value * IRGenerator::calculateParameterOffset(ast_node * arrayAccessNode,
+                                              const std::vector<int> & paramDimensions,
+                                              InterCode & blockInsts)
+{
+    Function * currentFunc = module->getCurrentFunction();
+    if (!currentFunc) {
+        return nullptr;
+    }
+
+    // 获取索引数量（减去数组名）
+    size_t indexCount = arrayAccessNode->sons.size() - 1;
+
+    // 如果没有索引，返回0
+    if (indexCount == 0) {
+        return module->newConstInt(0);
+    }
+
+    // 根据形参维度计算正确的偏移量
+    // paramDimensions[0] = 0（指针维度），paramDimensions[1], [2]... 是实际维度
+    std::vector<int> actualDimensions(paramDimensions.begin() + 1, paramDimensions.end());
+
+    // 计算线性索引
+    Value * linearIndex = module->newConstInt(0);
+
+    for (size_t i = 0; i < indexCount && i < actualDimensions.size(); i++) {
+        // 处理当前维度的索引
+        ast_node * indexNode = ir_visit_ast_node(arrayAccessNode->sons[i + 1]);
+        if (!indexNode || !indexNode->val) {
+            return nullptr;
+        }
+        blockInsts.addInst(indexNode->blockInsts);
+
+        // 计算该维度的步长（后续所有维度大小的乘积）
+        int stride = 1;
+        for (size_t j = i + 1; j < actualDimensions.size(); j++) {
+            stride *= actualDimensions[j];
+        }
+
+        if (stride > 1) {
+            // index * stride
+            BinaryInstruction * mulInst = new BinaryInstruction(currentFunc,
+                                                                IRInstOperator::IRINST_OP_MUL_I,
+                                                                indexNode->val,
+                                                                module->newConstInt(stride),
+                                                                IntegerType::getTypeInt());
+            blockInsts.addInst(mulInst);
+
+            // linearIndex + (index * stride)
+            BinaryInstruction * addInst = new BinaryInstruction(currentFunc,
+                                                                IRInstOperator::IRINST_OP_ADD_I,
+                                                                linearIndex,
+                                                                mulInst,
+                                                                IntegerType::getTypeInt());
+            blockInsts.addInst(addInst);
+            linearIndex = addInst;
+        } else {
+            // stride == 1，直接加上索引
+            BinaryInstruction * addInst = new BinaryInstruction(currentFunc,
+                                                                IRInstOperator::IRINST_OP_ADD_I,
+                                                                linearIndex,
+                                                                indexNode->val,
+                                                                IntegerType::getTypeInt());
+            blockInsts.addInst(addInst);
+            linearIndex = addInst;
+        }
+    }
+
+    // 转换为字节偏移量（乘以元素大小）
+    BinaryInstruction * byteOffsetInst = new BinaryInstruction(currentFunc,
+                                                               IRInstOperator::IRINST_OP_MUL_I,
+                                                               linearIndex,
+                                                               module->newConstInt(4), // sizeof(int)
+                                                               IntegerType::getTypeInt());
+    blockInsts.addInst(byteOffsetInst);
+
+    return byteOffsetInst;
+}
+
+/// @brief 计算数组访问的字节偏移量
+Value * IRGenerator::calculateArrayAccessOffset(ast_node * arrayAccessNode, InterCode & blockInsts)
+{
+    Function * currentFunc = module->getCurrentFunction();
+    if (!currentFunc) {
+        return nullptr;
+    }
+
+    // 获取数组变量信息
+    std::string arrayName = arrayAccessNode->sons[0]->name;
+    Value * arrayVar = module->findVarValue(arrayName);
+    if (!arrayVar) {
+        return nullptr;
+    }
+
+    // 获取索引数量（减去数组名）
+    size_t indexCount = arrayAccessNode->sons.size() - 1;
+
+    // 如果没有索引，返回0
+    if (indexCount == 0) {
+        return module->newConstInt(0);
+    }
+
+    // 获取数组维度信息
+    ArrayType * arrayType = dynamic_cast<ArrayType *>(arrayVar->getType());
+    if (!arrayType) {
+        // 如果无法获取维度信息，使用简化计算
+        printf("DEBUG: 无法获取数组维度信息，使用简化偏移计算\n");
+
+        // 只处理第一个索引
+        ast_node * indexNode = ir_visit_ast_node(arrayAccessNode->sons[1]);
+        if (!indexNode || !indexNode->val) {
+            return nullptr;
+        }
+        blockInsts.addInst(indexNode->blockInsts);
+
+        // 转换为字节偏移量
+        BinaryInstruction * byteOffsetInst = new BinaryInstruction(currentFunc,
+                                                                   IRInstOperator::IRINST_OP_MUL_I,
+                                                                   indexNode->val,
+                                                                   module->newConstInt(4),
+                                                                   IntegerType::getTypeInt());
+        blockInsts.addInst(byteOffsetInst);
+        return byteOffsetInst;
+    }
+
+    const std::vector<int> & dimensions = arrayType->getDimensions();
+
+    // 计算线性索引（与原有逻辑相同）
+    Value * totalOffset = module->newConstInt(0);
+
+    // 处理每个维度的索引
+    for (size_t dimIdx = 1; dimIdx < arrayAccessNode->sons.size(); dimIdx++) {
+        ast_node * indexNode = ir_visit_ast_node(arrayAccessNode->sons[dimIdx]);
+        if (!indexNode || !indexNode->val) {
+            return nullptr;
+        }
+        blockInsts.addInst(indexNode->blockInsts);
+
+        // 计算该维度的步长（从当前维度到最后一维的乘积）
+        int stride = 1;
+        for (size_t j = dimIdx; j < dimensions.size(); j++) {
+            stride *= dimensions[j];
+        }
+
+        Value * indexContribution;
+        if (stride == 1) {
+            indexContribution = indexNode->val;
+        } else {
+            BinaryInstruction * mulInst = new BinaryInstruction(currentFunc,
+                                                                IRInstOperator::IRINST_OP_MUL_I,
+                                                                indexNode->val,
+                                                                module->newConstInt(stride),
+                                                                IntegerType::getTypeInt());
+            blockInsts.addInst(mulInst);
+            indexContribution = mulInst;
+        }
+
+        // 累加到总偏移量
+        BinaryInstruction * addInst = new BinaryInstruction(currentFunc,
+                                                            IRInstOperator::IRINST_OP_ADD_I,
+                                                            totalOffset,
+                                                            indexContribution,
+                                                            IntegerType::getTypeInt());
+        blockInsts.addInst(addInst);
+        totalOffset = addInst;
+    }
+
+    // 转换为字节偏移量（乘以元素大小）
+    BinaryInstruction * byteOffsetInst = new BinaryInstruction(currentFunc,
+                                                               IRInstOperator::IRINST_OP_MUL_I,
+                                                               totalOffset,
+                                                               module->newConstInt(4), // sizeof(int)
+                                                               IntegerType::getTypeInt());
+    blockInsts.addInst(byteOffsetInst);
+
+    return byteOffsetInst;
+}
+
+/// @brief 处理简单指针参数访问 (int* 类型)
+bool IRGenerator::handleSimplePointerParamAccess(ast_node * node, Value * arrayVar)
+{
+    Function * currentFunc = module->getCurrentFunction();
+
+    // 只处理第一个索引
+    ast_node * indexNode = ir_visit_ast_node(node->sons[1]);
+    if (!indexNode || !indexNode->val) {
+        setLastError("无效的数组索引表达式");
+        return false;
+    }
+    node->blockInsts.addInst(indexNode->blockInsts);
+
+    // 计算字节偏移量：index * sizeof(int)
+    LocalVariable * byteOffset = static_cast<LocalVariable *>(module->newVarValue(IntegerType::getTypeInt()));
+    BinaryInstruction * byteOffsetInst = new BinaryInstruction(currentFunc,
+                                                               IRInstOperator::IRINST_OP_MUL_I,
+                                                               indexNode->val,
+                                                               module->newConstInt(4), // sizeof(int) = 4
+                                                               IntegerType::getTypeInt());
+    node->blockInsts.addInst(byteOffsetInst);
+    node->blockInsts.addInst(new MoveInstruction(currentFunc, byteOffset, byteOffsetInst));
+
+    // 计算元素指针：arrayVar + byteOffset
+    Type * ptrType = const_cast<Type *>(static_cast<const Type *>(PointerType::get(IntegerType::getTypeInt())));
+    LocalVariable * elemPtr = static_cast<LocalVariable *>(module->newVarValue(ptrType));
+
+    BinaryInstruction * ptrInst =
+        new BinaryInstruction(currentFunc, IRInstOperator::IRINST_OP_ADD_I, arrayVar, byteOffset, ptrType);
+    node->blockInsts.addInst(ptrInst);
+    node->blockInsts.addInst(new MoveInstruction(currentFunc, elemPtr, ptrInst));
+
+    // 读取元素值
+    LocalVariable * elemValue = static_cast<LocalVariable *>(module->newVarValue(IntegerType::getTypeInt()));
+    MoveInstruction * loadInst = new MoveInstruction(currentFunc, elemValue, elemPtr);
+    loadInst->setIsPointerLoad(true);
+    node->blockInsts.addInst(loadInst);
+
+    // 保存结果
+    node->arrayVar = arrayVar;
+    node->offsetValue = byteOffset;
+    node->arrayPtr = elemPtr;
+    node->val = elemValue;
+
+    printf("DEBUG: 完成简单指针参数访问\n");
+    return true;
+}
+
+/// @brief 处理多维数组参数访问 (int(*)[2][2]... 类型)
+bool IRGenerator::handleMultiDimArrayParamAccess(ast_node * node, Value * arrayVar, const std::vector<int> & dimensions)
+{
+    Function * currentFunc = module->getCurrentFunction();
+
+    // 收集所有索引
+    std::vector<Value *> indices;
+    for (size_t i = 1; i < node->sons.size(); i++) {
+        ast_node * indexNode = ir_visit_ast_node(node->sons[i]);
         if (!indexNode || !indexNode->val) {
             setLastError("无效的数组索引表达式");
             return false;
         }
         node->blockInsts.addInst(indexNode->blockInsts);
-
-        // 计算字节偏移量
-        LocalVariable * byteOffset = static_cast<LocalVariable *>(module->newVarValue(IntegerType::getTypeInt()));
-        BinaryInstruction * byteOffsetInst = new BinaryInstruction(currentFunc,
-                                                                   IRInstOperator::IRINST_OP_MUL_I,
-                                                                   indexNode->val,
-                                                                   module->newConstInt(4), // sizeof(int) = 4
-                                                                   IntegerType::getTypeInt());
-        node->blockInsts.addInst(byteOffsetInst);
-        node->blockInsts.addInst(new MoveInstruction(currentFunc, byteOffset, byteOffsetInst));
-
-        // 计算元素指针
-        Type * ptrType = const_cast<Type *>(static_cast<const Type *>(PointerType::get(IntegerType::getTypeInt())));
-        LocalVariable * elemPtr = static_cast<LocalVariable *>(module->newVarValue(ptrType));
-
-        BinaryInstruction * ptrInst =
-            new BinaryInstruction(currentFunc, IRInstOperator::IRINST_OP_ADD_I, arrayVar, byteOffset, ptrType);
-        node->blockInsts.addInst(ptrInst);
-        node->blockInsts.addInst(new MoveInstruction(currentFunc, elemPtr, ptrInst));
-
-        // 创建局部变量用于存储数组元素的值
-        LocalVariable * elemValue = static_cast<LocalVariable *>(module->newVarValue(IntegerType::getTypeInt()));
-
-        // 读取数组元素的值
-        MoveInstruction * loadInst = new MoveInstruction(currentFunc, elemValue, elemPtr);
-        loadInst->setIsPointerLoad(true);
-        node->blockInsts.addInst(loadInst);
-
-        // 保存结果
-        node->arrayVar = arrayVar;
-        node->offsetValue = byteOffset;
-        node->arrayPtr = elemPtr;
-        node->val = elemValue;
-
-        printf("DEBUG: 完成函数数组参数访问，读取了元素值: %s\n", elemValue->getIRName().c_str());
-        return true;
+        indices.push_back(indexNode->val);
     }
 
-    // 获取数组类型信息
-    ArrayType * arrayType = static_cast<ArrayType *>(arrayVar->getType());
-    std::vector<int> dimensions = arrayType->getDimensions();
+    // 计算正确的线性偏移量
+    Value * linearOffset = module->newConstInt(0);
+
+    // 对于 int(*)[2][2] 类型的参数访问 param[i][j]
+    // 偏移量 = i * dimensions[0] + j
+    for (size_t i = 0; i < indices.size() && i < dimensions.size(); i++) {
+        Value * indexContribution;
+
+        // 计算该维度的步长（从当前维度到最后一维的乘积）
+        int stride = 1;
+        for (size_t j = i + 1; j < dimensions.size(); j++) {
+            stride *= dimensions[j];
+        }
+
+        if (stride == 1) {
+            indexContribution = indices[i];
+        } else {
+            BinaryInstruction * mulInst = new BinaryInstruction(currentFunc,
+                                                                IRInstOperator::IRINST_OP_MUL_I,
+                                                                indices[i],
+                                                                module->newConstInt(stride),
+                                                                IntegerType::getTypeInt());
+            node->blockInsts.addInst(mulInst);
+            indexContribution = mulInst;
+        }
+
+        // 累加到线性偏移量
+        BinaryInstruction * addInst = new BinaryInstruction(currentFunc,
+                                                            IRInstOperator::IRINST_OP_ADD_I,
+                                                            linearOffset,
+                                                            indexContribution,
+                                                            IntegerType::getTypeInt());
+        node->blockInsts.addInst(addInst);
+        linearOffset = addInst;
+    }
+
+    // 转换为字节偏移量
+    BinaryInstruction * byteOffsetInst = new BinaryInstruction(currentFunc,
+                                                               IRInstOperator::IRINST_OP_MUL_I,
+                                                               linearOffset,
+                                                               module->newConstInt(4), // sizeof(int)
+                                                               IntegerType::getTypeInt());
+    node->blockInsts.addInst(byteOffsetInst);
+
+    // 计算最终指针
+    Type * ptrType = const_cast<Type *>(static_cast<const Type *>(PointerType::get(IntegerType::getTypeInt())));
+    LocalVariable * elemPtr = static_cast<LocalVariable *>(module->newVarValue(ptrType));
+
+    BinaryInstruction * ptrInst =
+        new BinaryInstruction(currentFunc, IRInstOperator::IRINST_OP_ADD_I, arrayVar, byteOffsetInst, ptrType);
+    node->blockInsts.addInst(ptrInst);
+    node->blockInsts.addInst(new MoveInstruction(currentFunc, elemPtr, ptrInst));
+
+    // 读取元素值
+    LocalVariable * elemValue = static_cast<LocalVariable *>(module->newVarValue(IntegerType::getTypeInt()));
+    MoveInstruction * loadInst = new MoveInstruction(currentFunc, elemValue, elemPtr);
+    loadInst->setIsPointerLoad(true);
+    node->blockInsts.addInst(loadInst);
+
+    // 保存结果
+    node->arrayVar = arrayVar;
+    node->offsetValue = byteOffsetInst;
+    node->arrayPtr = elemPtr;
+    node->val = elemValue;
+
+    printf("DEBUG: 完成多维数组参数访问\n");
+    return true;
+}
+
+/// @brief 处理普通数组访问（保持原有逻辑）
+bool IRGenerator::handleRegularArrayAccess(ast_node * node, Value * arrayVar, const std::vector<int> & dimensions)
+{
+    Function * currentFunc = module->getCurrentFunction();
+    if (!currentFunc) {
+        setLastError("数组访问必须在函数内部");
+        return false;
+    }
 
     // 处理索引表达式
     std::vector<Value *> indices;
@@ -2514,7 +3063,7 @@ bool IRGenerator::ir_array_access(ast_node * node)
         node->blockInsts.addInst(indexNode->blockInsts);
 
         indices.push_back(indexNode->val);
-        printf("DEBUG: 处理数组索引 %zu\n", i - 1);
+        // printf("DEBUG: 处理数组索引 %zu\n", i - 1);
     }
 
     // 针对二维数组的处理
@@ -2587,51 +3136,55 @@ bool IRGenerator::ir_array_access(ast_node * node)
 
         printf("DEBUG: 完成二维数组访问，读取了元素值: %s\n", elemValue->getIRName().c_str());
     } else {
-        // 处理一般维度的数组
-        // 计算线性索引
-        Value * linearIndex = indices[0];
+        // 处理一般维度的数组 - 使用标准的多维数组展开公式
+        Value * linearOffset = module->newConstInt(0);
 
-        // 临时变量存储计算结果
-        LocalVariable * curIndex = static_cast<LocalVariable *>(module->newVarValue(IntegerType::getTypeInt()));
-        node->blockInsts.addInst(new MoveInstruction(currentFunc, curIndex, linearIndex));
-
-        // 逐维度计算线性索引
-        for (size_t i = 1; i < indices.size(); i++) {
-            // 计算该维度的步长（后续所有维度大小的乘积）
-            int stride = 1;
-            for (size_t j = i; j < dimensions.size(); j++) {
-                stride *= dimensions[j];
+        // 标准多维数组线性偏移公式：offset = i0*d1*d2*...*dn + i1*d2*...*dn + ... + in
+        for (size_t i = 0; i < indices.size(); i++) {
+            // 计算该维度的权重（后续所有维度大小的乘积）
+            int weight = 1;
+            for (size_t j = i + 1; j < dimensions.size(); j++) {
+                weight *= dimensions[j];
             }
 
-            // temp = curIndex * stride
-            LocalVariable * mulResult = static_cast<LocalVariable *>(module->newVarValue(IntegerType::getTypeInt()));
-            BinaryInstruction * mulInst = new BinaryInstruction(currentFunc,
-                                                                IRInstOperator::IRINST_OP_MUL_I,
-                                                                curIndex,
-                                                                module->newConstInt(stride),
-                                                                IntegerType::getTypeInt());
-            node->blockInsts.addInst(mulInst);
-            node->blockInsts.addInst(new MoveInstruction(currentFunc, mulResult, mulInst));
+            // printf("DEBUG: 维度 %zu 的权重: %d\n", i, weight);
 
-            // curIndex = temp + indices[i]
-            BinaryInstruction * addInst = new BinaryInstruction(currentFunc,
-                                                                IRInstOperator::IRINST_OP_ADD_I,
-                                                                mulResult,
-                                                                indices[i],
-                                                                IntegerType::getTypeInt());
-            node->blockInsts.addInst(addInst);
-            node->blockInsts.addInst(new MoveInstruction(currentFunc, curIndex, addInst));
+            if (weight == 1) {
+                // 最后一维，直接加上索引
+                BinaryInstruction * addInst = new BinaryInstruction(currentFunc,
+                                                                    IRInstOperator::IRINST_OP_ADD_I,
+                                                                    linearOffset,
+                                                                    indices[i],
+                                                                    IntegerType::getTypeInt());
+                node->blockInsts.addInst(addInst);
+                linearOffset = addInst;
+            } else {
+                // 计算 indices[i] * weight
+                BinaryInstruction * mulInst = new BinaryInstruction(currentFunc,
+                                                                    IRInstOperator::IRINST_OP_MUL_I,
+                                                                    indices[i],
+                                                                    module->newConstInt(weight),
+                                                                    IntegerType::getTypeInt());
+                node->blockInsts.addInst(mulInst);
+
+                // 累加到总偏移
+                BinaryInstruction * addInst = new BinaryInstruction(currentFunc,
+                                                                    IRInstOperator::IRINST_OP_ADD_I,
+                                                                    linearOffset,
+                                                                    mulInst,
+                                                                    IntegerType::getTypeInt());
+                node->blockInsts.addInst(addInst);
+                linearOffset = addInst;
+            }
         }
 
         // 计算字节偏移量
-        LocalVariable * byteOffset = static_cast<LocalVariable *>(module->newVarValue(IntegerType::getTypeInt()));
         BinaryInstruction * byteOffsetInst = new BinaryInstruction(currentFunc,
                                                                    IRInstOperator::IRINST_OP_MUL_I,
-                                                                   curIndex,
+                                                                   linearOffset,
                                                                    module->newConstInt(4), // sizeof(int) = 4
                                                                    IntegerType::getTypeInt());
         node->blockInsts.addInst(byteOffsetInst);
-        node->blockInsts.addInst(new MoveInstruction(currentFunc, byteOffset, byteOffsetInst));
 
         // 为指针类型创建一个普通的Type*，而不是const PointerType*
         Type * ptrType = const_cast<Type *>(static_cast<const Type *>(PointerType::get(IntegerType::getTypeInt())));
@@ -2639,7 +3192,7 @@ bool IRGenerator::ir_array_access(ast_node * node)
 
         // 计算元素指针
         BinaryInstruction * ptrInst =
-            new BinaryInstruction(currentFunc, IRInstOperator::IRINST_OP_ADD_I, arrayVar, byteOffset, ptrType);
+            new BinaryInstruction(currentFunc, IRInstOperator::IRINST_OP_ADD_I, arrayVar, byteOffsetInst, ptrType);
         node->blockInsts.addInst(ptrInst);
         node->blockInsts.addInst(new MoveInstruction(currentFunc, elemPtr, ptrInst));
 
@@ -2656,7 +3209,7 @@ bool IRGenerator::ir_array_access(ast_node * node)
 
         // 保存结果
         node->arrayVar = arrayVar;
-        node->offsetValue = byteOffset;
+        node->offsetValue = byteOffsetInst;
         node->arrayPtr = elemPtr; // 用于赋值操作
         node->val = elemValue;    // 对于表达式，返回元素的值而不是指针
 
@@ -2666,41 +3219,92 @@ bool IRGenerator::ir_array_access(ast_node * node)
     return true;
 }
 
-bool IRGenerator::ir_empty_stmt(ast_node * node)
-{
-    // 空语句不需要生成任何实际代码
-    // 只需要返回成功即可
-    printf("DEBUG: 处理空语句\n");
-    return true;
-}
-
-/// @brief 函数数组形参AST节点翻译成线性中间IR
-/// @param node AST节点
-/// @return 翻译是否成功，true：成功，false：失败
-bool IRGenerator::ir_function_formal_param_array(ast_node * node)
-{
-    // 数组参数在C语言中实际上是指针
-    // 这里不需要特殊处理，因为在ir_function_formal_params中已经处理了
-    // 这个函数主要是为了防止ir_default被调用
-
-    printf("DEBUG: 处理数组形参节点: %s\n", node->sons.size() > 1 ? node->sons[1]->name.c_str() : "未知");
-
-    return true;
-}
-
-/// @brief 检查变量是否是当前函数的参数
-/// @param varName 变量名
-/// @return 是否是函数参数
-bool IRGenerator::isCurrentFunctionParameter(const std::string & varName)
+/// @brief 使用保存的维度信息处理函数数组参数访问
+bool IRGenerator::handleParameterArrayAccessWithDimensions(ast_node * node,
+                                                           Value * arrayVar,
+                                                           const std::vector<int> & dimensions)
 {
     Function * currentFunc = module->getCurrentFunction();
-    if (!currentFunc)
-        return false;
 
-    for (auto param: currentFunc->getParams()) {
-        if (param->getName() == varName) {
-            return true;
+    // 收集所有索引
+    std::vector<Value *> indices;
+    for (size_t i = 1; i < node->sons.size(); i++) {
+        ast_node * indexNode = ir_visit_ast_node(node->sons[i]);
+        if (!indexNode || !indexNode->val) {
+            setLastError("无效的数组索引表达式");
+            return false;
         }
+        node->blockInsts.addInst(indexNode->blockInsts);
+        indices.push_back(indexNode->val);
     }
-    return false;
+
+    // 使用正确的维度信息计算偏移量
+    Value * linearOffset = module->newConstInt(0);
+
+    // 对于保存的维度 [2, 2] (表示 [2][2])
+    // 访问 param[i][j] 的偏移量 = i * 2 + j
+    for (size_t i = 0; i < indices.size() && i < dimensions.size(); i++) {
+        Value * indexContribution;
+
+        // 计算该维度的步长（从下一维开始的所有维度大小的乘积）
+        int stride = 1;
+        for (size_t j = i + 1; j < dimensions.size(); j++) {
+            stride *= dimensions[j];
+        }
+
+        printf("DEBUG: 维度 %zu, 步长: %d\n", i, stride);
+
+        if (stride == 1) {
+            indexContribution = indices[i];
+        } else {
+            BinaryInstruction * mulInst = new BinaryInstruction(currentFunc,
+                                                                IRInstOperator::IRINST_OP_MUL_I,
+                                                                indices[i],
+                                                                module->newConstInt(stride),
+                                                                IntegerType::getTypeInt());
+            node->blockInsts.addInst(mulInst);
+            indexContribution = mulInst;
+        }
+
+        // 累加到线性偏移量
+        BinaryInstruction * addInst = new BinaryInstruction(currentFunc,
+                                                            IRInstOperator::IRINST_OP_ADD_I,
+                                                            linearOffset,
+                                                            indexContribution,
+                                                            IntegerType::getTypeInt());
+        node->blockInsts.addInst(addInst);
+        linearOffset = addInst;
+    }
+
+    // 转换为字节偏移量
+    BinaryInstruction * byteOffsetInst = new BinaryInstruction(currentFunc,
+                                                               IRInstOperator::IRINST_OP_MUL_I,
+                                                               linearOffset,
+                                                               module->newConstInt(4), // sizeof(int)
+                                                               IntegerType::getTypeInt());
+    node->blockInsts.addInst(byteOffsetInst);
+
+    // 计算最终指针和读取元素值
+    Type * ptrType = const_cast<Type *>(static_cast<const Type *>(PointerType::get(IntegerType::getTypeInt())));
+    LocalVariable * elemPtr = static_cast<LocalVariable *>(module->newVarValue(ptrType));
+
+    BinaryInstruction * ptrInst =
+        new BinaryInstruction(currentFunc, IRInstOperator::IRINST_OP_ADD_I, arrayVar, byteOffsetInst, ptrType);
+    node->blockInsts.addInst(ptrInst);
+    node->blockInsts.addInst(new MoveInstruction(currentFunc, elemPtr, ptrInst));
+
+    // 读取元素值
+    LocalVariable * elemValue = static_cast<LocalVariable *>(module->newVarValue(IntegerType::getTypeInt()));
+    MoveInstruction * loadInst = new MoveInstruction(currentFunc, elemValue, elemPtr);
+    loadInst->setIsPointerLoad(true);
+    node->blockInsts.addInst(loadInst);
+
+    // 保存结果
+    node->arrayVar = arrayVar;
+    node->offsetValue = byteOffsetInst;
+    node->arrayPtr = elemPtr;
+    node->val = elemValue;
+
+    printf("DEBUG: 完成使用维度信息的数组参数访问\n");
+    return true;
 }

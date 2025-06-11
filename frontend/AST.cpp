@@ -510,7 +510,9 @@ ast_node* create_array_access(ast_node* name_node, const std::vector<ast_node*>&
     
     // 保存数组名
     array_access_node->name = name_node->name;
-    
+
+    //设置访问深度
+    array_access_node->access_depth = indices.size();
     // 添加数组名节点
     array_access_node->insert_son_node(name_node);
     

@@ -130,6 +130,8 @@ public:
     virtual size_t getRuleIndex() const override;
     antlr4::tree::TerminalNode *T_INT();
     antlr4::tree::TerminalNode *T_ID();
+    std::vector<antlr4::tree::TerminalNode *> T_DIGIT();
+    antlr4::tree::TerminalNode* T_DIGIT(size_t i);
 
 
     virtual std::any accept(antlr4::tree::ParseTreeVisitor *visitor) override;

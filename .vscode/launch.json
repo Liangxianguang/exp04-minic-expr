@@ -10,7 +10,7 @@
 			// 调试的名称，可修改
 			"name": "Debug minic Antlr4 Grammar",
 			// 文法解析的输入文件
-			"input": "tests/test7-6.c",
+			"input": "tests/test10-7.c",
 			// 分析树可视化，也就是具体语法树AST
 			"visualParseTree": true,
 			// 文本输出分析树
@@ -26,7 +26,7 @@
 			"type": "lldb",
 			"request": "launch",
 			"program": "${workspaceFolder}/build/minic",
-			"args": ["-S", "-I", "-A", "-o", "tests/test7-6.ir", "tests/test7-6.c"],
+			"args": ["-S", "-I", "-A", "-o", "tests/test10-7.ir", "tests/test10-7.c"],
 			"cwd": "${workspaceFolder}",
 			// 不需要编译时可注释掉
 			"preLaunchTask": "CMake: build"
@@ -37,7 +37,7 @@
 			"type": "cppdbg",
 			"request": "launch",
 			"program": "${workspaceFolder}/build/minic",
-			"args": ["-S", "-A", "-I", "-o", "tests/test7-6.ir", "tests/test7-6.c"],
+			"args": ["-S", "-A", "-I", "-o", "tests/test10-7.ir", "tests/test10-7.c"],
 			// 程序的入口（main函数的入口）是否停止
 			"stopAtEntry": true,
 			"cwd": "${workspaceFolder}",
@@ -76,7 +76,7 @@
 			"type": "cppdbg",
 			"request": "launch",
 			"program": "${workspaceFolder}/build/minic",
-			"args": ["-S", "-A", "-T", "-o", "tests/test7-6.png", "tests/test7-6.c"],
+			"args": ["-S", "-A", "-T", "-o", "tests/test10-7.png", "tests/test10-7.c"],
 			// 程序的入口（main函数的入口）是否停止
 			"stopAtEntry": true,
 			"cwd": "${workspaceFolder}",
@@ -115,7 +115,7 @@
 			"type": "lldb",
 			"request": "launch",
 			"program": "${workspaceFolder}/build/minic",
-			"args": ["-S", "-A", "-o", "tests/test7-6.s", "tests/test7-6.c"],
+			"args": ["-S", "-A", "-o", "tests/test10-7.s", "tests/test10-7.c"],
 			"cwd": "${workspaceFolder}",
 			// 不需要编译时可注释掉
 			"preLaunchTask": "CMake: build"
@@ -124,7 +124,7 @@
 			"name": "Qemu Debug minic arm32",
 			"type": "cppdbg",
 			"request": "launch",
-			"program": "${workspaceFolder}/tests/test7-6",
+			"program": "${workspaceFolder}/tests/test10-7",
 			"args": [],
 			// 程序的入口（main函数的入口）是否停止
 			"stopAtEntry": true,
@@ -151,7 +151,7 @@
 			"name": "Qemu Debug minic arm64",
 			"type": "cppdbg",
 			"request": "launch",
-			"program": "${workspaceFolder}/tests/test7-6",
+			"program": "${workspaceFolder}/tests/test10-7",
 			"args": [],
 			// 程序的入口（main函数的入口）是否停止
 			"stopAtEntry": true,
@@ -178,7 +178,7 @@
 			"name": "Qemu Debug minic riscv64",
 			"type": "cppdbg",
 			"request": "launch",
-			"program": "${workspaceFolder}/tests/test7-6",
+			"program": "${workspaceFolder}/tests/test10-7",
 			"args": [],
 			// 程序的入口（main函数的入口）是否停止
 			"stopAtEntry": true,
@@ -205,7 +205,7 @@
 			"name": "Qemu Debug Direct arm32",
 			"type": "cppdbg",
 			"request": "launch",
-			"program": "${workspaceFolder}/tests/test7-6",
+			"program": "${workspaceFolder}/tests/test10-7",
 			"args": [],
 			// 程序的入口（main函数的入口）是否停止
 			"stopAtEntry": true,
@@ -232,7 +232,7 @@
 			"name": "Qemu Debug Direct arm64",
 			"type": "cppdbg",
 			"request": "launch",
-			"program": "${workspaceFolder}/tests/test7-6",
+			"program": "${workspaceFolder}/tests/test10-7",
 			"args": [],
 			// 程序的入口（main函数的入口）是否停止
 			"stopAtEntry": true,
@@ -259,7 +259,7 @@
 			"name": "Qemu Debug Direct riscv64",
 			"type": "cppdbg",
 			"request": "launch",
-			"program": "${workspaceFolder}/tests/test7-6",
+			"program": "${workspaceFolder}/tests/test10-7",
 			"args": [],
 			// 程序的入口（main函数的入口）是否停止
 			"stopAtEntry": true,

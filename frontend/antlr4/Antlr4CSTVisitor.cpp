@@ -528,7 +528,12 @@ std::any MiniCCSTVisitor::visitLVal(MiniCParser::LValContext * ctx)
         }
 
         // 创建数组访问节点
-        return create_array_access(name_node, indices);
+        ast_node * array_access_node = create_array_access(name_node, indices);
+
+        //关键修改：设置访问深度
+        array_access_node->access_depth = indices.size();
+
+        return array_access_node;
     }
 }
 
@@ -1301,7 +1306,7 @@ std::any MiniCCSTVisitor::visitParam(MiniCParser::ParamContext * ctx)
     // 获取参数类型
     type_attr paramType{BasicType::TYPE_INT, (int64_t) ctx->T_INT()->getSymbol()->getLine()};
 
-    // 创建类型节点 - 直接使用 create_type_node 而不是先转换类型再创建
+    // 创建类型节点
     ast_node * typeNode = create_type_node(paramType);
 
     // 获取参数名称
@@ -1311,25 +1316,69 @@ std::any MiniCCSTVisitor::visitParam(MiniCParser::ParamContext * ctx)
     // 创建名称节点
     ast_node * nameNode = ast_node::New(paramName, lineno);
 
-    // 检查是否是数组参数
-    // 通过检查语法树中是否有 '[' 来判断
-    int arrayDimCount = 0;
+    // **关键修改：正确提取维度信息**
+    printf("DEBUG: 处理参数 %s，子节点数量: %zu\n", paramName.c_str(), ctx->children.size());
 
-    // 计算数组维度数量
+    // 检查是否有T_DIGIT节点（维度值）
+    std::vector<std::string> digits;
+    for (auto digitNode: ctx->T_DIGIT()) {
+        digits.push_back(digitNode->getText());
+        // printf("DEBUG: 找到维度值: %s\n", digitNode->getText().c_str());
+    }
+
+    // 计算方括号数量
+    int arrayDimCount = 0;
     for (auto child: ctx->children) {
         if (child->getText() == "[") {
             arrayDimCount++;
         }
     }
 
+    printf("DEBUG: 参数 %s 方括号数量: %d，维度值数量: %zu\n", paramName.c_str(), arrayDimCount, digits.size());
+
     if (arrayDimCount > 0) {
         // 数组参数
         ast_node * paramNode = new ast_node(ast_operator_type::AST_OP_FUNC_FORMAL_PARAM_ARRAY);
         paramNode->insert_son_node(typeNode);
         paramNode->insert_son_node(nameNode);
+
+        // **关键：添加维度信息**
+        if (digits.empty()) {
+            // 情况：int a[] 或 int a[][2][3] （第一维为空）
+            // 第一维总是0（表示指针）
+            ast_node * firstDimNode = ast_node::New(digit_int_attr{0, lineno});
+            paramNode->insert_son_node(firstDimNode);
+            printf("DEBUG: 添加第一维（空）: 0\n");
+
+            // 如果还有其他方括号但没有数字，可能都是空的
+            for (int i = 1; i < arrayDimCount; i++) {
+                // 这种情况在语法上不太可能，但为了安全处理
+                ast_node * dimNode = ast_node::New(digit_int_attr{0, lineno});
+                paramNode->insert_son_node(dimNode);
+                printf("DEBUG: 添加额外空维度: 0\n");
+            }
+        } else {
+            // 情况：int a[][2] 或 int a[][2][3] （有具体维度值）
+            // 第一维总是0（空的）
+            ast_node * firstDimNode = ast_node::New(digit_int_attr{0, lineno});
+            paramNode->insert_son_node(firstDimNode);
+            printf("DEBUG: 添加第一维（空）: 0\n");
+
+            // 添加后续的具体维度
+            for (const std::string & dimStr: digits) {
+                uint32_t dimValue = std::stoul(dimStr);
+                ast_node * dimNode = ast_node::New(digit_int_attr{dimValue, lineno});
+                paramNode->insert_son_node(dimNode);
+                // printf("DEBUG: 添加具体维度: %u\n", dimValue);
+            }
+        }
+
+        printf("DEBUG: 数组参数 %s 总共有 %zu 个子节点\n", paramName.c_str(), paramNode->sons.size());
+
         return paramNode;
     } else {
         // 普通参数
+        printf("DEBUG: 普通参数: %s\n", paramName.c_str());
         ast_node * paramNode = new ast_node(ast_operator_type::AST_OP_FUNC_FORMAL_PARAM);
         paramNode->insert_son_node(typeNode);
         paramNode->insert_son_node(nameNode);

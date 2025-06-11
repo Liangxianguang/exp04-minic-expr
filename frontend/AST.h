@@ -189,6 +189,9 @@ public:
     /// @brief 数组访问时，保存数组指针
     Value * arrayPtr = nullptr;
 
+    /// @brief 数组访问深度，表示有多少层索引
+    int access_depth = 0;
+
     ///
     /// @brief 在进入block等节点时是否要进行作用域管理。默认要做。
     ///
