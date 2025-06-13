@@ -3238,6 +3238,45 @@ bool IRGenerator::handleParameterArrayAccessWithDimensions(ast_node * node,
         indices.push_back(indexNode->val);
     }
 
+    // 关键优化：检查是否是零索引访问
+    bool isZeroAccess = true;
+    for (size_t i = 0; i < indices.size(); i++) {
+        if (auto constInt = dynamic_cast<ConstInt *>(indices[i])) {
+            if (constInt->getVal() != 0) {
+                isZeroAccess = false;
+                break;
+            }
+        } else {
+            // 如果不是常量，无法确定是否为0
+            isZeroAccess = false;
+            break;
+        }
+    }
+
+    if (isZeroAccess) {
+        printf("DEBUG: *** 检测到零索引访问，优化处理 ***\n");
+
+        // 🔧 关键修复：确保从内存中加载参数值
+        // 为参数创建一个加载指令，确保从栈中读取
+        LocalVariable * paramValue = static_cast<LocalVariable *>(module->newVarValue(arrayVar->getType()));
+        MoveInstruction * loadParamInst = new MoveInstruction(currentFunc, paramValue, arrayVar);
+        node->blockInsts.addInst(loadParamInst);
+
+        // 从加载的参数值中读取元素
+        LocalVariable * elemValue = static_cast<LocalVariable *>(module->newVarValue(IntegerType::getTypeInt()));
+        MoveInstruction * loadInst = new MoveInstruction(currentFunc, elemValue, paramValue);
+        loadInst->setIsPointerLoad(true);
+        node->blockInsts.addInst(loadInst);
+
+        // 保存结果
+        node->arrayVar = arrayVar;
+        node->offsetValue = module->newConstInt(0);
+        node->arrayPtr = paramValue; // 使用加载的参数值
+        node->val = elemValue;
+
+        printf("DEBUG: *** 完成零索引优化访问 ***\n");
+        return true;
+    }
     // 使用正确的维度信息计算偏移量
     Value * linearOffset = module->newConstInt(0);
 

@@ -17,6 +17,7 @@
 
 #include <list>
 #include <string>
+#include <vector>
 
 #include "Module.h"
 
@@ -89,11 +90,6 @@ class ILocArm32 {
     /// @brief 符号表
     Module * module;
 
-    /// @brief 加载立即数 ldr r0,=#100
-    /// @param rs_reg_no 结果寄存器号
-    /// @param num 立即数
-    void load_imm(int rs_reg_no, int num);
-
     /// @brief 加载符号值 ldr r0,=g; ldr r0,[r0]
     /// @param rsReg 结果寄存器号
     /// @param name Label名字
@@ -112,6 +108,11 @@ public:
 
     /// @brief 析构函数
     ~ILocArm32();
+
+    /// @brief 加载立即数 ldr r0,=#100
+    /// @param rs_reg_no 结果寄存器号
+    /// @param num 立即数
+    void load_imm(int rs_reg_no, int num);
 
     ///
     /// @brief 注释指令，不包含分号
@@ -201,12 +202,76 @@ public:
     /// @brief NOP操作
     void nop();
 
+    /// @brief 数组元素地址计算 - 一维数组-lxg
+    /// @param rs_reg_no 结果寄存器号
+    /// @param base_reg_no 基址寄存器号
+    /// @param index_reg_no 索引寄存器号
+    /// @param element_size 元素大小(字节)
+    /// @param tmp_reg_no 临时寄存器号
+    void calc_array_addr(int rs_reg_no, int base_reg_no, int index_reg_no, int element_size, int tmp_reg_no);
+
+    /// @brief 多维数组元素地址计算
+    /// @param rs_reg_no 结果寄存器号
+    /// @param base_reg_no 基址寄存器号
+    /// @param indices_regs 各维度索引寄存器号向量
+    /// @param dim_sizes 各维度大小向量
+    /// @param element_size 元素大小(字节)
+    /// @param tmp_reg_no1 临时寄存器1号
+    /// @param tmp_reg_no2 临时寄存器2号
+    void calc_multi_array_addr(int rs_reg_no,
+                               int base_reg_no,
+                               const std::vector<int> & indices_regs,
+                               const std::vector<int> & dim_sizes,
+                               int element_size,
+                               int tmp_reg_no1,
+                               int tmp_reg_no2);
+
+    /// @brief 加载数组元素到寄存器 - 通过地址寄存器
+    /// @param rs_reg_no 结果寄存器号
+    /// @param addr_reg_no 地址寄存器号
+    void load_array_element(int rs_reg_no, int addr_reg_no);
+
+    /// @brief 存储寄存器到数组元素 - 通过地址寄存器
+    /// @param src_reg_no 源寄存器号
+    /// @param addr_reg_no 地址寄存器号
+    void store_array_element(int src_reg_no, int addr_reg_no);
+
+    /// @brief 立即数左移操作 - 用于地址计算优化
+    /// @param rs_reg_no 结果寄存器号
+    /// @param src_reg_no 源寄存器号
+    /// @param shift_bits 左移位数
+    void lsl_imm(int rs_reg_no, int src_reg_no, int shift_bits);
+
+    /// @brief 静态数组访问 - 编译期已知偏移
+    /// @param rs_reg_no 结果寄存器号
+    /// @param base_reg_no 基址寄存器号（通常是fp）
+    /// @param static_offset 编译期计算的偏移
+    void load_array_static(int rs_reg_no, int base_reg_no, int static_offset);
+
+    /// @brief 静态数组存储 - 编译期已知偏移
+    /// @param src_reg_no 源寄存器号
+    /// @param base_reg_no 基址寄存器号（通常是fp）
+    /// @param static_offset 编译期计算的偏移
+    /// @param tmp_reg_no 临时寄存器号
+    void store_array_static(int src_reg_no, int base_reg_no, int static_offset, int tmp_reg_no);
+
+    /// @brief 动态数组访问 - 运行时计算偏移
+    /// @param rs_reg_no 结果寄存器号
+    /// @param base_reg_no 基址寄存器号
+    /// @param offset_reg_no 偏移寄存器号
+    void load_array_dynamic(int rs_reg_no, int base_reg_no, int offset_reg_no);
+
+    /// @brief 动态数组存储 - 运行时计算偏移
+    /// @param src_reg_no 源寄存器号
+    /// @param base_reg_no 基址寄存器号
+    /// @param offset_reg_no 偏移寄存器号
+    void store_array_dynamic(int src_reg_no, int base_reg_no, int offset_reg_no);
+
     ///
     /// @brief 无条件跳转指令
     /// @param label 目标Label名称
     ///
     void jump(std::string label);
-
 
     /// @brief 输出汇编
     /// @param file 输出的文件指针

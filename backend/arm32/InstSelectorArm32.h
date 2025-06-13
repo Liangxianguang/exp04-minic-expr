@@ -309,7 +309,59 @@ protected:
 		translate_cmp_int32(inst, "ne");
 	}
 
-	
+    /// @brief 数组访问指令翻译成ARM32汇编
+    /// @param inst IR指令
+    void translate_array_access(Instruction * inst);
+
+    /// @brief 数组存储指令翻译成ARM32汇编
+    /// @param inst IR指令
+    void translate_array_store(Instruction * inst);
+
+    /// @brief 数组地址计算指令翻译成ARM32汇编
+    /// @param inst IR指令
+    void translate_array_addr(Instruction * inst);
+
+    /// @brief 多维数组访问指令翻译成ARM32汇编
+    /// @param inst IR指令
+    void translate_multi_array_access(Instruction * inst);
+
+    /// @brief 处理常量赋值
+    void handleConstantAssignment(Value * result, ConstInt * constInt);
+
+    /// @brief 处理寄存器到内存的赋值
+    void handleRegisterToMemory(int src_reg, Value * dest);
+
+    /// @brief 处理内存到寄存器的赋值
+    void handleMemoryToRegister(Value * src, int dest_reg);
+
+    /// @brief 处理临时变量赋值优化
+    void handleTempVariableAssignment(Value * result, Value * arg1);
+
+    /// @brief 处理内存到内存的赋值
+    void handleMemoryToMemory(Value * result, Value * arg1);
+
+    /// @brief 智能获取值到寄存器中
+    int getValueInRegister(Value * value);
+
+    /// @brief 获取或分配寄存器
+    int getOrAllocateRegister(Value * value);
+
+    /// @brief 释放值的寄存器（如果是临时分配的）
+    void releaseValueRegister(Value * value, int regId);
+
+    /// @brief 存储或保持在寄存器中
+    void storeOrKeepInRegister(Value * value, int regId);
+
+    /// @brief 判断是否是临时变量
+    bool isTempVariable(const std::string & name);
+
+    /// @brief 获取局部数组的正确栈偏移
+    /// @param localVar 局部变量
+    /// @param base_reg_id 基寄存器ID（输出）
+    /// @param base_offset 基偏移（输出）
+    /// @return 是否成功获取地址
+    bool getLocalArrayAddress(LocalVariable * localVar, int32_t & base_reg_id, int64_t & base_offset);
+
     /// @brief 二元操作指令翻译成ARM32汇编
     /// @param inst IR指令
     /// @param operator_name 操作码
@@ -353,6 +405,9 @@ protected:
     /// @brief 显示IR指令内容
     ///
     bool showLinearIR = false;
+
+    /// @brief 当前指令索引，用于生命周期管理
+    int currentInstructionIndex = 0;
 
 public:
     /// @brief 构造函数

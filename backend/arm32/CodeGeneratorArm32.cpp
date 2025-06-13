@@ -18,6 +18,8 @@
 #include <string>
 #include <vector>
 #include <iostream>
+#include <algorithm>
+#include <cctype>
 
 #include "Function.h"
 #include "Module.h"
@@ -173,6 +175,56 @@ void CodeGeneratorArm32::genCodeSection(Function * func)
 
 /// @brief 寄存器分配
 /// @param func 函数指针
+// void CodeGeneratorArm32::registerAllocation(Function * func)
+// {
+//     // 内置函数不需要处理
+//     if (func->isBuiltin()) {
+//         return;
+//     }
+
+//     // 最简单/朴素的寄存器分配简单，但性能差，具体如下：
+//     // (1) 局部变量都保存在内存栈中（含简单变量、下标变量等）
+//     // (2) 全局变量在静态存储.data区中
+//     // (3) 指令类的临时变量也保存在内存栈中，但是性能很差
+
+//     // ARM32的函数调用约定：
+//     // R0,R1,R2和R3寄存器不需要保护，可直接使用
+//     // SP寄存器预留，不需要保护，但需要保证值的正确性
+//     // R4-R10, fp(11), lx(14)都需要保护，没有函数调用的函数可不用保护lx寄存器
+//     // 被保留的寄存器主要有：
+//     //  (1) FP寄存器用于栈寻址，即R11
+//     //  (2) LX寄存器用于函数调用，即R14。没有函数调用的函数可不用保护lx寄存器
+//     //  (3) R10寄存器用于立即数过大时要通过寄存器寻址，这里简化处理进行预留
+
+//     // 至少有FP和LX寄存器需要保护
+//     std::vector<int32_t> & protectedRegNo = func->getProtectedReg();
+//     protectedRegNo.clear();
+//     protectedRegNo.push_back(ARM32_TMP_REG_NO);
+//     protectedRegNo.push_back(ARM32_FP_REG_NO);
+//     if (func->getExistFuncCall()) {
+//         protectedRegNo.push_back(ARM32_LX_REG_NO);
+//     }
+
+//     // 调整函数调用指令，主要是前四个寄存器传值，后面用栈传递
+//     // 为了更好的进行寄存器分配，可以进行对函数调用的指令进行预处理
+//     // 当然也可以不做处理，不过性能更差。这个处理是可选的。
+//     adjustFuncCallInsts(func);
+
+//     // 为局部变量和临时变量在栈内分配空间，指定偏移，进行栈空间的分配
+//     stackAlloc(func);
+
+//     // 函数形参要求前四个寄存器分配，后面的参数采用栈传递，实现实参的值传递给形参
+//     // 这一步是必须的
+//     adjustFormalParamInsts(func);
+
+// #if 0
+//     // 临时输出调整后的IR指令，用于查看当前的寄存器分配、栈内变量分配、实参入栈等信息的正确性
+//     std::string irCodeStr;
+//     func->renameIR();
+//     func->toString(irCodeStr);
+//     std::cout << irCodeStr << std::endl;
+// #endif
+// }
 void CodeGeneratorArm32::registerAllocation(Function * func)
 {
     // 内置函数不需要处理
@@ -180,43 +232,30 @@ void CodeGeneratorArm32::registerAllocation(Function * func)
         return;
     }
 
-    // 最简单/朴素的寄存器分配简单，但性能差，具体如下：
-    // (1) 局部变量都保存在内存栈中（含简单变量、下标变量等）
-    // (2) 全局变量在静态存储.data区中
-    // (3) 指令类的临时变量也保存在内存栈中，但是性能很差
-
-    // ARM32的函数调用约定：
-    // R0,R1,R2和R3寄存器不需要保护，可直接使用
-    // SP寄存器预留，不需要保护，但需要保证值的正确性
-    // R4-R10, fp(11), lx(14)都需要保护，没有函数调用的函数可不用保护lx寄存器
-    // 被保留的寄存器主要有：
-    //  (1) FP寄存器用于栈寻址，即R11
-    //  (2) LX寄存器用于函数调用，即R14。没有函数调用的函数可不用保护lx寄存器
-    //  (3) R10寄存器用于立即数过大时要通过寄存器寻址，这里简化处理进行预留
-
-    // 至少有FP和LX寄存器需要保护
+    // 设置需要保护的寄存器
     std::vector<int32_t> & protectedRegNo = func->getProtectedReg();
     protectedRegNo.clear();
-    protectedRegNo.push_back(ARM32_TMP_REG_NO);
-    protectedRegNo.push_back(ARM32_FP_REG_NO);
+    protectedRegNo.push_back(ARM32_TMP_REG_NO); // R10
+    protectedRegNo.push_back(ARM32_FP_REG_NO);  // R11
     if (func->getExistFuncCall()) {
-        protectedRegNo.push_back(ARM32_LX_REG_NO);
+        protectedRegNo.push_back(ARM32_LX_REG_NO); // R14
     }
 
-    // 调整函数调用指令，主要是前四个寄存器传值，后面用栈传递
-    // 为了更好的进行寄存器分配，可以进行对函数调用的指令进行预处理
-    // 当然也可以不做处理，不过性能更差。这个处理是可选的。
+    // 🔧 在栈分配前，先分析变量生命周期
+    std::vector<Instruction *> & instructions = func->getInterCode().getInsts();
+    simpleRegisterAllocator.analyzeVariableLifetime(instructions);
+
+    // 调整函数调用指令
     adjustFuncCallInsts(func);
 
-    // 为局部变量和临时变量在栈内分配空间，指定偏移，进行栈空间的分配
+    // 🔧 新的栈空间分配策略：跳过临时变量
     stackAlloc(func);
 
-    // 函数形参要求前四个寄存器分配，后面的参数采用栈传递，实现实参的值传递给形参
-    // 这一步是必须的
+    // 调整形参指令
     adjustFormalParamInsts(func);
 
 #if 0
-    // 临时输出调整后的IR指令，用于查看当前的寄存器分配、栈内变量分配、实参入栈等信息的正确性
+    // 临时输出调整后的IR指令
     std::string irCodeStr;
     func->renameIR();
     func->toString(irCodeStr);
@@ -352,95 +391,266 @@ void CodeGeneratorArm32::adjustFuncCallInsts(Function * func)
     }
 }
 
-/// @brief 栈空间分配
+// /// @brief 栈空间分配
+// /// @param func 要处理的函数
+// void CodeGeneratorArm32::stackAlloc(Function * func)
+// {
+//     // 栈内分配的空间除了寄存器保护所分配的空间之外，还需要管理如下的空间
+//     // (1) 没有指派寄存器的局部变量、形参或临时变量的栈内分配
+//     // (2) 函数调用时需要栈内传递的实参
+//     // (3) 函数内定义的数组变量需要在栈内分配
+//     // (4) 函数内定义的静态变量空间分配按静态分配处理
+
+//     // 遍历函数内的所有指令，查找没有寄存器分配的变量，然后进行栈内空间分配
+
+//     // 栈帧空间
+//     // --------------------- sp
+//     // 实参栈传递的空间（排除寄存器传递的实参空间）
+//     // ---------------------
+//     // 需要保存在栈中的局部变量或临时变量或形参对应变量空间
+//     // --------------------- fp
+//     // 保护寄存器的空间
+//     // ---------------------
+
+//     // 这里对临时变量和局部变量都在栈上进行分配，采用FP+偏移的寻址方式，偏移为负数
+
+//     int32_t sp_esp = 0;
+
+//     // 遍历函数变量列表
+//     for (auto var: func->getVarValues()) {
+
+//         // 对于简单类型的寄存器分配策略，假定临时变量和局部变量都保存在栈中，属于内存
+//         // 而对于图着色等，临时变量一般是寄存器，局部变量也可能修改为寄存器
+//         // TODO 考虑如何进行分配使得临时变量尽量保存在寄存器中，作为优化点考虑
+
+//         // regId不为-1，则说明该变量分配为寄存器
+//         // baseRegNo不等于-1，则说明该变量肯定在栈上，属于内存变量，之前肯定已经分配过
+//         if ((var->getRegId() == -1) && (!var->getMemoryAddr())) {
+
+//             // 该变量没有分配寄存器
+
+//             int32_t size = var->getType()->getSize();
+
+//             // 32位ARM平台按照4字节的大小整数倍分配局部变量
+//             size = (size + 3) & ~3;
+
+//             // 累计当前作用域大小
+//             sp_esp += size;
+
+//             // 这里要注意检查变量栈的偏移范围。一般采用机制寄存器+立即数方式间接寻址
+//             // 若立即数满足要求，可采用基址寄存器+立即数变量的方式访问变量
+//             // 否则，需要先把偏移量放到寄存器中，然后机制寄存器+偏移寄存器来寻址
+//             // 之后需要对所有使用到该Value的指令在寄存器分配前要变换。
+
+//             // 局部变量偏移设置
+//             var->setMemoryAddr(ARM32_FP_REG_NO, -sp_esp);
+//         }
+//     }
+
+//     // 遍历包含有值的指令，也就是临时变量
+//     for (auto inst: func->getInterCode().getInsts()) {
+
+//         if (inst->hasResultValue() && (inst->getRegId() == -1)) {
+//             // 有值，并且没有分配寄存器
+
+//             int32_t size = inst->getType()->getSize();
+
+//             // 32位ARM平台按照4字节的大小整数倍分配局部变量
+//             size = (size + 3) & ~3;
+
+//             // 累计当前作用域大小
+//             sp_esp += size;
+
+//             // 这里要注意检查变量栈的偏移范围。一般采用机制寄存器+立即数方式间接寻址
+//             // 若立即数满足要求，可采用基址寄存器+立即数变量的方式访问变量
+//             // 否则，需要先把偏移量放到寄存器中，然后机制寄存器+偏移寄存器来寻址
+//             // 之后需要对所有使用到该Value的指令在寄存器分配前要变换。
+
+//             // 局部变量偏移设置
+//             inst->setMemoryAddr(ARM32_FP_REG_NO, -sp_esp);
+//         }
+//     }
+
+//     // 通过栈传递的实参，ARM32的前四个通过寄存器传递
+//     int maxFuncCallArgCnt = func->getMaxFuncCallArgCnt();
+//     if (maxFuncCallArgCnt > 4) {
+//         sp_esp += (maxFuncCallArgCnt - 4) * 4;
+//     }
+
+//     // 只有int类型时可以4字节对齐，支持浮点或者向量运算时要16字节对齐
+//     // sp_esp = (sp_esp + 15) & ~15;
+
+//     // 设置函数的最大栈帧深度，没有考虑寄存器保护的空间大小
+//     func->setMaxDep(sp_esp);
+// }
+/// @brief 栈空间分配 - 优化版：临时变量优先使用寄存器，动态按需分配
 /// @param func 要处理的函数
 void CodeGeneratorArm32::stackAlloc(Function * func)
 {
-    // 栈内分配的空间除了寄存器保护所分配的空间之外，还需要管理如下的空间
-    // (1) 没有指派寄存器的局部变量、形参或临时变量的栈内分配
-    // (2) 函数调用时需要栈内传递的实参
-    // (3) 函数内定义的数组变量需要在栈内分配
-    // (4) 函数内定义的静态变量空间分配按静态分配处理
-
-    // 遍历函数内的所有指令，查找没有寄存器分配的变量，然后进行栈内空间分配
-
-    // 栈帧空间
-    // --------------------- sp
-    // 实参栈传递的空间（排除寄存器传递的实参空间）
-    // ---------------------
-    // 需要保存在栈中的局部变量或临时变量或形参对应变量空间
-    // --------------------- fp
-    // 保护寄存器的空间
-    // ---------------------
-
-    // 这里对临时变量和局部变量都在栈上进行分配，采用FP+偏移的寻址方式，偏移为负数
-
     int32_t sp_esp = 0;
 
-    // 遍历函数变量列表
+    // 🔧 第一阶段：分析变量生命周期
+    fprintf(stderr, "=== 开始栈空间分配优化（动态分配版）===\n");
+
+    // 先分析所有指令的变量生命周期
+    std::vector<Instruction *> & instructions = func->getInterCode().getInsts();
+    simpleRegisterAllocator.analyzeVariableLifetime(instructions);
+
+    // 🔧 第二阶段：只为真正的局部变量和数组分配栈空间
     for (auto var: func->getVarValues()) {
-
-        // 对于简单类型的寄存器分配策略，假定临时变量和局部变量都保存在栈中，属于内存
-        // 而对于图着色等，临时变量一般是寄存器，局部变量也可能修改为寄存器
-        // TODO 考虑如何进行分配使得临时变量尽量保存在寄存器中，作为优化点考虑
-
-        // regId不为-1，则说明该变量分配为寄存器
-        // baseRegNo不等于-1，则说明该变量肯定在栈上，属于内存变量，之前肯定已经分配过
         if ((var->getRegId() == -1) && (!var->getMemoryAddr())) {
 
-            // 该变量没有分配寄存器
+            std::string varName = var->getName();
 
+            // 🔧 跳过临时变量，它们将在使用时动态分配
+            if (isTempVariable(varName)) {
+                fprintf(stderr, "DEBUG: 跳过临时变量 %s 的栈分配，将采用动态分配\n", varName.c_str());
+                continue;
+            }
+
+            // 真正的局部变量和数组：分配栈空间
             int32_t size = var->getType()->getSize();
-
-            // 32位ARM平台按照4字节的大小整数倍分配局部变量
-            size = (size + 3) & ~3;
-
-            // 累计当前作用域大小
+            size = (size + 3) & ~3; // 4字节对齐
             sp_esp += size;
 
-            // 这里要注意检查变量栈的偏移范围。一般采用机制寄存器+立即数方式间接寻址
-            // 若立即数满足要求，可采用基址寄存器+立即数变量的方式访问变量
-            // 否则，需要先把偏移量放到寄存器中，然后机制寄存器+偏移寄存器来寻址
-            // 之后需要对所有使用到该Value的指令在寄存器分配前要变换。
-
-            // 局部变量偏移设置
+            // 设置内存地址
             var->setMemoryAddr(ARM32_FP_REG_NO, -sp_esp);
+
+            // 添加调试信息
+            if (var->getType()->isArrayType()) {
+                fprintf(stderr, "DEBUG: 数组 %s 分配栈空间 %d 字节，偏移 %d\n", varName.c_str(), size, -sp_esp);
+            } else {
+                fprintf(stderr, "DEBUG: 局部变量 %s 分配栈空间 %d 字节，偏移 %d\n", varName.c_str(), size, -sp_esp);
+            }
         }
     }
 
-    // 遍历包含有值的指令，也就是临时变量
+    // 🔧 第三阶段：处理指令结果值（临时变量） - 跳过栈分配
+    int tempVarCount = 0;
+    int skippedTempVars = 0;
+
     for (auto inst: func->getInterCode().getInsts()) {
-
         if (inst->hasResultValue() && (inst->getRegId() == -1)) {
-            // 有值，并且没有分配寄存器
+            tempVarCount++;
 
+            std::string instName = inst->getIRName();
+            if (isTempVariable(instName)) {
+                // 🔧 关键修改：跳过临时变量的栈分配，采用动态分配策略
+                skippedTempVars++;
+                fprintf(stderr, "DEBUG: 跳过临时变量 %s 的栈分配，将在使用时动态分配寄存器\n", instName.c_str());
+                continue;
+            }
+
+            // 非临时变量的指令结果：分配栈空间
             int32_t size = inst->getType()->getSize();
-
-            // 32位ARM平台按照4字节的大小整数倍分配局部变量
             size = (size + 3) & ~3;
-
-            // 累计当前作用域大小
             sp_esp += size;
-
-            // 这里要注意检查变量栈的偏移范围。一般采用机制寄存器+立即数方式间接寻址
-            // 若立即数满足要求，可采用基址寄存器+立即数变量的方式访问变量
-            // 否则，需要先把偏移量放到寄存器中，然后机制寄存器+偏移寄存器来寻址
-            // 之后需要对所有使用到该Value的指令在寄存器分配前要变换。
-
-            // 局部变量偏移设置
             inst->setMemoryAddr(ARM32_FP_REG_NO, -sp_esp);
+
+            fprintf(stderr, "DEBUG: 指令结果变量 %s 分配栈空间，偏移 %d\n", instName.c_str(), -sp_esp);
         }
     }
 
-    // 通过栈传递的实参，ARM32的前四个通过寄存器传递
+    // 🔧 第四阶段：为极少数需要溢出的临时变量预留栈空间
+    // 动态分配通常足够，只预留少量空间作为备份
+    int spillReserve = std::min(skippedTempVars / 4, 16) * 4; // 最多预留16个变量的空间
+    if (spillReserve > 0) {
+        sp_esp += spillReserve;
+        fprintf(stderr, "DEBUG: 为临时变量溢出预留 %d 字节栈空间\n", spillReserve);
+    }
+
+    // 通过栈传递的实参空间
     int maxFuncCallArgCnt = func->getMaxFuncCallArgCnt();
     if (maxFuncCallArgCnt > 4) {
         sp_esp += (maxFuncCallArgCnt - 4) * 4;
     }
 
-    // 只有int类型时可以4字节对齐，支持浮点或者向量运算时要16字节对齐
-    // sp_esp = (sp_esp + 15) & ~15;
+    // 4字节对齐
+    sp_esp = (sp_esp + 3) & ~3;
 
-    // 设置函数的最大栈帧深度，没有考虑寄存器保护的空间大小
+    // 设置函数的最大栈帧深度
     func->setMaxDep(sp_esp);
+
+    // 🔧 输出优化统计信息
+    fprintf(stderr, "=== 函数 %s 动态分配优化完成 ===\n", func->getName().c_str());
+    fprintf(stderr, "  临时变量总数: %d\n", tempVarCount);
+    fprintf(stderr,
+            "  跳过栈分配（动态分配）: %d (%.1f%%)\n",
+            skippedTempVars,
+            100.0 * skippedTempVars / std::max(tempVarCount, 1));
+    fprintf(stderr, "  溢出预留空间: %d 字节\n", spillReserve);
+    fprintf(stderr, "  最终栈帧大小: %d 字节 (优化前可能需要 %d 字节)\n", sp_esp, sp_esp + skippedTempVars * 4);
+    fprintf(stderr, "  预计节省栈空间: %d 字节\n", skippedTempVars * 4 - spillReserve);
+    fprintf(stderr, "=====================================\n");
+}
+
+/// @brief 判断是否是临时变量
+bool CodeGeneratorArm32::isTempVariable(const std::string & name)
+{
+    if (name.empty()) {
+        return true; // 空名称通常是临时变量
+    }
+
+    // 🔧 更精确的临时变量识别
+    if (name.length() > 0) {
+        char firstChar = name[0];
+
+        // 以 't' 开头的变量（如 t1, t2, t103）
+        if (firstChar == 't') {
+            return true;
+        }
+
+        // 以 'l' 开头且后面跟数字的变量（如 l6, l7, l56）
+        if (firstChar == 'l' && name.length() > 1) {
+            std::string numPart = name.substr(1);
+            if (!numPart.empty() && std::all_of(numPart.begin(), numPart.end(), ::isdigit)) {
+                int num = std::stoi(numPart);
+                return num > 5; // l6 及以上认为是临时变量，l1-l5 可能是数组变量
+            }
+        }
+    }
+
+    // 包含特定关键字的变量
+    if (name.find("tmp") != std::string::npos || name.find("temp") != std::string::npos ||
+        name.find("_t") != std::string::npos) {
+        return true;
+    }
+
+    return false;
+}
+
+/// @brief 分析临时变量使用模式 - 增强版
+CodeGeneratorArm32::TempVarUsagePattern CodeGeneratorArm32::analyzeTempVarUsage(Instruction * inst, Function * func)
+{
+    // 🔧 简化实现，因为现在使用动态分配，不需要复杂的预分析
+    auto & insts = func->getInterCode().getInsts();
+    auto it = std::find(insts.begin(), insts.end(), inst);
+
+    if (it == insts.end()) {
+        return TempVarUsagePattern::LONG_LIVED;
+    }
+
+    int useCount = 0;
+    int maxDistance = 0;
+
+    // 简单搜索使用情况
+    for (auto searchIt = it + 1; searchIt != insts.end() && maxDistance < 10; ++searchIt) {
+        maxDistance++;
+
+        for (int i = 0; i < (*searchIt)->getOperandsNum(); i++) {
+            if ((*searchIt)->getOperand(i) == inst) {
+                useCount++;
+            }
+        }
+    }
+
+    if (useCount == 0) {
+        return TempVarUsagePattern::SHORT_LIVED;
+    } else if (useCount <= 2 && maxDistance <= 5) {
+        return TempVarUsagePattern::SHORT_LIVED;
+    } else if (maxDistance <= 8) {
+        return TempVarUsagePattern::MEDIUM_LIVED;
+    } else {
+        return TempVarUsagePattern::LONG_LIVED;
+    }
 }

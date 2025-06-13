@@ -28,11 +28,10 @@ class Function;
 ///
 class MoveInstruction : public Instruction {
 
-
-// 在 MoveInstruction.h 中添加
+    // 在 MoveInstruction.h 中添加
 private:
-    bool isPointerStore = false;  // 是否是通过指针存储值
-    bool isPointerLoad = false;   // 是否是通过指针加载值
+    bool isPointerStore = false;   // 是否是通过指针存储值
+    bool isPointerLoad = false;    // 是否是通过指针加载值
     bool isArrayToPointer = false; // 是否是数组到指针的转换
 
 public:
@@ -48,22 +47,26 @@ public:
     void toString(std::string & str) override;
 
     // 设置为指针存储操作
-    void setIsPointerStore(bool isStore) {
+    void setIsPointerStore(bool isStore)
+    {
         isPointerStore = isStore;
     }
-    
+
     // 获取是否为指针存储操作
-    bool getIsPointerStore() const {
+    bool getIsPointerStore() const
+    {
         return isPointerStore;
     }
-    
+
     // 设置为指针加载操作
-    void setIsPointerLoad(bool isLoad) {
+    void setIsPointerLoad(bool isLoad)
+    {
         isPointerLoad = isLoad;
     }
-    
+
     // 获取是否为指针加载操作
-    bool getIsPointerLoad() const {
+    bool getIsPointerLoad() const
+    {
         return isPointerLoad;
     }
 
@@ -77,5 +80,16 @@ public:
     bool getIsArrayToPointer() const
     {
         return isArrayToPointer;
+    }
+
+    // 添加便捷的获取源和目标操作数的方法
+    Value * getSrc()
+    {
+        return getOperand(1); // 源操作数
+    }
+
+    Value * getDst()
+    {
+        return getOperand(0); // 目标操作数
     }
 };

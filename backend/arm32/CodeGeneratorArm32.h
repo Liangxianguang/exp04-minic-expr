@@ -59,6 +59,24 @@ protected:
     ///
     void getIRValueStr(Value * val, std::string & str);
 
+    /// @brief 判断是否是临时变量
+    /// @param name 变量名
+    /// @return 是否是临时变量
+    bool isTempVariable(const std::string & name);
+
+    /// @brief 临时变量使用模式
+    enum class TempVarUsagePattern {
+        SHORT_LIVED,  // 短生命周期
+        MEDIUM_LIVED, // 中等生命周期
+        LONG_LIVED    // 长生命周期
+    };
+
+    /// @brief 分析临时变量的使用模式
+    /// @param inst 指令
+    /// @param func 函数
+    /// @return 使用模式
+    TempVarUsagePattern analyzeTempVarUsage(Instruction * inst, Function * func);
+
 private:
     ///
     /// @brief 简单的朴素寄存器分配方法
