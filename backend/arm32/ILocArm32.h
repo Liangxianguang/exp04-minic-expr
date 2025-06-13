@@ -185,6 +185,11 @@ public:
     /// @param src_reg_no 源寄存器
     void mov_reg(int rs_reg_no, int src_reg_no);
 
+    /// @brief 加载变量地址到寄存器（专门用于数组）
+    /// @param rs_reg_no 结果寄存器
+    /// @param src_var 源操作数
+    void load_var_addr(int rs_reg_no, Value * src_var);
+
     /// @brief 调用函数fun
     /// @param fun
     void call_fun(std::string name);
@@ -206,7 +211,6 @@ public:
     /// @param label 目标Label名称
     ///
     void jump(std::string label);
-
 
     /// @brief 输出汇编
     /// @param file 输出的文件指针

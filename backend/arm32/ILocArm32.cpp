@@ -358,39 +358,29 @@ void ILocArm32::mov_reg(int rs_reg_no, int src_reg_no)
 /// @param src_var 源操作数
 void ILocArm32::load_var(int rs_reg_no, Value * src_var)
 {
-
     if (Instanceof(constVal, ConstInt *, src_var)) {
         // 整型常量
-
-        // TODO 目前只考虑整数类型 100
-        // ldr r8,#100
         load_imm(rs_reg_no, constVal->getVal());
     } else if (src_var->getRegId() != -1) {
-
         // 源操作数为寄存器变量
         int32_t src_regId = src_var->getRegId();
-
         if (src_regId != rs_reg_no) {
-
-            // mov r8,r2 | 这里有优化空间——消除r8
             emit("mov", PlatformArm32::regName[rs_reg_no], PlatformArm32::regName[src_regId]);
         }
     } else if (Instanceof(globalVar, GlobalVariable *, src_var)) {
         // 全局变量
-
-        // 读取全局变量的地址
-        // movw r8, #:lower16:a
-        // movt r8, #:lower16:a
         load_symbol(rs_reg_no, globalVar->getName());
 
-        // ldr r8, [r8]
-        emit("ldr", PlatformArm32::regName[rs_reg_no], "[" + PlatformArm32::regName[rs_reg_no] + "]");
-
+        // 关键修改：检查是否是数组类型
+        if (src_var->getType()->isArrayType()) {
+            // 全局数组：只需要地址，不需要额外的ldr
+            // load_symbol 已经将数组首地址加载到寄存器中
+        } else {
+            // 全局标量变量：需要从地址加载值
+            emit("ldr", PlatformArm32::regName[rs_reg_no], "[" + PlatformArm32::regName[rs_reg_no] + "]");
+        }
     } else {
-
         // 栈+偏移的寻址方式
-
-        // 栈帧偏移
         int32_t var_baseRegId = -1;
         int64_t var_offset = -1;
 
@@ -399,11 +389,45 @@ void ILocArm32::load_var(int rs_reg_no, Value * src_var)
             minic_log(LOG_ERROR, "BUG");
         }
 
-        // 对于栈内分配的局部数组，可直接在栈指针上进行移动与运算
-        // 但对于形参，其保存的是调用函数栈的数组的地址，需要读取出来
+        // 关键修改：检查是否是数组类型
+        if (src_var->getType()->isArrayType()) {
+            // 局部数组：返回数组首地址（栈基址+偏移）
+            std::string rsReg = PlatformArm32::regName[rs_reg_no];
+            std::string baseReg = PlatformArm32::regName[var_baseRegId];
 
-        // ldr r8,[sp,#16]
-        load_base(rs_reg_no, var_baseRegId, var_offset);
+            if (PlatformArm32::constExpr(var_offset)) {
+                // add r8, fp, #-16  (计算数组首地址)
+                emit("add", rsReg, baseReg, toStr(var_offset));
+            } else {
+                // 大偏移量情况
+                load_imm(rs_reg_no, var_offset);
+                emit("add", rsReg, baseReg, rsReg);
+            }
+        } else {
+            // 普通局部变量：从栈中加载值
+            load_base(rs_reg_no, var_baseRegId, var_offset);
+        }
+    }
+}
+/// @brief 加载变量地址到寄存器（专门用于数组）
+/// @param rs_reg_no 结果寄存器
+/// @param src_var 源操作数
+void ILocArm32::load_var_addr(int rs_reg_no, Value * src_var)
+{
+    if (Instanceof(globalVar, GlobalVariable *, src_var)) {
+        // 全局变量地址
+        load_symbol(rs_reg_no, globalVar->getName());
+    } else {
+        // 局部变量地址
+        int32_t var_baseRegId = -1;
+        int64_t var_offset = -1;
+
+        bool result = src_var->getMemoryAddr(&var_baseRegId, &var_offset);
+        if (!result) {
+            minic_log(LOG_ERROR, "BUG");
+        }
+
+        leaStack(rs_reg_no, var_baseRegId, var_offset);
     }
 }
 
