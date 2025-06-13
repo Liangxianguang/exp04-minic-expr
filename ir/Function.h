@@ -211,11 +211,36 @@ public:
         /// @brief 将布尔值移动到结果变量的指令
         MoveInstruction* moveInst = nullptr;
     };
-    
+
+    /// @brief 重新分配所有变量的内存地址（修复地址冲突）
+    void reallocateMemory();
+
+    /// @brief 验证内存分配是否有冲突
+    /// @return true表示无冲突，false表示有冲突
+    bool validateMemoryAllocation();
+
+    /// @brief 打印详细的内存布局信息（调试用）
+    void printMemoryLayout();
+
+    /// @brief 计算变量的实际大小（字节）
+    /// @param type 变量类型
+    /// @return 变量占用的总字节数
+    int32_t calculateVariableSize(Type * type);
+
     /// @brief 获取额外数据的引用
     /// @return 额外数据的引用
     ExtraData& getExtraData() {
         return extraData;
+    }
+
+    /// @brief 获取所有 MemVariable
+    std::vector<MemVariable *> & getMemValues()
+    {
+        return memVector;
+    }
+    const std::vector<MemVariable *> & getMemValues() const
+    {
+        return memVector;
     }
 
 private:
@@ -312,4 +337,7 @@ private:
     
     /// @brief 用于在函数间传递临时指令的额外数据
     ExtraData extraData;
+
+    /// @brief 内存分配是否已经修复
+    bool memoryFixed = false;
 };

@@ -16,6 +16,8 @@
 
 #include <cstdlib>
 #include <string>
+#include <map>
+#include <algorithm>
 
 #include "IRConstant.h"
 #include "Function.h"
@@ -351,4 +353,298 @@ void Function::realArgCountInc()
 void Function::realArgCountReset()
 {
     this->realArgCount = 0;
+}
+
+/// @brief 计算变量的实际大小（字节）
+/// @param type 变量类型
+/// @return 变量占用的总字节数
+int32_t Function::calculateVariableSize(Type * type)
+{
+    if (!type) {
+        return 4; // 默认4字节
+    }
+
+    if (type->isArrayType()) {
+        // 使用ArrayType的getTotalSize()方法
+        ArrayType * arrayType = dynamic_cast<ArrayType *>(type);
+        if (arrayType) {
+            int32_t totalSize = arrayType->getTotalSize();
+            printf("Array size calculation: %d bytes\n", totalSize);
+            return totalSize;
+        }
+        return 32; // 备用默认值
+    } else if (type->isPointerType()) {
+        return 4; // 指针在ARM32中是4字节
+    } else {
+        return 4; // 普通类型默认4字节
+    }
+}
+
+/// @brief 重新分配所有变量的内存地址（修复地址冲突）
+void Function::reallocateMemory()
+{
+    if (memoryFixed) {
+        return;
+    }
+
+    printf("=== Starting Memory Reallocation for Function %s ===\n", getName().c_str());
+
+    const int32_t framePointerReg = 11;
+
+    // 第一步：计算所有变量的总空间
+    int32_t totalArraySize = 0;
+    int32_t totalVarSize = 0;
+    int32_t arrayCount = 0;
+
+    printf("--- Phase 1: Calculating Space Requirements ---\n");
+    for (auto & var: varsVector) {
+        int32_t varSize = calculateVariableSize(var->getType());
+        if (var->getType()->isArrayType()) {
+            totalArraySize += varSize;
+            arrayCount++;
+            printf("Array %s: %d bytes\n", var->getName().c_str(), varSize);
+        } else {
+            totalVarSize += varSize;
+        }
+    }
+
+    for (auto & memVar: memVector) {
+        totalVarSize += calculateVariableSize(memVar->getType());
+    }
+
+    printf("Total space needed: arrays=%d bytes (%d arrays), variables=%d bytes\n",
+           totalArraySize,
+           arrayCount,
+           totalVarSize);
+
+    // 第二步：从fp-4开始，往负方向分配
+    int32_t currentOffset = -4;
+
+    printf("--- Phase 2: Allocating Arrays (corrected layout) ---\n");
+
+    // 先分配所有数组
+    for (size_t i = 0; i < varsVector.size(); i++) {
+        auto & var = varsVector[i];
+
+        if (var->getType()->isArrayType()) {
+            int32_t arraySize = calculateVariableSize(var->getType());
+
+            // 关键修正：数组基地址应该指向数组的最低地址
+            // 先移动currentOffset到数组的最低位置
+            currentOffset -= arraySize;
+
+            // 数组基地址 = 最低地址 + (arraySize - 4)，使得：
+            // b[0] = base + 0 指向最高地址
+            // b[n-1] = base + (n-1)*4 指向最低地址
+            int32_t arrayBaseOffset = currentOffset + arraySize - 4;
+
+            printf("Allocating Array[%zu] %s: size=%d, base at fp%+d",
+                   i,
+                   var->getName().c_str(),
+                   arraySize,
+                   arrayBaseOffset);
+
+            var->setMemoryAddr(framePointerReg, arrayBaseOffset);
+
+            // 验证数组访问范围
+            printf(" (elements: fp%+d to fp%+d)", arrayBaseOffset, currentOffset);
+
+            // 验证访问安全性
+            if (currentOffset < 0) {
+                printf(" ✓ SAFE\n");
+            } else {
+                printf(" ⚠️  WARNING: Array extends to positive offsets!\n");
+            }
+
+            // 留4字节间隙
+            currentOffset -= 4;
+        }
+    }
+
+    printf("--- Phase 3: Allocating Non-Array Variables ---\n");
+
+    // 分配非数组变量
+    for (size_t i = 0; i < varsVector.size(); i++) {
+        auto & var = varsVector[i];
+
+        if (!var->getType()->isArrayType()) {
+            int32_t varSize = calculateVariableSize(var->getType());
+
+            printf("Allocating LocalVar[%zu] %s: size=%d, at fp%+d\n",
+                   i,
+                   var->getName().c_str(),
+                   varSize,
+                   currentOffset);
+
+            var->setMemoryAddr(framePointerReg, currentOffset);
+            currentOffset -= varSize;
+        }
+    }
+
+    printf("--- Phase 4: Allocating MemVariables ---\n");
+
+    // 分配MemVariable
+    for (size_t i = 0; i < memVector.size(); i++) {
+        auto & memVar = memVector[i];
+
+        int32_t varSize = calculateVariableSize(memVar->getType());
+
+        printf("Allocating MemVar[%zu] %s: size=%d, at fp%+d\n", i, memVar->getName().c_str(), varSize, currentOffset);
+
+        memVar->setMemoryAddr(framePointerReg, currentOffset);
+        currentOffset -= varSize;
+    }
+
+    // 第五步：计算栈帧大小
+    int32_t totalStackSize = -(currentOffset + 4);
+
+    // 8字节对齐
+    totalStackSize = (totalStackSize + 7) & ~7;
+
+    int32_t oldMaxDepth = getMaxDep();
+    setMaxDep(totalStackSize);
+
+    printf("--- Final Memory Layout Summary ---\n");
+    printf("Stack frame size updated: %d -> %d bytes (8-byte aligned)\n", oldMaxDepth, totalStackSize);
+    printf("Memory layout:\n");
+    printf("  Allocation range: fp-4 to fp%+d\n", currentOffset);
+    printf("  Total usage: %d bytes\n", totalStackSize);
+    printf("  Arrays: %d bytes (%d arrays)\n", totalArraySize, arrayCount);
+    printf("  Variables: %d bytes\n", totalVarSize);
+
+    memoryFixed = true;
+    printf("=== Memory Reallocation Complete ===\n");
+}
+
+/// @brief 验证内存分配是否有冲突
+bool Function::validateMemoryAllocation()
+{
+    printf("=== Validating Memory Allocation ===\n");
+
+    // 使用map来收集所有的地址分配信息
+    std::map<int64_t, std::vector<std::string>> offsetMap;
+
+    // 收集所有LocalVariable的地址
+    for (auto & var: varsVector) {
+        int32_t baseReg;
+        int64_t offset;
+        if (var->getMemoryAddr(&baseReg, &offset)) {
+            std::string varInfo =
+                var->getName() + " (LocalVar, " + (var->getType()->isPointerType() ? "pointer)" : "normal)");
+            offsetMap[offset].push_back(varInfo);
+        }
+    }
+
+    // 收集所有MemVariable的地址
+    for (auto & memVar: memVector) {
+        int32_t baseReg;
+        int64_t offset;
+        if (memVar->getMemoryAddr(&baseReg, &offset)) {
+            std::string varInfo =
+                memVar->getName() + " (MemVar, " + (memVar->getType()->isPointerType() ? "pointer)" : "normal)");
+            offsetMap[offset].push_back(varInfo);
+        }
+    }
+
+    // 检查冲突
+    bool hasConflict = false;
+    int conflictCount = 0;
+
+    for (auto & pair: offsetMap) {
+        if (pair.second.size() > 1) {
+            printf("CONFLICT #%d at offset %ld:\n", ++conflictCount, pair.first);
+            for (auto & varInfo: pair.second) {
+                printf("  - %s\n", varInfo.c_str());
+            }
+            hasConflict = true;
+        }
+    }
+
+    if (!hasConflict) {
+        printf("✓ No memory allocation conflicts detected.\n");
+    } else {
+        printf("✗ Found %d memory allocation conflicts.\n", conflictCount);
+    }
+
+    printf("=== Validation Complete ===\n");
+    return !hasConflict;
+}
+
+/// @brief 打印详细的内存布局信息（调试用）
+void Function::printMemoryLayout()
+{
+    printf("=== Memory Layout for Function %s ===\n", getName().c_str());
+
+    // 收集所有变量的地址信息
+    std::vector<std::tuple<int64_t, std::string, std::string, std::string, int32_t>> layout;
+
+    // 收集LocalVariable信息
+    for (auto & var: varsVector) {
+        int32_t baseReg;
+        int64_t offset;
+        if (var->getMemoryAddr(&baseReg, &offset)) {
+            std::string typeStr;
+            int32_t size;
+
+            if (var->getType()->isArrayType()) {
+                ArrayType * arrayType = dynamic_cast<ArrayType *>(var->getType());
+                if (arrayType) {
+                    auto & dims = arrayType->getDimensions();
+                    typeStr = "array[";
+                    for (size_t i = 0; i < dims.size(); i++) {
+                        if (i > 0)
+                            typeStr += "][";
+                        typeStr += std::to_string(dims[i]);
+                    }
+                    typeStr += "]";
+                    size = arrayType->getTotalSize();
+                } else {
+                    typeStr = "array";
+                    size = 32;
+                }
+            } else if (var->getType()->isPointerType()) {
+                typeStr = "pointer";
+                size = 4;
+            } else {
+                typeStr = "normal";
+                size = 4;
+            }
+
+            layout.push_back(std::make_tuple(offset, var->getName(), "LocalVar", typeStr, size));
+        }
+    }
+
+    // 收集MemVariable信息
+    for (auto & memVar: memVector) {
+        int32_t baseReg;
+        int64_t offset;
+        if (memVar->getMemoryAddr(&baseReg, &offset)) {
+            std::string typeStr = memVar->getType()->isPointerType() ? "pointer" : "normal";
+            int32_t size = calculateVariableSize(memVar->getType());
+            layout.push_back(std::make_tuple(offset, memVar->getName(), "MemVar", typeStr, size));
+        }
+    }
+
+    // 按地址排序（从高地址到低地址）
+    std::sort(layout.begin(), layout.end(), [](const auto & a, const auto & b) {
+        return std::get<0>(a) > std::get<0>(b);
+    });
+
+    // 打印布局表
+    printf("Stack layout (high to low address):\n");
+    printf("  Address    | Variable   | Category | Type            | Size\n");
+    printf("  -----------|------------|----------|-----------------|------\n");
+
+    for (auto & item: layout) {
+        printf("  fp%+ld | %-10s | %-8s | %-15s | %d\n",
+               std::get<0>(item),         // offset
+               std::get<1>(item).c_str(), // name
+               std::get<2>(item).c_str(), // category
+               std::get<3>(item).c_str(), // type
+               std::get<4>(item));        // size
+    }
+
+    printf("Total variables: LocalVar=%zu, MemVar=%zu\n", varsVector.size(), memVector.size());
+    printf("Current stack frame size: %d bytes\n", getMaxDep());
+    printf("=== End Memory Layout ===\n");
 }

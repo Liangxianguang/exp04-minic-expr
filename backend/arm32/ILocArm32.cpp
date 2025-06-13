@@ -371,7 +371,7 @@ void ILocArm32::load_var(int rs_reg_no, Value * src_var)
         // 全局变量
         load_symbol(rs_reg_no, globalVar->getName());
 
-        // 关键修改：检查是否是数组类型
+        // 检查是否是数组类型
         if (src_var->getType()->isArrayType()) {
             // 全局数组：只需要地址，不需要额外的ldr
             // load_symbol 已经将数组首地址加载到寄存器中
@@ -389,7 +389,7 @@ void ILocArm32::load_var(int rs_reg_no, Value * src_var)
             minic_log(LOG_ERROR, "BUG");
         }
 
-        // 关键修改：检查是否是数组类型
+        // 关键修改：检查变量类型
         if (src_var->getType()->isArrayType()) {
             // 局部数组：返回数组首地址（栈基址+偏移）
             std::string rsReg = PlatformArm32::regName[rs_reg_no];
@@ -403,6 +403,9 @@ void ILocArm32::load_var(int rs_reg_no, Value * src_var)
                 load_imm(rs_reg_no, var_offset);
                 emit("add", rsReg, baseReg, rsReg);
             }
+        } else if (src_var->getType()->isPointerType()) {
+            // 指针类型变量：从栈中加载指针值（地址）
+            load_base(rs_reg_no, var_baseRegId, var_offset);
         } else {
             // 普通局部变量：从栈中加载值
             load_base(rs_reg_no, var_baseRegId, var_offset);
@@ -578,4 +581,3 @@ void ILocArm32::jump(std::string label)
 {
     emit("b", label);
 }
-
