@@ -89,11 +89,6 @@ class ILocArm32 {
     /// @brief 符号表
     Module * module;
 
-    /// @brief 加载立即数 ldr r0,=#100
-    /// @param rs_reg_no 结果寄存器号
-    /// @param num 立即数
-    void load_imm(int rs_reg_no, int num);
-
     /// @brief 加载符号值 ldr r0,=g; ldr r0,[r0]
     /// @param rsReg 结果寄存器号
     /// @param name Label名字
@@ -106,6 +101,11 @@ class ILocArm32 {
     void leaStack(int rs_reg_no, int base_reg_no, int offset);
 
 public:
+    /// @brief 加载立即数 ldr r0,=#100
+    /// @param rs_reg_no 结果寄存器号
+    /// @param num 立即数
+    void load_imm(int rs_reg_no, int num);
+
     /// @brief 构造函数
     /// @param _module 符号表-模块
     ILocArm32(Module * _module);
@@ -219,4 +219,15 @@ public:
 
     /// @brief 删除无用的Label指令
     void deleteUnusedLabel();
+
+    /// @brief 加载全局变量地址（带偏移）到寄存器
+    /// @param rs_reg_no 结果寄存器
+    /// @param globalVar 全局变量名
+    /// @param offset 偏移量
+    void load_global_with_offset(int rs_reg_no, const std::string & globalVar, int64_t offset);
+
+    /// @brief 检查Value是否来自全局地址计算
+    /// @param value 要检查的Value
+    /// @return 全局变量名，如果不是全局来源则返回空字符串
+    std::string extractGlobalSource(Value * value);
 };

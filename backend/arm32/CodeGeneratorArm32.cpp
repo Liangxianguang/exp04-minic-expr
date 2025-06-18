@@ -49,33 +49,94 @@ void CodeGeneratorArm32::genHeader()
 }
 
 /// @brief 全局变量Section，主要包含初始化的和未初始化过的
+// void CodeGeneratorArm32::genDataSection()
+// {
+//     // 生成代码段
+//     fprintf(fp, ".text\n");
+
+//     // 可直接操作文件指针fp进行写操作
+
+//     // 目前不支持全局变量和静态变量，以及字符串常量
+//     // 全局变量分两种情况：初始化的全局变量和未初始化的全局变量
+//     // TODO 这里先处理未初始化的全局变量
+//     for (auto var: module->getGlobalVariables()) {
+
+//         if (var->isInBSSSection()) {
+
+//             // 在BSS段的全局变量，可以包含初值全是0的变量
+//             fprintf(fp, ".comm %s, %d, %d\n", var->getName().c_str(), var->getType()->getSize(),
+//             var->getAlignment());
+//         } else {
+
+//             // 有初值的全局变量
+//             fprintf(fp, ".global %s\n", var->getName().c_str());
+//             fprintf(fp, ".data\n");
+//             fprintf(fp, ".align %d\n", var->getAlignment());
+//             fprintf(fp, ".type %s, %%object\n", var->getName().c_str());
+//             fprintf(fp, "%s\n", var->getName().c_str());
+//             // TODO 后面设置初始化的值，具体请参考ARM的汇编
+//         }
+//     }
+// }
+/// @brief 全局变量Section，主要包含初始化的和未初始化过的
 void CodeGeneratorArm32::genDataSection()
 {
-    // 生成代码段
+    printf("=== Generating Global Variable Section ===\n");
+
+    // 首先从 IR 中识别全局变量
+    identifyGlobalVariables();
+
+    // 生成代码段标记（保持原有逻辑）
     fprintf(fp, ".text\n");
 
-    // 可直接操作文件指针fp进行写操作
+    // 如果有发现的全局变量，生成 .bss 段
+    if (!discoveredGlobals.empty()) {
+        fprintf(fp, ".section .bss\n");
+        fprintf(fp, ".align 4\n");
 
-    // 目前不支持全局变量和静态变量，以及字符串常量
-    // 全局变量分两种情况：初始化的全局变量和未初始化的全局变量
-    // TODO 这里先处理未初始化的全局变量
+        for (const auto & pair: discoveredGlobals) {
+            const GlobalVarInfo & info = pair.second;
+
+            if (!info.isInitialized) {
+                fprintf(fp, ".globl %s\n", info.name.c_str());
+                fprintf(fp, "%s:\n", info.name.c_str());
+                fprintf(fp, "    .space %d\n", info.size);
+
+                if (info.isArray) {
+                    printf("Generated global array: %s = %d bytes\n", info.name.c_str(), info.size);
+                } else {
+                    printf("Generated global variable: %s = %d bytes\n", info.name.c_str(), info.size);
+                }
+            }
+        }
+
+        // 切换回代码段
+        fprintf(fp, ".section .text\n");
+    }
+
+    // 处理模块中定义的其他全局变量（保持原有逻辑）
     for (auto var: module->getGlobalVariables()) {
 
-        if (var->isInBSSSection()) {
+        // 跳过已经处理过的变量
+        if (discoveredGlobals.find(var->getName()) != discoveredGlobals.end()) {
+            continue;
+        }
 
+        if (var->isInBSSSection()) {
             // 在BSS段的全局变量，可以包含初值全是0的变量
             fprintf(fp, ".comm %s, %d, %d\n", var->getName().c_str(), var->getType()->getSize(), var->getAlignment());
         } else {
-
             // 有初值的全局变量
             fprintf(fp, ".global %s\n", var->getName().c_str());
             fprintf(fp, ".data\n");
             fprintf(fp, ".align %d\n", var->getAlignment());
             fprintf(fp, ".type %s, %%object\n", var->getName().c_str());
-            fprintf(fp, "%s\n", var->getName().c_str());
+            fprintf(fp, "%s:\n", var->getName().c_str());
             // TODO 后面设置初始化的值，具体请参考ARM的汇编
         }
     }
+
+    printf("=== Global Variable Section Complete ===\n");
 }
 
 ///
@@ -356,6 +417,8 @@ void CodeGeneratorArm32::adjustFuncCallInsts(Function * func)
 /// @param func 要处理的函数
 void CodeGeneratorArm32::stackAlloc(Function * func)
 {
+    printf("=== Stack Allocation for Function %s ===\n", func->getName().c_str());
+
     // 栈内分配的空间除了寄存器保护所分配的空间之外，还需要管理如下的空间
     // (1) 没有指派寄存器的局部变量、形参或临时变量的栈内分配
     // (2) 函数调用时需要栈内传递的实参
@@ -380,6 +443,12 @@ void CodeGeneratorArm32::stackAlloc(Function * func)
     // 遍历函数变量列表
     for (auto var: func->getVarValues()) {
 
+        // 关键修改：跳过全局变量（@ 前缀）
+        if (!var->getName().empty() && var->getName()[0] == '@') {
+            printf("Skipping global variable %s in stack allocation\n", var->getName().c_str());
+            continue;
+        }
+
         // 对于简单类型的寄存器分配策略，假定临时变量和局部变量都保存在栈中，属于内存
         // 而对于图着色等，临时变量一般是寄存器，局部变量也可能修改为寄存器
         // TODO 考虑如何进行分配使得临时变量尽量保存在寄存器中，作为优化点考虑
@@ -398,6 +467,8 @@ void CodeGeneratorArm32::stackAlloc(Function * func)
             // 累计当前作用域大小
             sp_esp += size;
 
+            printf("Allocating local variable %s: size=%d, offset=fp%+d\n", var->getName().c_str(), size, -sp_esp);
+
             // 这里要注意检查变量栈的偏移范围。一般采用机制寄存器+立即数方式间接寻址
             // 若立即数满足要求，可采用基址寄存器+立即数变量的方式访问变量
             // 否则，需要先把偏移量放到寄存器中，然后机制寄存器+偏移寄存器来寻址
@@ -414,6 +485,12 @@ void CodeGeneratorArm32::stackAlloc(Function * func)
         if (inst->hasResultValue() && (inst->getRegId() == -1)) {
             // 有值，并且没有分配寄存器
 
+            // 检查是否是全局变量指令结果
+            if (!inst->getName().empty() && inst->getName()[0] == '@') {
+                printf("Skipping global variable instruction result %s in stack allocation\n", inst->getName().c_str());
+                continue;
+            }
+
             int32_t size = inst->getType()->getSize();
 
             // 32位ARM平台按照4字节的大小整数倍分配局部变量
@@ -421,6 +498,8 @@ void CodeGeneratorArm32::stackAlloc(Function * func)
 
             // 累计当前作用域大小
             sp_esp += size;
+
+            printf("Allocating temporary variable: size=%d, offset=fp%+d\n", size, -sp_esp);
 
             // 这里要注意检查变量栈的偏移范围。一般采用机制寄存器+立即数方式间接寻址
             // 若立即数满足要求，可采用基址寄存器+立即数变量的方式访问变量
@@ -436,6 +515,7 @@ void CodeGeneratorArm32::stackAlloc(Function * func)
     int maxFuncCallArgCnt = func->getMaxFuncCallArgCnt();
     if (maxFuncCallArgCnt > 4) {
         sp_esp += (maxFuncCallArgCnt - 4) * 4;
+        printf("Additional stack space for function call arguments: %d bytes\n", (maxFuncCallArgCnt - 4) * 4);
     }
 
     // 只有int类型时可以4字节对齐，支持浮点或者向量运算时要16字节对齐
@@ -443,4 +523,153 @@ void CodeGeneratorArm32::stackAlloc(Function * func)
 
     // 设置函数的最大栈帧深度，没有考虑寄存器保护的空间大小
     func->setMaxDep(sp_esp);
+
+    printf("=== Stack Allocation Complete for Function %s: total %d bytes ===\n", func->getName().c_str(), sp_esp);
+}
+
+/// @brief 从 IR 中识别全局变量
+void CodeGeneratorArm32::identifyGlobalVariables()
+{
+    printf("=== Identifying Global Variables from IR ===\n");
+
+    // 1. 首先识别 module 层面的全局变量声明
+    printf("--- Phase 1: Checking module global variables ---\n");
+    for (auto var: module->getGlobalVariables()) {
+        std::string name = var->getName();
+        if (!name.empty()) {
+            GlobalVarInfo info;
+            info.name = name;
+            info.type = var->getType();
+            info.size = calculateGlobalVariableSize(var->getType());
+            info.isArray = var->getType()->isArrayType();
+            info.isInitialized = !var->isInBSSSection(); // BSS段表示未初始化
+
+            discoveredGlobals[name] = info;
+            printf("Discovered global variable from module: %s, size=%d, isArray=%s, initialized=%s\n",
+                   name.c_str(),
+                   info.size,
+                   info.isArray ? "true" : "false",
+                   info.isInitialized ? "true" : "false");
+        }
+    }
+
+    // 2. 遍历所有函数的指令，寻找全局变量引用（补充识别）
+    printf("--- Phase 2: Checking function references ---\n");
+    for (auto func: module->getFunctionList()) {
+        if (func->isBuiltin()) {
+            continue;
+        }
+
+        printf("Analyzing function: %s\n", func->getName().c_str());
+
+        // 检查函数变量列表中的全局变量
+        for (auto var: func->getVarValues()) {
+            if (!var->getName().empty() && var->getName()[0] == '@') {
+                std::string globalName = var->getName().substr(1); // 去掉 @ 前缀
+
+                printf("  Found global reference in var list: @%s -> %s\n", var->getName().c_str(), globalName.c_str());
+
+                if (discoveredGlobals.find(globalName) == discoveredGlobals.end()) {
+                    // 新发现的全局变量（从函数引用中）
+                    GlobalVarInfo info;
+                    info.name = globalName;
+                    info.type = var->getType();
+                    info.size = calculateGlobalVariableSize(var->getType());
+                    info.isArray = var->getType()->isArrayType();
+                    info.isInitialized = false; // 从引用中发现的，假设未初始化
+
+                    discoveredGlobals[globalName] = info;
+                    printf("  ✓ Discovered NEW global variable from function var: %s, size=%d, isArray=%s\n",
+                           globalName.c_str(),
+                           info.size,
+                           info.isArray ? "true" : "false");
+                } else {
+                    printf("  ✓ Already known global variable: %s\n", globalName.c_str());
+                }
+            }
+        }
+
+        // 检查指令中的全局变量引用
+        for (auto inst: func->getInterCode().getInsts()) {
+            // 检查指令的操作数
+            for (int i = 0; i < inst->getOperandsNum(); i++) {
+                Value * operand = inst->getOperand(i);
+                if (operand && !operand->getName().empty() && operand->getName()[0] == '@') {
+                    std::string globalName = operand->getName().substr(1);
+
+                    printf("  Found global reference in instruction operand: @%s -> %s\n",
+                           operand->getName().c_str(),
+                           globalName.c_str());
+
+                    if (discoveredGlobals.find(globalName) == discoveredGlobals.end()) {
+                        GlobalVarInfo info;
+                        info.name = globalName;
+                        info.type = operand->getType();
+                        info.size = calculateGlobalVariableSize(operand->getType());
+                        info.isArray = operand->getType()->isArrayType();
+                        info.isInitialized = false;
+
+                        discoveredGlobals[globalName] = info;
+                        printf("  ✓ Discovered NEW global variable from instruction: %s, size=%d\n",
+                               globalName.c_str(),
+                               info.size);
+                    }
+                }
+            }
+
+            // 检查指令的目标操作数（如果有的话）
+            if (inst->hasResultValue()) {
+                Value * dst = inst;
+                if (!dst->getName().empty() && dst->getName()[0] == '@') {
+                    std::string globalName = dst->getName().substr(1);
+
+                    printf("  Found global reference in instruction destination: @%s -> %s\n",
+                           dst->getName().c_str(),
+                           globalName.c_str());
+
+                    if (discoveredGlobals.find(globalName) == discoveredGlobals.end()) {
+                        GlobalVarInfo info;
+                        info.name = globalName;
+                        info.type = dst->getType();
+                        info.size = calculateGlobalVariableSize(dst->getType());
+                        info.isArray = dst->getType()->isArrayType();
+                        info.isInitialized = false;
+
+                        discoveredGlobals[globalName] = info;
+                        printf("  ✓ Discovered NEW global variable from destination: %s, size=%d\n",
+                               globalName.c_str(),
+                               info.size);
+                    }
+                }
+            }
+        }
+    }
+
+    printf("=== Total discovered %zu global variables ===\n", discoveredGlobals.size());
+
+    // 输出所有发现的全局变量摘要
+    for (const auto & pair: discoveredGlobals) {
+        const GlobalVarInfo & info = pair.second;
+        printf("  - %s: %d bytes, isArray=%s, initialized=%s\n",
+               info.name.c_str(),
+               info.size,
+               info.isArray ? "true" : "false",
+               info.isInitialized ? "true" : "false");
+    }
+}
+
+/// @brief 计算全局变量大小
+int32_t CodeGeneratorArm32::calculateGlobalVariableSize(Type * type)
+{
+    if (type->isArrayType()) {
+        // 数组类型：需要计算总元素数量
+        int32_t size = type->getSize();
+        printf("    Array type size calculation: %d bytes\n", size);
+        return size;
+    }
+
+    // 标量类型
+    int32_t size = type->getSize();
+    printf("    Scalar type size calculation: %d bytes\n", size);
+    return size;
 }

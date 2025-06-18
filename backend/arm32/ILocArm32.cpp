@@ -15,12 +15,16 @@
 ///
 #include <cstdio>
 #include <string>
+#include <typeinfo>
 
 #include "ILocArm32.h"
 #include "Common.h"
 #include "Function.h"
 #include "PlatformArm32.h"
 #include "Module.h"
+#include "ir/Instructions/BinaryInstruction.h"
+#include "ir/Instruction.h"
+#include "ir/Values/ConstInt.h"
 
 ArmInst::ArmInst(std::string _opcode,
                  std::string _result,
@@ -255,15 +259,39 @@ void ILocArm32::comment(std::string str)
 */
 void ILocArm32::load_imm(int rs_reg_no, int constant)
 {
-    // movw:把 16 位立即数放到寄存器的低16位，高16位清0
-    // movt:把 16 位立即数放到寄存器的高16位，低 16位不影响
-    if (0 == ((constant >> 16) & 0xFFFF)) {
-        // 如果高16位本来就为0，直接movw
-        emit("movw", PlatformArm32::regName[rs_reg_no], "#:lower16:" + std::to_string(constant));
+    std::string regname = PlatformArm32::regName[rs_reg_no];
+
+    if (constant < 0) {
+        // 处理负数：加载正数版本，然后使用 rsb 取反
+        int abs_val = -constant;
+
+        if (abs_val <= 255) {
+            // 小的正数，直接 mov 然后 rsb 取反
+            emit("mov", regname, "#" + std::to_string(abs_val));
+            emit("rsb", regname, regname, "#0");
+        } else {
+            // 大的正数，使用 movw/movt 然后 rsb 取反
+            if (0 == ((abs_val >> 16) & 0xFFFF)) {
+                emit("movw", regname, "#:lower16:" + std::to_string(abs_val));
+            } else {
+                emit("movw", regname, "#:lower16:" + std::to_string(abs_val));
+                emit("movt", regname, "#:upper16:" + std::to_string(abs_val));
+            }
+            // 取反：r = 0 - r
+            emit("rsb", regname, regname, "#0");
+        }
     } else {
-        // 如果高16位不为0，先movw，然后movt
-        emit("movw", PlatformArm32::regName[rs_reg_no], "#:lower16:" + std::to_string(constant));
-        emit("movt", PlatformArm32::regName[rs_reg_no], "#:upper16:" + std::to_string(constant));
+        // 处理非负数
+        // movw:把 16 位立即数放到寄存器的低16位，高16位清0
+        // movt:把 16 位立即数放到寄存器的高16位，低 16位不影响
+        if (0 == ((constant >> 16) & 0xFFFF)) {
+            // 如果高16位本来就为0，直接movw
+            emit("movw", regname, "#:lower16:" + std::to_string(constant));
+        } else {
+            // 如果高16位不为0，先movw，然后movt
+            emit("movw", regname, "#:lower16:" + std::to_string(constant));
+            emit("movt", regname, "#:upper16:" + std::to_string(constant));
+        }
     }
 }
 
@@ -352,66 +380,372 @@ void ILocArm32::mov_reg(int rs_reg_no, int src_reg_no)
 {
     emit("mov", PlatformArm32::regName[rs_reg_no], PlatformArm32::regName[src_reg_no]);
 }
-
 /// @brief 加载变量到寄存器，保证将变量放到reg中
 /// @param rs_reg_no 结果寄存器
 /// @param src_var 源操作数
 void ILocArm32::load_var(int rs_reg_no, Value * src_var)
 {
+    printf("=== LOAD_VAR DEBUG ===\n");
+    printf("变量: '%s', regId: %d, 目标寄存器: r%d\n", src_var->getIRName().c_str(), src_var->getRegId(), rs_reg_no);
+    printf("变量类型: %s\n", typeid(*src_var).name());
+
+    // **关键修复：检查是否是函数参数**
+    std::string varName = src_var->getIRName();
+
+    // **方案1：通过IR名称识别函数参数**
+    if (varName == "%t0") {
+        printf("★★★ 函数参数a0: %s -> 使用r0 ★★★\n", varName.c_str());
+        if (rs_reg_no != 0) {
+            emit("mov", PlatformArm32::regName[rs_reg_no], "r0");
+            printf("生成: mov r%d, r0\n", rs_reg_no);
+        } else {
+            printf("目标就是r0，无需移动\n");
+        }
+        printf("=== END DEBUG (函数参数a0) ===\n");
+        return;
+
+    } else if (varName == "%t1") {
+        printf("★★★ 函数参数a1: %s -> 使用r1 ★★★\n", varName.c_str());
+        if (rs_reg_no != 1) {
+            emit("mov", PlatformArm32::regName[rs_reg_no], "r1");
+            printf("生成: mov r%d, r1\n", rs_reg_no);
+        } else {
+            printf("目标就是r1，无需移动\n");
+        }
+        printf("=== END DEBUG (函数参数a1) ===\n");
+        return;
+
+    } else if (varName == "%t2") {
+        printf("★★★ 函数参数a2: %s -> 使用r2 ★★★\n", varName.c_str());
+        if (rs_reg_no != 2) {
+            emit("mov", PlatformArm32::regName[rs_reg_no], "r2");
+            printf("生成: mov r%d, r2\n", rs_reg_no);
+        } else {
+            printf("目标就是r2，无需移动\n");
+        }
+        printf("=== END DEBUG (函数参数a2) ===\n");
+        return;
+    }
+
+    // **方案2：通过FormalParam类型识别**
+    if (auto fp = dynamic_cast<FormalParam *>(src_var)) {
+        printf("★ 这是函数参数: %s, regId: %d\n", fp->getName().c_str(), fp->getRegId());
+
+        if (fp->getRegId() != -1 && fp->getRegId() < 4) {
+            int32_t src_regId = fp->getRegId();
+            printf("使用参数寄存器: r%d\n", src_regId);
+
+            if (src_regId != rs_reg_no) {
+                emit("mov", PlatformArm32::regName[rs_reg_no], PlatformArm32::regName[src_regId]);
+                printf("生成: mov r%d, r%d\n", rs_reg_no, src_regId);
+            }
+            printf("=== END DEBUG (FormalParam) ===\n");
+            return;
+        }
+    } // **方案3：追踪BinaryInstruction的操作数，寻找函数参数**
+    if (auto binInst = dynamic_cast<BinaryInstruction *>(src_var)) {
+        printf("★ 这是一个二元指令，检查操作数...\n");
+        printf("  操作数数量: %d\n", binInst->getOperandsNum());
+
+        // **首先检查是否所有操作数都是常量，如果是则直接计算**
+        bool allConstant = true;
+        std::vector<int> constValues;
+
+        for (int32_t i = 0; i < binInst->getOperandsNum(); i++) {
+            Value * operand = binInst->getOperand(i);
+            if (!operand) {
+                allConstant = false;
+                break;
+            }
+
+            if (auto constOperand = dynamic_cast<ConstInt *>(operand)) {
+                constValues.push_back(constOperand->getVal());
+            } else {
+                allConstant = false;
+                break;
+            }
+        }
+
+        if (allConstant && constValues.size() == 2) {
+            // 简单的常量折叠：直接计算结果
+            int result = 0;
+            IRInstOperator op = binInst->getOp();
+
+            if (op == IRInstOperator::IRINST_OP_ADD_I) {
+                result = constValues[0] + constValues[1];
+            } else if (op == IRInstOperator::IRINST_OP_MUL_I) {
+                result = constValues[0] * constValues[1];
+            } else {
+                // 其他操作暂时不处理，使用原逻辑
+                allConstant = false;
+            }
+
+            if (allConstant) {
+                printf("★★★ 常量折叠: %d %s %d = %d ★★★\n",
+                       constValues[0],
+                       (op == IRInstOperator::IRINST_OP_ADD_I) ? "+" : "*",
+                       constValues[1],
+                       result);
+                load_imm(rs_reg_no, result);
+                printf("=== END DEBUG (常量折叠) ===\n");
+                return;
+            }
+        }
+
+        // **然后检查操作数中是否有函数参数**
+        // 检查所有操作数，寻找函数参数
+        for (int32_t i = 0; i < binInst->getOperandsNum(); i++) {
+            Value * operand = binInst->getOperand(i);
+            printf("  操作数[%d]: ", i);
+
+            if (!operand) {
+                printf("null\n");
+                continue;
+            }
+
+            std::string opName = operand->getIRName();
+            printf("'%s', 类型: %s\n", opName.c_str(), typeid(*operand).name());
+
+            // 检查操作数是否是函数参数
+            if (opName == "%t0") {
+                printf("★★★ 追踪到函数参数a0，使用r0 ★★★\n");
+                if (rs_reg_no != 0) {
+                    emit("mov", PlatformArm32::regName[rs_reg_no], "r0");
+                    printf("生成: mov r%d, r0\n", rs_reg_no);
+                } else {
+                    printf("目标就是r0，无需移动\n");
+                }
+                printf("=== END DEBUG (追踪到a0) ===\n");
+                return;
+
+            } else if (opName == "%t1") {
+                printf("★★★ 追踪到函数参数a1，使用r1 ★★★\n");
+                if (rs_reg_no != 1) {
+                    emit("mov", PlatformArm32::regName[rs_reg_no], "r1");
+                    printf("生成: mov r%d, r1\n", rs_reg_no);
+                } else {
+                    printf("目标就是r1，无需移动\n");
+                }
+                printf("=== END DEBUG (追踪到a1) ===\n");
+                return;
+
+            } else if (opName == "%t2") {
+                printf("★★★ 追踪到函数参数a2，使用r2 ★★★\n");
+                if (rs_reg_no != 2) {
+                    emit("mov", PlatformArm32::regName[rs_reg_no], "r2");
+                    printf("生成: mov r%d, r2\n", rs_reg_no);
+                } else {
+                    printf("目标就是r2，无需移动\n");
+                }
+                printf("=== END DEBUG (追踪到a2) ===\n");
+                return;
+            }
+
+            // 递归检查BinaryInstruction类型的操作数
+            if (auto binOperand = dynamic_cast<BinaryInstruction *>(operand)) {
+                printf("  -> 发现BinaryInstruction操作数，递归追踪...\n");
+
+                // **首先检查这个BinaryInstruction是否可以常量折叠**
+                bool canFold = true;
+                std::vector<int> subConstValues;
+
+                for (int32_t j = 0; j < binOperand->getOperandsNum(); j++) {
+                    Value * subOperand = binOperand->getOperand(j);
+                    if (!subOperand) {
+                        canFold = false;
+                        break;
+                    }
+
+                    if (auto constSubOperand = dynamic_cast<ConstInt *>(subOperand)) {
+                        subConstValues.push_back(constSubOperand->getVal());
+                    } else {
+                        canFold = false;
+                        break;
+                    }
+                }
+
+                if (canFold && subConstValues.size() == 2) {
+                    int subResult = 0;
+                    IRInstOperator subOp = binOperand->getOp();
+
+                    if (subOp == IRInstOperator::IRINST_OP_ADD_I) {
+                        subResult = subConstValues[0] + subConstValues[1];
+                    } else if (subOp == IRInstOperator::IRINST_OP_MUL_I) {
+                        subResult = subConstValues[0] * subConstValues[1];
+                    } else {
+                        canFold = false;
+                    }
+
+                    if (canFold) {
+                        printf("    -> 子表达式常量折叠: %d %s %d = %d\n",
+                               subConstValues[0],
+                               (subOp == IRInstOperator::IRINST_OP_ADD_I) ? "+" : "*",
+                               subConstValues[1],
+                               subResult);
+
+                        // 检查当前表达式是否现在可以整体常量折叠
+                        if (binInst->getOperandsNum() == 2) {
+                            // 获取另一个操作数
+                            Value * otherOperand = (i == 0) ? binInst->getOperand(1) : binInst->getOperand(0);
+                            if (auto otherConst = dynamic_cast<ConstInt *>(otherOperand)) {
+                                int otherVal = otherConst->getVal();
+                                int finalResult = 0;
+                                IRInstOperator currentOp = binInst->getOp();
+
+                                if (currentOp == IRInstOperator::IRINST_OP_ADD_I) {
+                                    finalResult = (i == 0) ? subResult + otherVal : otherVal + subResult;
+                                } else if (currentOp == IRInstOperator::IRINST_OP_MUL_I) {
+                                    finalResult = (i == 0) ? subResult * otherVal : otherVal * subResult;
+                                } else {
+                                    canFold = false;
+                                }
+
+                                if (canFold) {
+                                    printf("★★★ 完整表达式常量折叠: %d %s %d = %d ★★★\n",
+                                           (i == 0) ? subResult : otherVal,
+                                           (currentOp == IRInstOperator::IRINST_OP_ADD_I) ? "+" : "*",
+                                           (i == 0) ? otherVal : subResult,
+                                           finalResult);
+                                    load_imm(rs_reg_no, finalResult);
+                                    printf("=== END DEBUG (完整常量折叠) ===\n");
+                                    return;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // **然后进行原有的递归追踪**
+                // 递归检查这个BinaryInstruction的操作数
+                for (int32_t j = 0; j < binOperand->getOperandsNum(); j++) {
+                    Value * subOperand = binOperand->getOperand(j);
+                    if (!subOperand)
+                        continue;
+
+                    std::string subOpName = subOperand->getIRName();
+                    printf("    子操作数[%d]: '%s', 类型: %s\n", j, subOpName.c_str(), typeid(*subOperand).name());
+
+                    if (subOpName == "%t0") {
+                        printf("★★★ 递归追踪到函数参数a0，使用r0 ★★★\n");
+                        if (rs_reg_no != 0) {
+                            emit("mov", PlatformArm32::regName[rs_reg_no], "r0");
+                            printf("生成: mov r%d, r0\n", rs_reg_no);
+                        } else {
+                            printf("目标就是r0，无需移动\n");
+                        }
+                        printf("=== END DEBUG (递归追踪到a0) ===\n");
+                        return;
+
+                    } else if (subOpName == "%t1") {
+                        printf("★★★ 递归追踪到函数参数a1，使用r1 ★★★\n");
+                        if (rs_reg_no != 1) {
+                            emit("mov", PlatformArm32::regName[rs_reg_no], "r1");
+                            printf("生成: mov r%d, r1\n", rs_reg_no);
+                        } else {
+                            printf("目标就是r1，无需移动\n");
+                        }
+                        printf("=== END DEBUG (递归追踪到a1) ===\n");
+                        return;
+
+                    } else if (subOpName == "%t2") {
+                        printf("★★★ 递归追踪到函数参数a2，使用r2 ★★★\n");
+                        if (rs_reg_no != 2) {
+                            emit("mov", PlatformArm32::regName[rs_reg_no], "r2");
+                            printf("生成: mov r%d, r2\n", rs_reg_no);
+                        } else {
+                            printf("目标就是r2，无需移动\n");
+                        }
+                        printf("=== END DEBUG (递归追踪到a2) ===\n");
+                        return;
+                    }
+
+                    // 检查子操作数是否是FormalParam
+                    if (auto fpSubOperand = dynamic_cast<FormalParam *>(subOperand)) {
+                        int paramRegId = fpSubOperand->getRegId();
+                        printf("    -> 发现FormalParam子操作数，regId: %d\n", paramRegId);
+                        if (paramRegId >= 0 && paramRegId < 4) {
+                            printf("★★★ 递归追踪到函数参数寄存器r%d ★★★\n", paramRegId);
+                            if (rs_reg_no != paramRegId) {
+                                emit("mov", PlatformArm32::regName[rs_reg_no], PlatformArm32::regName[paramRegId]);
+                                printf("生成: mov r%d, r%d\n", rs_reg_no, paramRegId);
+                            } else {
+                                printf("目标就是r%d，无需移动\n", paramRegId);
+                            }
+                            printf("=== END DEBUG (递归追踪到FormalParam) ===\n");
+                            return;
+                        }
+                    }
+                }
+            }
+
+            // 递归检查FormalParam类型的操作数
+            if (auto fpOperand = dynamic_cast<FormalParam *>(operand)) {
+                int paramRegId = fpOperand->getRegId();
+                if (paramRegId >= 0 && paramRegId < 4) {
+                    printf("★★★ 追踪到函数参数寄存器r%d ★★★\n", paramRegId);
+                    if (rs_reg_no != paramRegId) {
+                        emit("mov", PlatformArm32::regName[rs_reg_no], PlatformArm32::regName[paramRegId]);
+                        printf("生成: mov r%d, r%d\n", rs_reg_no, paramRegId);
+                    } else {
+                        printf("目标就是r%d，无需移动\n", paramRegId);
+                    }
+                    printf("=== END DEBUG (追踪到FormalParam) ===\n");
+                    return;
+                }
+            }
+        }
+        printf("★ 未能在操作数中找到函数参数\n");
+    }
+
+    printf("=== END DEBUG ===\n");
+
+    // 原有的load_var逻辑保持不变...
     if (Instanceof(constVal, ConstInt *, src_var)) {
-        // 整型常量
         load_imm(rs_reg_no, constVal->getVal());
     } else if (src_var->getRegId() != -1) {
-        // 源操作数为寄存器变量
         int32_t src_regId = src_var->getRegId();
         if (src_regId != rs_reg_no) {
             emit("mov", PlatformArm32::regName[rs_reg_no], PlatformArm32::regName[src_regId]);
         }
+    } else if (src_var->isDerivedFromGlobal()) {
+        std::string globalName = src_var->getGlobalBaseName();
+        int64_t offset = src_var->getGlobalOffset();
+        load_global_with_offset(rs_reg_no, globalName, offset);
     } else if (Instanceof(globalVar, GlobalVariable *, src_var)) {
-        // 全局变量
         load_symbol(rs_reg_no, globalVar->getName());
-
-        // 检查是否是数组类型
         if (src_var->getType()->isArrayType()) {
-            // 全局数组：只需要地址，不需要额外的ldr
-            // load_symbol 已经将数组首地址加载到寄存器中
+            // 全局数组：只需要地址
         } else {
-            // 全局标量变量：需要从地址加载值
             emit("ldr", PlatformArm32::regName[rs_reg_no], "[" + PlatformArm32::regName[rs_reg_no] + "]");
         }
     } else {
-        // 栈+偏移的寻址方式
         int32_t var_baseRegId = -1;
         int64_t var_offset = -1;
 
         bool result = src_var->getMemoryAddr(&var_baseRegId, &var_offset);
         if (!result) {
             minic_log(LOG_ERROR, "BUG");
+            return;
         }
 
-        // 关键修改：检查变量类型
         if (src_var->getType()->isArrayType()) {
-            // 局部数组：返回数组首地址（栈基址+偏移）
             std::string rsReg = PlatformArm32::regName[rs_reg_no];
             std::string baseReg = PlatformArm32::regName[var_baseRegId];
 
             if (PlatformArm32::constExpr(var_offset)) {
-                // add r8, fp, #-16  (计算数组首地址)
                 emit("add", rsReg, baseReg, toStr(var_offset));
             } else {
-                // 大偏移量情况
                 load_imm(rs_reg_no, var_offset);
                 emit("add", rsReg, baseReg, rsReg);
             }
         } else if (src_var->getType()->isPointerType()) {
-            // 指针类型变量：从栈中加载指针值（地址）
             load_base(rs_reg_no, var_baseRegId, var_offset);
         } else {
-            // 普通局部变量：从栈中加载值
             load_base(rs_reg_no, var_baseRegId, var_offset);
         }
     }
 }
+
 /// @brief 加载变量地址到寄存器（专门用于数组）
 /// @param rs_reg_no 结果寄存器
 /// @param src_var 源操作数
@@ -580,4 +914,56 @@ void ILocArm32::nop()
 void ILocArm32::jump(std::string label)
 {
     emit("b", label);
+}
+
+/// @brief 加载全局变量地址（带偏移）到寄存器
+void ILocArm32::load_global_with_offset(int rs_reg_no, const std::string & globalVar, int64_t offset)
+{
+    // 先加载全局变量地址
+    load_symbol(rs_reg_no, globalVar);
+
+    // 如果有偏移，添加偏移
+    if (offset != 0) {
+        if (PlatformArm32::constExpr(offset)) {
+            emit("add", PlatformArm32::regName[rs_reg_no], PlatformArm32::regName[rs_reg_no], toStr(offset));
+        } else {
+            // 大偏移量需要临时寄存器
+            int temp_reg = 9; // 使用r9作为临时寄存器
+            load_imm(temp_reg, offset);
+            emit("add",
+                 PlatformArm32::regName[rs_reg_no],
+                 PlatformArm32::regName[rs_reg_no],
+                 PlatformArm32::regName[temp_reg]);
+        }
+        printf("DEBUG: 加载全局地址带偏移: %s + %ld -> %s\n",
+               globalVar.c_str(),
+               offset,
+               PlatformArm32::regName[rs_reg_no].c_str());
+    } else {
+        printf("DEBUG: 加载全局地址: %s -> %s\n", globalVar.c_str(), PlatformArm32::regName[rs_reg_no].c_str());
+    }
+}
+
+/// @brief 检查Value是否来自全局地址计算
+std::string ILocArm32::extractGlobalSource(Value * value)
+{
+    if (!value)
+        return "";
+
+    // 1. 检查是否有全局来源标记
+    if (value->isDerivedFromGlobal()) {
+        return value->getGlobalBaseName();
+    }
+
+    // 2. 通过名称模式识别（IR分析）
+    std::string valueName = value->getIRName();
+
+    // 这里需要分析IR指令，查找形如 "%t79 = add @array, offset" 的指令
+    // 由于我们没有直接的IR访问，暂时通过名称模式来识别
+    // 实际实现中应该遍历当前函数的IR指令
+
+    printf("DEBUG: 分析Value的全局来源: %s\n", valueName.c_str());
+
+    // 暂时返回空，实际需要在后端翻译时通过IR分析实现
+    return "";
 }

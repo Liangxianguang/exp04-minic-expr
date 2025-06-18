@@ -22,7 +22,7 @@
 
 /// @brief 构造函数
 /// @param _type
-Value::Value(Type * _type) : type(_type)
+Value::Value(Type * _type) : type(_type), globalOffset(0), hasGlobalSource(false)
 {
     // 不需要增加代码
 }
@@ -141,4 +141,74 @@ int32_t Value::getLoadRegId()
 void Value::setLoadRegId(int32_t regId)
 {
     (void) regId;
+}
+
+/// @brief 设置全局来源信息
+/// @param baseName 全局变量名（不含@前缀）
+/// @param offset 相对偏移量（字节）
+void Value::setGlobalSource(const std::string & baseName, int64_t offset)
+{
+    globalBaseName = baseName;
+    globalOffset = offset;
+    hasGlobalSource = true;
+
+    // 调试输出
+    printf("Setting global source for Value '%s': base=%s, offset=%ld\n", getName().c_str(), baseName.c_str(), offset);
+}
+
+/// @brief 清除全局来源信息
+void Value::clearGlobalSource()
+{
+    globalBaseName.clear();
+    globalOffset = 0;
+    hasGlobalSource = false;
+}
+
+/// @brief 获取全局变量基址名称
+/// @return 全局变量名（不含@前缀）
+std::string Value::getGlobalBaseName() const
+{
+    return globalBaseName;
+}
+
+/// @brief 获取相对于全局变量的偏移量
+/// @return 偏移量（字节）
+int64_t Value::getGlobalOffset() const
+{
+    return globalOffset;
+}
+
+/// @brief 判断是否派生自全局变量
+/// @return true 如果派生自全局变量
+bool Value::isDerivedFromGlobal() const
+{
+    return hasGlobalSource && !globalBaseName.empty();
+}
+
+/// @brief 传播全局来源信息给另一个Value
+/// @param target 目标Value
+/// @param additionalOffset 额外偏移量
+void Value::propagateGlobalSource(Value * target, int64_t additionalOffset) const
+{
+    if (target && isDerivedFromGlobal()) {
+        target->setGlobalSource(globalBaseName, globalOffset + additionalOffset);
+
+        // 调试输出
+        printf("Propagating global source from '%s' to '%s': base=%s, offset=%ld\n",
+               getName().c_str(),
+               target->getName().c_str(),
+               globalBaseName.c_str(),
+               globalOffset + additionalOffset);
+    }
+}
+
+/// @brief 调试输出全局来源信息
+/// @return 全局来源信息字符串
+std::string Value::getGlobalSourceInfo() const
+{
+    if (isDerivedFromGlobal()) {
+        return "GLOBAL[" + globalBaseName + "+" + std::to_string(globalOffset) + "]";
+    } else {
+        return "LOCAL";
+    }
 }

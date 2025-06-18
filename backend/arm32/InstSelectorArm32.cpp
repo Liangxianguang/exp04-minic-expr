@@ -77,6 +77,19 @@ InstSelectorArm32::InstSelectorArm32(vector<Instruction *> & _irCode,
     if (_func) {
         printf("\n=== Memory Allocation Analysis for Function %s ===\n", _func->getName().c_str());
 
+        printf("--- Building Function Parameter Mapping ---\n");
+        const std::vector<FormalParam *> & params = _func->getParams();
+        for (size_t i = 0; i < params.size(); i++) {
+            FormalParam * param = params[i];
+
+            // 建立IR名称到FormalParam的映射
+            std::string irName = "%t" + std::to_string(i);
+            functionParamMap[irName] = param;
+
+            printf("映射: %s -> 参数 %s (regId: %d)\n", irName.c_str(), param->getName().c_str(), param->getRegId());
+        }
+        printf("✓ Function parameter mapping complete.\n");
+
         // 1. 检查当前内存分配状态
         printf("--- Checking Current Memory Allocation ---\n");
         _func->printMemoryLayout();
@@ -237,6 +250,48 @@ void InstSelectorArm32::translate_entry(Instruction * inst)
         iloc.inst("push", "{" + protectedRegStr + "}");
     }
 
+    // **新增：保存函数参数到安全寄存器**
+    // 检查函数是否有参数，如果有，将参数寄存器保存到安全位置
+    auto & params = func->getParams();
+    if (!params.empty()) {
+        printf("=== 函数 %s 开始保存参数 (总数: %zu) ===\n", func->getName().c_str(), params.size());
+
+        for (size_t i = 0; i < params.size(); i++) {
+            FormalParam * param = params[i];
+            if (!param)
+                continue;
+
+            if (i < 4) {
+                // 前4个参数通过寄存器传递：r0, r1, r2, r3
+                int src_reg = param->getRegId(); // 应该是 r0, r1, r2, r3
+                int safe_reg = 4 + i;            // 保存到 r4, r5, r6, r7
+
+                printf("  保存寄存器参数 %s: r%d -> r%d\n", param->getName().c_str(), src_reg, safe_reg);
+                iloc.inst("mov", PlatformArm32::regName[safe_reg], PlatformArm32::regName[src_reg]);
+
+                // 更新参数的寄存器ID为安全寄存器
+                param->setRegId(safe_reg);
+                printf("  参数 %s 更新寄存器ID: %d -> %d\n", param->getName().c_str(), src_reg, safe_reg);
+            } else {
+                // 第5个及以后的参数通过栈传递
+                // 这些参数已经在栈上，不需要保存，但需要设置正确的栈偏移
+                printf("  栈参数 %s (索引: %zu) - 通过栈传递\n", param->getName().c_str(), i);
+
+                // 栈参数的偏移计算：
+                // 栈参数从 fp+8 开始（fp+0是保存的fp, fp+4是返回地址）
+                // 第5个参数在 fp+8, 第6个在 fp+12, 以此类推
+                int stack_offset = 8 + (i - 4) * 4;
+
+                // 设置参数为栈变量（regId = -1 表示不在寄存器中）
+                param->setRegId(-1);
+
+                // 这里可能需要设置栈偏移，但具体实现依赖于内存管理系统
+                printf("  栈参数 %s 偏移: fp+%d\n", param->getName().c_str(), stack_offset);
+            }
+        }
+        printf("=== 参数保存完成 ===\n");
+    }
+
     // 为fun分配栈帧，含局部变量、函数调用值传递的空间等
     iloc.allocStack(func, ARM32_TMP_REG_NO);
 }
@@ -298,25 +353,13 @@ void InstSelectorArm32::translate_assign(Instruction * inst)
     if (arg1_regId != -1) {
         iloc.store_var(arg1_regId, result, ARM32_TMP_REG_NO);
     } else if (result_regId != -1) {
-        // 检查arg1是否是常量
-        ConstInt * constArg1 = dynamic_cast<ConstInt *>(arg1);
-        if (constArg1 != nullptr) {
-            // 是常量，直接加载立即数
-            iloc.inst("movw", PlatformArm32::regName[result_regId], "#:lower16:" + std::to_string(constArg1->getVal()));
-        } else {
-            iloc.load_var(result_regId, arg1);
-        }
+        // 统一使用load_var处理，这样能利用常量折叠和参数追踪逻辑
+        iloc.load_var(result_regId, arg1);
     } else {
         int32_t temp_regno = simpleRegisterAllocator.Allocate();
 
-        // 检查arg1是否是常量
-        ConstInt * constArg1 = dynamic_cast<ConstInt *>(arg1);
-        if (constArg1 != nullptr) {
-            // 是常量，直接加载立即数
-            iloc.inst("movw", PlatformArm32::regName[temp_regno], "#:lower16:" + std::to_string(constArg1->getVal()));
-        } else {
-            iloc.load_var(temp_regno, arg1);
-        }
+        // 统一使用load_var处理，这样能利用常量折叠和参数追踪逻辑
+        iloc.load_var(temp_regno, arg1);
 
         iloc.store_var(temp_regno, result, ARM32_TMP_REG_NO);
         simpleRegisterAllocator.free(temp_regno);
@@ -345,17 +388,8 @@ void InstSelectorArm32::translate_two_operator(Instruction * inst, string operat
         // 分配一个寄存器r8
         load_arg1_reg_no = simpleRegisterAllocator.Allocate(arg1);
 
-        // 检查arg1是否是常量
-        ConstInt * constArg1 = dynamic_cast<ConstInt *>(arg1);
-        if (constArg1 != nullptr) {
-            // 是常量，直接加载立即数
-            iloc.inst("movw",
-                      PlatformArm32::regName[load_arg1_reg_no],
-                      "#:lower16:" + std::to_string(constArg1->getVal()));
-        } else {
-            // arg1 -> r8，这里可能由于偏移不满足指令的要求，需要额外分配寄存器
-            iloc.load_var(load_arg1_reg_no, arg1);
-        }
+        // 统一使用load_var处理，包括常量和变量，这样能利用常量折叠和参数追踪逻辑
+        iloc.load_var(load_arg1_reg_no, arg1);
     } else {
         load_arg1_reg_no = arg1_reg_no;
     }
@@ -365,17 +399,8 @@ void InstSelectorArm32::translate_two_operator(Instruction * inst, string operat
         // 分配一个寄存器r9
         load_arg2_reg_no = simpleRegisterAllocator.Allocate(arg2);
 
-        // 检查arg2是否是常量
-        ConstInt * constArg2 = dynamic_cast<ConstInt *>(arg2);
-        if (constArg2 != nullptr) {
-            // 是常量，直接加载立即数
-            iloc.inst("movw",
-                      PlatformArm32::regName[load_arg2_reg_no],
-                      "#:lower16:" + std::to_string(constArg2->getVal()));
-        } else {
-            // arg2 -> r9
-            iloc.load_var(load_arg2_reg_no, arg2);
-        }
+        // 统一使用load_var处理，包括常量和变量，这样能利用常量折叠和参数追踪逻辑
+        iloc.load_var(load_arg2_reg_no, arg2);
     } else {
         load_arg2_reg_no = arg2_reg_no;
     }
@@ -507,8 +532,51 @@ void InstSelectorArm32::translate_call(Instruction * inst)
         }
     }
 
-    if (operandNum) {
+    // if (operandNum) {
 
+    //     // 强制占用这几个寄存器参数传递的寄存器
+    //     simpleRegisterAllocator.Allocate(0);
+    //     simpleRegisterAllocator.Allocate(1);
+    //     simpleRegisterAllocator.Allocate(2);
+    //     simpleRegisterAllocator.Allocate(3);
+
+    //     // 前四个的后面参数采用栈传递
+    //     int esp = 0;
+    //     for (int32_t k = 4; k < operandNum; k++) {
+
+    //         auto arg = callInst->getOperand(k);
+
+    //         // 新建一个内存变量，用于栈传值到形参变量中
+    //         MemVariable * newVal = func->newMemVariable((Type *) PointerType::get(arg->getType()));
+    //         newVal->setMemoryAddr(ARM32_SP_REG_NO, esp);
+    //         esp += 4;
+
+    //         Instruction * assignInst = new MoveInstruction(func, newVal, arg);
+
+    //         // 翻译赋值指令
+    //         translate_assign(assignInst);
+
+    //         delete assignInst;
+    //     }
+
+    //     for (int32_t k = 0; k < operandNum && k < 4; k++) {
+
+    //         auto arg = callInst->getOperand(k);
+
+    //         // 检查实参的类型是否是临时变量。
+    //         // 如果是临时变量，该变量可更改为寄存器变量即可，或者设置寄存器号
+    //         // 如果不是，则必须开辟一个寄存器变量，然后赋值即可
+
+    //         Instruction * assignInst = new MoveInstruction(func, PlatformArm32::intRegVal[k], arg);
+
+    //         // 翻译赋值指令
+    //         translate_assign(assignInst);
+
+    //         delete assignInst;
+    //     }
+    // }
+
+    if (operandNum) {
         // 强制占用这几个寄存器参数传递的寄存器
         simpleRegisterAllocator.Allocate(0);
         simpleRegisterAllocator.Allocate(1);
@@ -518,7 +586,6 @@ void InstSelectorArm32::translate_call(Instruction * inst)
         // 前四个的后面参数采用栈传递
         int esp = 0;
         for (int32_t k = 4; k < operandNum; k++) {
-
             auto arg = callInst->getOperand(k);
 
             // 新建一个内存变量，用于栈传值到形参变量中
@@ -534,20 +601,74 @@ void InstSelectorArm32::translate_call(Instruction * inst)
             delete assignInst;
         }
 
+        // 处理前4个参数：需要特殊处理全局变量和全局派生指针
         for (int32_t k = 0; k < operandNum && k < 4; k++) {
-
             auto arg = callInst->getOperand(k);
+            std::string regName = "r" + std::to_string(k);
 
-            // 检查实参的类型是否是临时变量。
-            // 如果是临时变量，该变量可更改为寄存器变量即可，或者设置寄存器号
-            // 如果不是，则必须开辟一个寄存器变量，然后赋值即可
+            printf("  Processing Arg[%d]: '%s' (%s) -> %s\n",
+                   k,
+                   arg->getName().c_str(),
+                   arg->getGlobalSourceInfo().c_str(),
+                   regName.c_str());
 
-            Instruction * assignInst = new MoveInstruction(func, PlatformArm32::intRegVal[k], arg);
+            // 新增：检查参数是否派生自全局变量
+            if (arg->isDerivedFromGlobal()) {
+                std::string globalName = arg->getGlobalBaseName();
+                int64_t offset = arg->getGlobalOffset();
 
-            // 翻译赋值指令
-            translate_assign(assignInst);
+                printf("    -> GLOBAL DERIVED: %s + %ld -> %s\n", globalName.c_str(), offset, regName.c_str());
 
-            delete assignInst;
+                // 直接生成全局地址加载到参数寄存器
+                iloc.inst("movw", regName, "#:lower16:" + globalName);
+                iloc.inst("movt", regName, "#:upper16:" + globalName);
+
+                if (offset != 0) {
+                    iloc.inst("add", regName, regName, "#" + std::to_string(offset));
+                }
+
+                printf("    -> Generated global address loading for %s\n", regName.c_str());
+            }
+            // 新增：检查是否是直接全局变量
+            else if (!arg->getName().empty() && arg->getName()[0] == '@') {
+                std::string symbolName = arg->getName().substr(1);
+                printf("    -> DIRECT GLOBAL: %s -> %s\n", symbolName.c_str(), regName.c_str());
+
+                // 加载全局变量地址到参数寄存器
+                iloc.inst("movw", regName, "#:lower16:" + symbolName);
+                iloc.inst("movt", regName, "#:upper16:" + symbolName);
+
+                printf("    -> Generated direct global address loading for %s\n", regName.c_str());
+            }
+            // 新增：检查是否通过旧逻辑检测为全局变量
+            else if (isGlobalVariable(arg)) {
+                printf("    -> LEGACY GLOBAL DETECTION for arg: %s\n", arg->getName().c_str());
+
+                std::string globalName = getGlobalVariableName(arg);
+                if (globalName.empty()) {
+                    globalName = "array"; // 默认全局变量名
+                }
+
+                // 使用旧逻辑：先加载指针值到寄存器
+                iloc.load_var(k, arg);
+
+                printf("    -> Used legacy global loading for %s\n", regName.c_str());
+            } else {
+                // 原有逻辑：局部变量和常量
+                printf("    -> LOCAL/CONSTANT variable -> %s\n", regName.c_str());
+
+                // 检查实参的类型是否是临时变量。
+                // 如果是临时变量，该变量可更改为寄存器变量即可，或者设置寄存器号
+                // 如果不是，则必须开辟一个寄存器变量，然后赋值即可
+                Instruction * assignInst = new MoveInstruction(func, PlatformArm32::intRegVal[k], arg);
+
+                // 翻译赋值指令
+                translate_assign(assignInst);
+
+                delete assignInst;
+
+                printf("    -> Used assignment for local variable\n");
+            }
         }
     }
 
@@ -578,34 +699,41 @@ void InstSelectorArm32::translate_call(Instruction * inst)
 
 void InstSelectorArm32::translate_add_ptr(Instruction * inst)
 {
-    // 指针/数组地址计算：base_addr + offset
     Value * result = inst;
     Value * base = inst->getOperand(0);   // 数组基址
     Value * offset = inst->getOperand(1); // 字节偏移量
 
+    printf("=== translate_add_ptr ===\n");
+    printf("  base: %s (%s)\n", base->getName().c_str(), base->getGlobalSourceInfo().c_str());
+    printf("  offset: %s\n", offset->getName().c_str());
+
+    // 新增：传播全局来源信息
+    if (base->isDerivedFromGlobal()) {
+        int64_t additionalOffset = 0;
+
+        // 如果偏移是常量，可以静态计算
+        if (ConstInt * constOffset = dynamic_cast<ConstInt *>(offset)) {
+            additionalOffset = constOffset->getVal();
+        }
+
+        // 传播全局来源信息
+        base->propagateGlobalSource(result, additionalOffset);
+        printf("  -> Propagated global source to result: %s\n", result->getGlobalSourceInfo().c_str());
+    }
+
+    // 原有的代码生成逻辑保持不变
     int32_t base_reg = simpleRegisterAllocator.Allocate();
     int32_t offset_reg = simpleRegisterAllocator.Allocate();
     int32_t result_reg = simpleRegisterAllocator.Allocate();
 
-    // 加载数组基址 - 注意这里应该是地址，不是值
-    if (base->getType()->isArrayType()) {
-        // 对于数组类型，load_var应该返回数组首地址
-        iloc.load_var(base_reg, base);
-    } else {
-        // 对于指针类型，load_var返回指针值
-        iloc.load_var(base_reg, base);
-    }
-
-    // 加载偏移量
+    iloc.load_var(base_reg, base);
     iloc.load_var(offset_reg, offset);
 
-    // 计算最终地址：base + offset
     iloc.inst("add",
               PlatformArm32::regName[result_reg],
               PlatformArm32::regName[base_reg],
               PlatformArm32::regName[offset_reg]);
 
-    // 存储结果地址
     iloc.store_var(result_reg, result, ARM32_TMP_REG_NO);
 
     simpleRegisterAllocator.free(base_reg);
@@ -615,7 +743,20 @@ void InstSelectorArm32::translate_add_ptr(Instruction * inst)
 
 void InstSelectorArm32::translate_array_addr(Instruction * inst)
 {
-    // 数组地址计算，通常是基址 + 偏移
+    // 对于数组地址计算，也要传播全局来源信息
+    Value * result = inst;
+    Value * base = inst->getOperand(0);
+
+    printf("=== translate_array_addr ===\n");
+    printf("  base: %s (%s)\n", base->getName().c_str(), base->getGlobalSourceInfo().c_str());
+
+    // 传播全局来源信息
+    if (base->isDerivedFromGlobal()) {
+        base->propagateGlobalSource(result);
+        printf("  -> Propagated global source to result: %s\n", result->getGlobalSourceInfo().c_str());
+    }
+
+    // 使用通用的二元操作处理
     translate_two_operator(inst, "add");
 }
 
@@ -658,88 +799,207 @@ void InstSelectorArm32::translate_store_ptr(Instruction * inst)
 {
     printf("=== Executing translate_store_ptr ===\n");
 
-    Value * ptrVar = inst->getOperand(0); // 指针变量（目标地址）
-    Value * value = inst->getOperand(1);  // 要存储的值
-                                          // 获取IR字符串用于调试
+    // 解析 *ptr = value
     std::string irStr;
     inst->toString(irStr);
     printf("  -> IR instruction: '%s'\n", irStr.c_str());
 
-    // 详细调试信息
-    printf("  -> ptrVar name: '%s'\n", ptrVar->getName().c_str());
-    printf("  -> value name: '%s'\n", value->getName().c_str());
-    // 更详细的变量信息
-    printf("  -> ptrVar name: '%s', type: %s\n",
-           ptrVar->getName().c_str(),
-           ptrVar->getType()->isPointerType() ? "POINTER" : "NON-POINTER");
-    printf("  -> value name: '%s', type: %s\n",
-           value->getName().c_str(),
-           value->getType()->isPointerType() ? "POINTER" : "NON-POINTER");
+    // 解析指令：找到指针变量和要存储的值
+    size_t eqPos = irStr.find(" = ");
+    if (eqPos == std::string::npos) {
+        printf("  -> ERROR: Cannot parse store instruction\n");
+        return;
+    }
 
-    // 检查内存地址
-    int32_t ptrBaseReg, valueBaseReg;
-    int64_t ptrOffset, valueOffset;
-    bool ptrHasAddr = ptrVar->getMemoryAddr(&ptrBaseReg, &ptrOffset);
-    bool valueHasAddr = value->getMemoryAddr(&valueBaseReg, &valueOffset);
+    std::string leftPart = irStr.substr(0, eqPos);
+    std::string rightPart = irStr.substr(eqPos + 3);
 
-    printf("  -> ptrVar: hasAddr=%s, baseReg=%d, offset=%ld\n", ptrHasAddr ? "true" : "false", ptrBaseReg, ptrOffset);
-    printf("  -> value: hasAddr=%s, baseReg=%d, offset=%ld\n",
-           valueHasAddr ? "true" : "false",
-           valueBaseReg,
-           valueOffset);
+    // 去掉左边的 * 前缀
+    if (leftPart[0] == '*') {
+        leftPart = leftPart.substr(1);
+    }
 
-    // 地址冲突检测和处理
-    if (ptrHasAddr && valueHasAddr && ptrBaseReg == valueBaseReg && ptrOffset == valueOffset) {
+    Value * ptrVar = nullptr;
+    Value * storeValue = nullptr;
 
-        printf("  -> CRITICAL BUG: Same memory address for different IR variables!\n");
-        printf("  -> This indicates a serious memory allocation bug in the compiler backend.\n");
-        printf("  -> Variables with same address should never exist in well-formed IR.\n");
-
-        // 分析IR指令来确定正确的语义
-        if (irStr.find("*") == 0) {
-            printf("  -> IR shows pointer store operation: %s\n", irStr.c_str());
-            printf("  -> Working around address conflict...\n");
-
-            // 工作方案：由于地址冲突，我们解释为自赋值，直接跳过
-            printf("  -> Treating as no-op due to address conflict\n");
-            printf("=== End translate_store_ptr (NOP due to address conflict) ===\n");
-            return;
+    // 修改：使用正确的 API 获取操作数
+    for (int i = 0; i < inst->getOperandsNum(); i++) {
+        Value * operand = inst->getOperand(i);
+        if (operand && operand->getName() == leftPart) {
+            ptrVar = operand;
+            break;
         }
     }
+
+    // 解析要存储的值
+    if (!rightPart.empty() && rightPart.find_first_not_of("0123456789") == std::string::npos) {
+        // 是常量
+        try {
+            int constVal = std::stoi(rightPart);
+            storeValue = new ConstInt(constVal);
+        } catch (const std::exception & e) {
+            printf("  -> ERROR: Cannot parse constant value '%s': %s\n", rightPart.c_str(), e.what());
+            return;
+        }
+    } else {
+        // 是变量，需要在操作数中找
+        for (int i = 0; i < inst->getOperandsNum(); i++) {
+            Value * operand = inst->getOperand(i);
+            if (operand && operand->getName() == rightPart) {
+                storeValue = operand;
+                break;
+            }
+        }
+    }
+
+    if (!ptrVar) {
+        printf("  -> ERROR: Cannot find pointer variable\n");
+        return;
+    }
+
+    printf("  -> ptrVar name: '%s'\n", ptrVar->getName().c_str());
+    printf("  -> value name: '%s'\n", storeValue ? storeValue->getName().c_str() : "constant");
+
+    // 其余代码保持不变...
+    // 新增：优先检查全局来源
+    if (ptrVar->isDerivedFromGlobal()) {
+        std::string globalName = ptrVar->getGlobalBaseName();
+        int64_t offset = ptrVar->getGlobalOffset();
+
+        printf("  -> Storing to GLOBAL: %s + %ld\n", globalName.c_str(), offset);
+
+        int32_t addr_reg = simpleRegisterAllocator.Allocate();
+        int32_t value_reg = simpleRegisterAllocator.Allocate();
+
+        // 加载全局变量基址
+        iloc.inst("movw", PlatformArm32::regName[addr_reg], "#:lower16:" + globalName);
+        iloc.inst("movt", PlatformArm32::regName[addr_reg], "#:upper16:" + globalName);
+
+        // 加上偏移
+        if (offset != 0) {
+            iloc.inst("add",
+                      PlatformArm32::regName[addr_reg],
+                      PlatformArm32::regName[addr_reg],
+                      "#" + std::to_string(offset));
+        }
+
+        // 加载要存储的值
+        if (ConstInt * constVal = dynamic_cast<ConstInt *>(storeValue)) {
+            iloc.load_imm(value_reg, constVal->getVal());
+        } else {
+            iloc.load_var(value_reg, storeValue);
+        }
+
+        // 存储到全局地址
+        iloc.inst("str", PlatformArm32::regName[value_reg], "[" + PlatformArm32::regName[addr_reg] + "]");
+
+        simpleRegisterAllocator.free(addr_reg);
+        simpleRegisterAllocator.free(value_reg);
+        printf("=== End translate_store_ptr (GLOBAL) ===\n");
+        return;
+    }
+
+    // 第二层检查：直接全局变量访问
+    if (!ptrVar->getName().empty() && ptrVar->getName()[0] == '@') {
+        printf("  -> Detected GLOBAL variable access: %s\n", ptrVar->getName().c_str());
+
+        std::string symbolName = ptrVar->getName().substr(1);
+
+        int32_t ptr_reg = simpleRegisterAllocator.Allocate();
+        int32_t value_reg = simpleRegisterAllocator.Allocate();
+
+        iloc.inst("movw", PlatformArm32::regName[ptr_reg], "#:lower16:" + symbolName);
+        iloc.inst("movt", PlatformArm32::regName[ptr_reg], "#:upper16:" + symbolName);
+
+        if (ConstInt * constValue = dynamic_cast<ConstInt *>(storeValue)) {
+            iloc.load_imm(value_reg, constValue->getVal());
+        } else {
+            iloc.load_var(value_reg, storeValue);
+        }
+
+        iloc.inst("str", PlatformArm32::regName[value_reg], "[" + PlatformArm32::regName[ptr_reg] + "]");
+
+        simpleRegisterAllocator.free(ptr_reg);
+        simpleRegisterAllocator.free(value_reg);
+        printf("=== End translate_store_ptr (DIRECT GLOBAL) ===\n");
+        return;
+    }
+
+    // 第三层检查：是否是函数参数
+    if (ptrVar->getName().empty() && func) {
+        auto & params = func->getParams();
+        for (size_t i = 0; i < params.size(); i++) {
+            if (params[i] == ptrVar) {
+                printf("  -> Storing via PARAMETER[%zu]\n", i);
+
+                int32_t ptr_reg = simpleRegisterAllocator.Allocate();
+                int32_t value_reg = simpleRegisterAllocator.Allocate();
+
+                // 从参数位置加载指针
+                iloc.inst("ldr", PlatformArm32::regName[ptr_reg], "[fp,#" + std::to_string(8 + i * 4) + "]");
+
+                // 加载要存储的值
+                if (ConstInt * constVal = dynamic_cast<ConstInt *>(storeValue)) {
+                    iloc.load_imm(value_reg, constVal->getVal());
+                } else {
+                    iloc.load_var(value_reg, storeValue);
+                }
+
+                // 通过指针存储值
+                iloc.inst("str", PlatformArm32::regName[value_reg], "[" + PlatformArm32::regName[ptr_reg] + "]");
+
+                simpleRegisterAllocator.free(ptr_reg);
+                simpleRegisterAllocator.free(value_reg);
+                printf("=== End translate_store_ptr (PARAMETER) ===\n");
+                return;
+            }
+        }
+    }
+
+    // 第四层：使用旧的全局变量检测逻辑（兜底）
+    if (isGlobalVariable(ptrVar)) {
+        printf("  -> Detected via legacy global detection\n");
+
+        int32_t ptr_reg = simpleRegisterAllocator.Allocate();
+        int32_t value_reg = simpleRegisterAllocator.Allocate();
+
+        iloc.load_var(ptr_reg, ptrVar);
+
+        if (ConstInt * constValue = dynamic_cast<ConstInt *>(storeValue)) {
+            iloc.load_imm(value_reg, constValue->getVal());
+        } else {
+            iloc.load_var(value_reg, storeValue);
+        }
+
+        iloc.inst("str", PlatformArm32::regName[value_reg], "[" + PlatformArm32::regName[ptr_reg] + "]");
+
+        simpleRegisterAllocator.free(ptr_reg);
+        simpleRegisterAllocator.free(value_reg);
+        printf("=== End translate_store_ptr (LEGACY GLOBAL) ===\n");
+        return;
+    }
+
+    // 最后：局部变量处理
+    printf("  -> Falling back to LOCAL variable processing\n");
 
     int32_t ptr_reg = simpleRegisterAllocator.Allocate();
     int32_t value_reg = simpleRegisterAllocator.Allocate();
 
-    printf("  -> Allocated ptr_reg=r%d, value_reg=r%d\n", ptr_reg, value_reg);
-
-    // 加载指针地址
-    printf("  -> Loading pointer address\n");
     iloc.load_var(ptr_reg, ptrVar);
 
-    // 加载要存储的值
-    printf("  -> Loading value to store\n");
-    // 检查value是否是常量
-    ConstInt * constValue = dynamic_cast<ConstInt *>(value);
-    if (constValue != nullptr) {
-        // 是常量，直接加载立即数
-        printf("  -> Value is constant: %d\n", constValue->getVal());
-        iloc.inst("movw", PlatformArm32::regName[value_reg], "#:lower16:" + std::to_string(constValue->getVal()));
+    if (ConstInt * constValue = dynamic_cast<ConstInt *>(storeValue)) {
+        iloc.inst("movw", PlatformArm32::regName[value_reg], "#" + std::to_string(constValue->getVal()));
     } else {
-        // 是变量，使用load_var
-        printf("  -> Value is variable\n");
-        iloc.load_var(value_reg, value);
+        iloc.load_var(value_reg, storeValue);
     }
 
-    // 存储到指针指向的地址
-    printf("  -> Storing value to address\n");
     iloc.inst("str", PlatformArm32::regName[value_reg], "[" + PlatformArm32::regName[ptr_reg] + "]");
 
     simpleRegisterAllocator.free(ptr_reg);
     simpleRegisterAllocator.free(value_reg);
-    printf("=== End translate_store_ptr ===\n");
+    printf("=== End translate_store_ptr (LOCAL) ===\n");
 }
 
-/// @brief 加载指针指向的值到寄存器
 void InstSelectorArm32::translate_load_ptr(Instruction * inst)
 {
     printf("Executing translate_load_ptr\n");
@@ -748,20 +1008,411 @@ void InstSelectorArm32::translate_load_ptr(Instruction * inst)
     Value * result = inst->getOperand(0); // 结果变量
     Value * ptrVar = inst->getOperand(1); // 指针变量
 
-    printf("  -> Loading value from pointer address\n");
+    printf("  -> result name: '%s'\n", result->getName().c_str());
+    printf("  -> ptrVar name: '%s'\n", ptrVar->getName().c_str());
+
+    // 新增：优先检查全局来源追踪
+    if (ptrVar->isDerivedFromGlobal()) {
+        std::string globalName = ptrVar->getGlobalBaseName();
+        int64_t offset = ptrVar->getGlobalOffset();
+
+        printf("  -> Using GLOBAL source: %s + %ld\n", globalName.c_str(), offset);
+
+        int32_t addr_reg = simpleRegisterAllocator.Allocate();
+        int32_t result_reg = simpleRegisterAllocator.Allocate();
+
+        // 加载全局变量基址
+        iloc.inst("movw", PlatformArm32::regName[addr_reg], "#:lower16:" + globalName);
+        iloc.inst("movt", PlatformArm32::regName[addr_reg], "#:upper16:" + globalName);
+
+        // 如果有偏移，加上偏移
+        if (offset != 0) {
+            iloc.inst("add",
+                      PlatformArm32::regName[addr_reg],
+                      PlatformArm32::regName[addr_reg],
+                      "#" + std::to_string(offset));
+        }
+
+        // 从全局地址读取值
+        iloc.inst("ldr", PlatformArm32::regName[result_reg], "[" + PlatformArm32::regName[addr_reg] + "]");
+
+        // 存储结果
+        iloc.store_var(result_reg, result, ARM32_TMP_REG_NO);
+
+        simpleRegisterAllocator.free(addr_reg);
+        simpleRegisterAllocator.free(result_reg);
+        printf("=== End translate_load_ptr (GLOBAL) ===\n");
+        return;
+    }
+
+    // 第二层检查：直接全局变量访问
+    if (!ptrVar->getName().empty() && ptrVar->getName()[0] == '@') {
+        printf("  -> Loading from DIRECT GLOBAL variable: %s\n", ptrVar->getName().c_str());
+
+        std::string symbolName = ptrVar->getName().substr(1);
+
+        int32_t ptr_reg = simpleRegisterAllocator.Allocate();
+        int32_t result_reg = simpleRegisterAllocator.Allocate();
+
+        iloc.inst("movw", PlatformArm32::regName[ptr_reg], "#:lower16:" + symbolName);
+        iloc.inst("movt", PlatformArm32::regName[ptr_reg], "#:upper16:" + symbolName);
+
+        iloc.inst("ldr", PlatformArm32::regName[result_reg], "[" + PlatformArm32::regName[ptr_reg] + "]");
+
+        iloc.store_var(result_reg, result, ARM32_TMP_REG_NO);
+
+        simpleRegisterAllocator.free(ptr_reg);
+        simpleRegisterAllocator.free(result_reg);
+        printf("=== End translate_load_ptr (DIRECT GLOBAL) ===\n");
+        return;
+    }
+
+    // 第三层检查：检查是否是函数参数（参数也可能是全局数组的切片）
+    if (ptrVar->getName().empty() && func) {
+        // 检查是否在函数参数列表中
+        auto & params = func->getParams();
+        for (size_t i = 0; i < params.size(); i++) {
+            if (params[i] == ptrVar) {
+                printf("  -> Using PARAMETER[%zu] (likely global array slice)\n", i);
+
+                int32_t ptr_reg = simpleRegisterAllocator.Allocate();
+                int32_t result_reg = simpleRegisterAllocator.Allocate();
+
+                // 从参数位置加载指针
+                iloc.inst("ldr", PlatformArm32::regName[ptr_reg], "[fp,#" + std::to_string(8 + i * 4) + "]");
+
+                // 从指针指向的地址读取值
+                iloc.inst("ldr", PlatformArm32::regName[result_reg], "[" + PlatformArm32::regName[ptr_reg] + "]");
+
+                iloc.store_var(result_reg, result, ARM32_TMP_REG_NO);
+
+                simpleRegisterAllocator.free(ptr_reg);
+                simpleRegisterAllocator.free(result_reg);
+                printf("=== End translate_load_ptr (PARAMETER) ===\n");
+                return;
+            }
+        }
+    }
+
+    // 第四层：使用旧的全局变量检测逻辑（兜底）
+    if (isGlobalVariable(ptrVar)) {
+        printf("  -> Detected via legacy global detection\n");
+
+        std::string globalName = getGlobalVariableName(ptrVar);
+        if (globalName.empty()) {
+            globalName = "array"; // 默认
+        }
+
+        int32_t ptr_reg = simpleRegisterAllocator.Allocate();
+        int32_t result_reg = simpleRegisterAllocator.Allocate();
+
+        iloc.load_var(ptr_reg, ptrVar);
+        iloc.inst("ldr", PlatformArm32::regName[result_reg], "[" + PlatformArm32::regName[ptr_reg] + "]");
+        iloc.store_var(result_reg, result, ARM32_TMP_REG_NO);
+
+        simpleRegisterAllocator.free(ptr_reg);
+        simpleRegisterAllocator.free(result_reg);
+        printf("=== End translate_load_ptr (LEGACY GLOBAL) ===\n");
+        return;
+    }
+
+    // 最后：局部变量处理
+    printf("  -> Falling back to LOCAL variable processing\n");
 
     int32_t ptr_reg = simpleRegisterAllocator.Allocate();
     int32_t result_reg = simpleRegisterAllocator.Allocate();
 
-    // 直接加载指针值（地址）
     iloc.load_var(ptr_reg, ptrVar);
-
-    // 从指针地址加载数据：ldr result_reg, [ptr_reg]
     iloc.inst("ldr", PlatformArm32::regName[result_reg], "[" + PlatformArm32::regName[ptr_reg] + "]");
-
-    // 存储到结果变量
     iloc.store_var(result_reg, result, ARM32_TMP_REG_NO);
 
     simpleRegisterAllocator.free(ptr_reg);
     simpleRegisterAllocator.free(result_reg);
+    printf("=== End translate_load_ptr (LOCAL) ===\n");
+}
+
+/// @brief 检查是否为全局变量
+bool InstSelectorArm32::isGlobalVariable(Value * var)
+{
+    if (!var) {
+        printf("    -> var is null\n");
+        return false;
+    }
+
+    printf("    -> Checking variable: '%s'\n", var->getName().c_str());
+
+    // 1. 直接全局变量（以 @ 开头）
+    if (!var->getName().empty() && var->getName()[0] == '@') {
+        printf("    -> Direct global variable: %s\n", var->getName().c_str());
+        return true;
+    }
+
+    // 2. 对于匿名变量，检查是否来自全局数组计算
+    if (var->getName().empty()) {
+        printf("    -> Anonymous variable, checking if derived from global\n");
+        return isPointerDerivedFromGlobalAnonymous(var);
+    }
+
+    // 3. 对于命名变量，检查是否从全局变量派生
+    return isPointerDerivedFromGlobal(var);
+}
+/// @brief 检查指针是否从全局变量派生
+bool InstSelectorArm32::isPointerDerivedFromGlobal(Value * var)
+{
+    if (!var || var->getName().empty()) {
+        return false;
+    }
+
+    printf("    -> Checking if %s is derived from global\n", var->getName().c_str());
+
+    // 遍历当前函数的所有指令，查找该变量的定义
+    for (auto inst: ir) {
+        // 情况1: 赋值指令 %l1 = %t24
+        if (inst->getOp() == IRInstOperator::IRINST_OP_ASSIGN && inst->hasResultValue() && inst == var) {
+
+            Value * source = inst->getOperand(0);
+            printf("      -> Found assignment: %s = %s\n",
+                   var->getName().c_str(),
+                   source ? source->getName().c_str() : "null");
+
+            // 递归检查源变量（但要避免无限递归）
+            if (source && source != var) {
+                if (!source->getName().empty() && source->getName()[0] == '@') {
+                    printf("      -> Source is direct global\n");
+                    return true;
+                }
+                // 对于其他情况，暂时不递归以避免复杂性
+            }
+        }
+
+        // 情况2: ADD_I 指令 %t24 = add @array,%t23
+        if (inst->getOp() == IRInstOperator::IRINST_OP_ADD_I && inst->hasResultValue() && inst == var) {
+
+            printf("      -> Found ADD_I instruction for %s\n", var->getName().c_str());
+
+            // 检查操作数中是否包含全局变量
+            for (int i = 0; i < inst->getOperandsNum(); i++) {
+                Value * operand = inst->getOperand(i);
+                if (operand && !operand->getName().empty() && operand->getName()[0] == '@') {
+                    printf("      -> ADD_I operand %d is global: %s\n", i, operand->getName().c_str());
+                    return true;
+                }
+            }
+        }
+
+        // 情况3: ADD_PTR 指令
+        if (inst->getOp() == IRInstOperator::IRINST_OP_ADD_PTR && inst->hasResultValue() && inst == var) {
+
+            printf("      -> Found ADD_PTR instruction for %s\n", var->getName().c_str());
+
+            // 检查操作数中是否包含全局变量
+            for (int i = 0; i < inst->getOperandsNum(); i++) {
+                Value * operand = inst->getOperand(i);
+                if (operand && !operand->getName().empty() && operand->getName()[0] == '@') {
+                    printf("      -> ADD_PTR operand %d is global: %s\n", i, operand->getName().c_str());
+                    return true;
+                }
+            }
+        }
+
+        // 情况4: ARRAY_ADDR 指令
+        if (inst->getOp() == IRInstOperator::IRINST_OP_ARRAY_ADDR && inst->hasResultValue() && inst == var) {
+
+            printf("      -> Found ARRAY_ADDR instruction for %s\n", var->getName().c_str());
+
+            // 检查数组基址是否为全局变量
+            if (inst->getOperandsNum() > 0) {
+                Value * baseArray = inst->getOperand(0);
+                if (baseArray && !baseArray->getName().empty() && baseArray->getName()[0] == '@') {
+                    printf("      -> ARRAY_ADDR base is global: %s\n", baseArray->getName().c_str());
+                    return true;
+                }
+            }
+        }
+    }
+
+    return false;
+}
+
+/// @brief 检查匿名指针是否从全局变量派生
+bool InstSelectorArm32::isPointerDerivedFromGlobalAnonymous(Value * var)
+{
+    if (!var) {
+        return false;
+    }
+
+    printf("      -> Checking anonymous pointer for global derivation\n");
+
+    // 遍历所有指令，查找定义该匿名变量的指令
+    for (auto inst: ir) {
+        if (inst->hasResultValue() && inst == var) {
+            printf("      -> Found defining instruction: op=%d\n", (int) inst->getOp());
+
+            // ADD_I 指令：检查是否是全局数组地址计算
+            if (inst->getOp() == IRInstOperator::IRINST_OP_ADD_I) {
+                printf("      -> ADD_I instruction found\n");
+                for (int i = 0; i < inst->getOperandsNum(); i++) {
+                    Value * operand = inst->getOperand(i);
+                    if (operand) {
+                        printf("      -> Operand %d: '%s'\n", i, operand->getName().c_str());
+                        if (!operand->getName().empty() && operand->getName()[0] == '@') {
+                            printf("      -> Found global array operand: %s\n", operand->getName().c_str());
+                            return true;
+                        }
+                    }
+                }
+            }
+
+            // ADD_PTR 指令
+            if (inst->getOp() == IRInstOperator::IRINST_OP_ADD_PTR) {
+                printf("      -> ADD_PTR instruction found\n");
+                for (int i = 0; i < inst->getOperandsNum(); i++) {
+                    Value * operand = inst->getOperand(i);
+                    if (operand) {
+                        printf("      -> Operand %d: '%s'\n", i, operand->getName().c_str());
+                        if (!operand->getName().empty() && operand->getName()[0] == '@') {
+                            printf("      -> Found global array operand: %s\n", operand->getName().c_str());
+                            return true;
+                        }
+                    }
+                }
+            }
+
+            // ARRAY_ADDR 指令
+            if (inst->getOp() == IRInstOperator::IRINST_OP_ARRAY_ADDR) {
+                printf("      -> ARRAY_ADDR instruction found\n");
+                if (inst->getOperandsNum() > 0) {
+                    Value * baseArray = inst->getOperand(0);
+                    if (baseArray) {
+                        printf("      -> Base array: '%s'\n", baseArray->getName().c_str());
+                        if (!baseArray->getName().empty() && baseArray->getName()[0] == '@') {
+                            printf("      -> Found global array base: %s\n", baseArray->getName().c_str());
+                            return true;
+                        }
+                    }
+                }
+            }
+
+            // ASSIGN 指令：检查源操作数
+            if (inst->getOp() == IRInstOperator::IRINST_OP_ASSIGN) {
+                printf("      -> ASSIGN instruction found\n");
+                Value * source = inst->getOperand(0);
+                if (source) {
+                    printf("      -> Source: '%s'\n", source->getName().c_str());
+                    // 递归检查源变量
+                    return isGlobalVariable(source);
+                }
+            }
+        }
+    }
+
+    printf("      -> No global derivation found for anonymous variable\n");
+    return false;
+}
+
+/// @brief 获取全局变量名称（去掉@前缀）
+std::string InstSelectorArm32::getGlobalVariableName(Value * var)
+{
+    if (!var) {
+        return "";
+    }
+
+    printf("    -> Getting global name for: '%s'\n", var->getName().c_str());
+
+    // 1. 直接全局变量
+    if (!var->getName().empty() && var->getName()[0] == '@') {
+        std::string name = var->getName().substr(1);
+        printf("    -> Direct global name: %s\n", name.c_str());
+        return name;
+    }
+
+    // 2. 追溯到原始全局变量
+    Value * globalBase = findOriginalGlobalVariable(var);
+    if (globalBase && !globalBase->getName().empty() && globalBase->getName()[0] == '@') {
+        std::string name = globalBase->getName().substr(1);
+        printf("    -> Traced global name: %s\n", name.c_str());
+        return name;
+    }
+
+    printf("    -> No global name found\n");
+    return "";
+}
+
+/// @brief 查找变量的原始全局变量
+Value * InstSelectorArm32::findOriginalGlobalVariable(Value * var)
+{
+    if (!var) {
+        return nullptr;
+    }
+
+    printf("      -> Tracing original global for: '%s'\n", var->getName().c_str());
+
+    // 如果本身就是全局变量，直接返回
+    if (!var->getName().empty() && var->getName()[0] == '@') {
+        printf("      -> Already global: %s\n", var->getName().c_str());
+        return var;
+    }
+
+    // 查找定义该变量的指令
+    for (auto inst: ir) {
+        if (inst->hasResultValue() && inst == var) {
+            printf("      -> Found defining instruction: op=%d\n", (int) inst->getOp());
+
+            // 赋值指令：继续追溯源变量
+            if (inst->getOp() == IRInstOperator::IRINST_OP_ASSIGN) {
+                Value * source = inst->getOperand(0);
+                if (source) {
+                    printf("      -> Tracing ASSIGN source: '%s'\n", source->getName().c_str());
+                    return findOriginalGlobalVariable(source);
+                }
+            }
+
+            // ADD_I 指令：查找全局变量操作数
+            if (inst->getOp() == IRInstOperator::IRINST_OP_ADD_I) {
+                for (int i = 0; i < inst->getOperandsNum(); i++) {
+                    Value * operand = inst->getOperand(i);
+                    if (operand && !operand->getName().empty() && operand->getName()[0] == '@') {
+                        printf("      -> Found global in ADD_I: %s\n", operand->getName().c_str());
+                        return operand;
+                    }
+                }
+            }
+
+            // ADD_PTR 指令：查找全局变量操作数
+            if (inst->getOp() == IRInstOperator::IRINST_OP_ADD_PTR) {
+                for (int i = 0; i < inst->getOperandsNum(); i++) {
+                    Value * operand = inst->getOperand(i);
+                    if (operand && !operand->getName().empty() && operand->getName()[0] == '@') {
+                        printf("      -> Found global in ADD_PTR: %s\n", operand->getName().c_str());
+                        return operand;
+                    }
+                }
+            }
+
+            // ARRAY_ADDR 指令：查找数组基址
+            if (inst->getOp() == IRInstOperator::IRINST_OP_ARRAY_ADDR) {
+                if (inst->getOperandsNum() > 0) {
+                    Value * baseArray = inst->getOperand(0);
+                    if (baseArray && !baseArray->getName().empty() && baseArray->getName()[0] == '@') {
+                        printf("      -> Found global in ARRAY_ADDR: %s\n", baseArray->getName().c_str());
+                        return baseArray;
+                    }
+                }
+            }
+        }
+    }
+
+    printf("      -> No original global found\n");
+    return nullptr;
+}
+
+/// @brief 根据IR名称查找函数参数
+FormalParam * InstSelectorArm32::getFormalParamByIRName(const std::string & irName)
+{
+    auto it = functionParamMap.find(irName);
+    if (it != functionParamMap.end()) {
+        printf("找到函数参数映射: %s -> %s\n", irName.c_str(), it->second->getName().c_str());
+        return it->second;
+    }
+    return nullptr;
 }

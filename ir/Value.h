@@ -48,6 +48,15 @@ protected:
     ///
     std::vector<Use *> uses;
 
+    /// @brief 全局变量基址名称（去掉@前缀），如"array"
+    std::string globalBaseName;
+
+    /// @brief 相对于全局变量基址的偏移量（字节）
+    int64_t globalOffset;
+
+    /// @brief 是否有全局来源
+    bool hasGlobalSource;
+
 public:
     /// @brief 构造函数
     /// @param _type
@@ -124,4 +133,47 @@ public:
     /// @return int32_t 寄存器编号
     ///
     virtual void setLoadRegId(int32_t regId);
+
+    /// @brief 通过名称前缀判断是否是全局变量-lxg
+    bool isGlobalVariable() const
+    {
+        const std::string & name = getName();
+        return !name.empty() && name[0] == '@';
+    }
+
+    /// @brief 通过名称前缀判断是否是局部变量
+    bool isLocalVariable() const
+    {
+        const std::string & name = getName();
+        return !name.empty() && name[0] == '%';
+    }
+
+    /// @brief 设置全局来源信息
+    /// @param baseName 全局变量名（不含@前缀）
+    /// @param offset 相对偏移量（字节）
+    void setGlobalSource(const std::string & baseName, int64_t offset = 0);
+
+    /// @brief 清除全局来源信息
+    void clearGlobalSource();
+
+    /// @brief 获取全局变量基址名称
+    /// @return 全局变量名（不含@前缀）
+    std::string getGlobalBaseName() const;
+
+    /// @brief 获取相对于全局变量的偏移量
+    /// @return 偏移量（字节）
+    int64_t getGlobalOffset() const;
+
+    /// @brief 判断是否派生自全局变量
+    /// @return true 如果派生自全局变量
+    bool isDerivedFromGlobal() const;
+
+    /// @brief 传播全局来源信息给另一个Value
+    /// @param target 目标Value
+    /// @param additionalOffset 额外偏移量
+    void propagateGlobalSource(Value * target, int64_t additionalOffset = 0) const;
+
+    /// @brief 调试输出全局来源信息
+    /// @return 全局来源信息字符串
+    std::string getGlobalSourceInfo() const;
 };

@@ -15,6 +15,7 @@
 ///
 #include "CodeGeneratorAsm.h"
 #include "SimpleRegisterAllocator.h"
+#include <map>
 
 class CodeGeneratorArm32 : public CodeGeneratorAsm {
 
@@ -59,9 +60,27 @@ protected:
     ///
     void getIRValueStr(Value * val, std::string & str);
 
+    /// @brief 全局变量信息结构
+    struct GlobalVarInfo {
+        std::string name;   // 变量名
+        Type * type;        // 类型
+        int32_t size;       // 字节大小
+        bool isArray;       // 是否是数组
+        bool isInitialized; // 是否已初始化
+    };
+
+    /// @brief 从 IR 中识别全局变量
+    void identifyGlobalVariables();
+
+    /// @brief 计算全局变量大小
+    int32_t calculateGlobalVariableSize(Type * type);
+
 private:
     ///
     /// @brief 简单的朴素寄存器分配方法
     ///
     SimpleRegisterAllocator simpleRegisterAllocator;
+
+    /// @brief 发现的全局变量映射
+    std::map<std::string, GlobalVarInfo> discoveredGlobals;
 };

@@ -17,6 +17,7 @@
 #include <cstdlib>
 #include <string>
 #include <map>
+#include <set>
 #include <algorithm>
 
 #include "IRConstant.h"
@@ -391,126 +392,205 @@ void Function::reallocateMemory()
 
     const int32_t framePointerReg = 11;
 
-    // 第一步：计算所有变量的总空间
-    int32_t totalArraySize = 0;
-    int32_t totalVarSize = 0;
-    int32_t arrayCount = 0;
+    // 第一步：正确识别函数参数
+    printf("--- Phase 1: Identifying Function Parameters ---\n");
+    std::set<Value *> paramSet;
+    for (auto param: params) {
+        paramSet.insert(param);
+    }
 
-    printf("--- Phase 1: Calculating Space Requirements ---\n");
+    std::vector<LocalVariable *> actualParams;   // 实际函数参数
+    std::vector<LocalVariable *> localArrays;    // 局部数组
+    std::vector<LocalVariable *> localVariables; // 局部变量
+    std::vector<LocalVariable *> tempPointers;   // 临时指针变量
+    std::vector<LocalVariable *> globalDerived;  // 新增：派生自全局变量的值
+
+    printf("Function %s has %zu parameters\n", getName().c_str(), params.size());
+
+    // 分类所有变量
     for (auto & var: varsVector) {
-        int32_t varSize = calculateVariableSize(var->getType());
-        if (var->getType()->isArrayType()) {
-            totalArraySize += varSize;
-            arrayCount++;
-            printf("Array %s: %d bytes\n", var->getName().c_str(), varSize);
+        // 跳过全局变量
+        if (!var->getName().empty() && var->getName()[0] == '@') {
+            printf("Skipping global variable %s\n", var->getName().c_str());
+            continue;
+        }
+
+        // 新增：检查是否派生自全局变量
+        if (var->isDerivedFromGlobal()) {
+            globalDerived.push_back(var);
+            printf("Found global-derived variable: %s -> %s\n",
+                   var->getName().c_str(),
+                   var->getGlobalSourceInfo().c_str());
+            continue;
+        }
+
+        if (paramSet.find(var) != paramSet.end()) {
+            actualParams.push_back(var);
+            printf("Found parameter: %s (type: %s)\n",
+                   var->getName().c_str(),
+                   var->getType()->isPointerType() ? "pointer" : "other");
+        } else if (var->getType()->isPointerType() && var->getName().empty()) {
+            tempPointers.push_back(var);
+            printf("Found temp pointer variable\n");
+        } else if (var->getType()->isArrayType()) {
+            localArrays.push_back(var);
+            printf("Found local array: %s\n", var->getName().c_str());
         } else {
-            totalVarSize += varSize;
+            localVariables.push_back(var);
+            printf("Found local variable: %s\n", var->getName().c_str());
         }
     }
 
+    // 第二步：ARM调用约定 - 前4个参数通过寄存器传递
+    printf("--- Phase 2: Allocating Function Parameters ---\n");
+    for (size_t i = 0; i < actualParams.size(); i++) {
+        LocalVariable * param = actualParams[i];
+
+        if (i < 4) {
+            // 前4个参数通过寄存器r0-r3传递，保存到栈上
+            int32_t paramOffset = 8 + i * 4; // fp+8, fp+12, fp+16, fp+20
+            printf("Parameter[%zu] %s: saved from r%zu to fp+%d\n", i, param->getName().c_str(), i, paramOffset);
+            param->setMemoryAddr(framePointerReg, paramOffset);
+        } else {
+            // 超过4个的参数已经在栈上
+            int32_t paramOffset = 8 + i * 4;
+            printf("Parameter[%zu] %s: on stack at fp+%d\n", i, param->getName().c_str(), paramOffset);
+            param->setMemoryAddr(framePointerReg, paramOffset);
+        }
+    }
+
+    // 新增：处理派生自全局变量的值（不需要栈空间）
+    printf("--- Phase 2.5: Handling Global-Derived Variables ---\n");
+    for (auto & var: globalDerived) {
+        printf("Global-derived variable %s: %s (no stack allocation needed)\n",
+               var->getName().c_str(),
+               var->getGlobalSourceInfo().c_str());
+        // 派生自全局变量的值不需要栈空间，后端会直接生成全局寻址
+        // 但可以给它们一个特殊的"地址"标记，避免在validate时报错
+        var->setMemoryAddr(-1, -999999); // 特殊标记：不在栈上
+    }
+
+    // 第三步：计算局部空间需求
+    int32_t totalArraySize = 0;
+    int32_t totalVarSize = 0;
+
+    printf("--- Phase 3: Calculating Local Space Requirements ---\n");
+
+    // 计算局部数组空间
+    for (auto & var: localArrays) {
+        int32_t varSize = calculateVariableSize(var->getType());
+        totalArraySize += varSize;
+        printf("Local Array %s: %d bytes\n", var->getName().c_str(), varSize);
+    }
+
+    // 计算局部变量空间
+    for (auto & var: localVariables) {
+        totalVarSize += calculateVariableSize(var->getType());
+    }
+
+    // 计算临时指针变量空间
+    for (auto & var: tempPointers) {
+        totalVarSize += calculateVariableSize(var->getType());
+    }
+
+    // 计算内存变量空间
     for (auto & memVar: memVector) {
         totalVarSize += calculateVariableSize(memVar->getType());
     }
 
-    printf("Total space needed: arrays=%d bytes (%d arrays), variables=%d bytes\n",
+    printf("Total space: arrays=%d bytes, variables=%d bytes, temp_pointers=%zu, global_derived=%zu\n",
            totalArraySize,
-           arrayCount,
-           totalVarSize);
+           totalVarSize,
+           tempPointers.size(),
+           globalDerived.size());
 
-    // 第二步：从fp-4开始，往负方向分配
-    int32_t currentOffset = -4;
+    // 第四步：分配局部数组（如果有的话）
+    int32_t currentOffset = -4; // 从fp-4开始
 
-    printf("--- Phase 2: Allocating Arrays (corrected layout) ---\n");
+    printf("--- Phase 4: Allocating Local Arrays ---\n");
+    for (size_t i = 0; i < localArrays.size(); i++) {
+        auto & var = localArrays[i];
+        int32_t arraySize = calculateVariableSize(var->getType());
 
-    // 先分配所有数组
-    for (size_t i = 0; i < varsVector.size(); i++) {
-        auto & var = varsVector[i];
+        // ✅ 修复：先减去数组大小，再分配地址
+        currentOffset -= arraySize;
 
-        if (var->getType()->isArrayType()) {
-            int32_t arraySize = calculateVariableSize(var->getType());
+        printf("Allocating Local Array[%zu] %s: size=%d, at fp%+d\n",
+               i,
+               var->getName().c_str(),
+               arraySize,
+               currentOffset);
 
-            // 关键修正：数组基地址应该指向数组的最低地址
-            // 先移动currentOffset到数组的最低位置
-            currentOffset -= arraySize;
-
-            // 数组基地址 = 最低地址 + (arraySize - 4)，使得：
-            // b[0] = base + 0 指向最高地址
-            // b[n-1] = base + (n-1)*4 指向最低地址
-            int32_t arrayBaseOffset = currentOffset + arraySize - 4;
-
-            printf("Allocating Array[%zu] %s: size=%d, base at fp%+d",
-                   i,
-                   var->getName().c_str(),
-                   arraySize,
-                   arrayBaseOffset);
-
-            var->setMemoryAddr(framePointerReg, arrayBaseOffset);
-
-            // 验证数组访问范围
-            printf(" (elements: fp%+d to fp%+d)", arrayBaseOffset, currentOffset);
-
-            // 验证访问安全性
-            if (currentOffset < 0) {
-                printf(" ✓ SAFE\n");
-            } else {
-                printf(" ⚠️  WARNING: Array extends to positive offsets!\n");
-            }
-
-            // 留4字节间隙
-            currentOffset -= 4;
-        }
+        var->setMemoryAddr(framePointerReg, currentOffset);
+        currentOffset -= 4; // 数组间隔
     }
 
-    printf("--- Phase 3: Allocating Non-Array Variables ---\n");
+    // 第五步：分配局部变量
+    printf("--- Phase 5: Allocating Local Variables ---\n");
+    for (size_t i = 0; i < localVariables.size(); i++) {
+        auto & var = localVariables[i];
+        int32_t varSize = calculateVariableSize(var->getType());
 
-    // 分配非数组变量
-    for (size_t i = 0; i < varsVector.size(); i++) {
-        auto & var = varsVector[i];
+        // ✅ 修复：先减去变量大小，再分配地址
+        currentOffset -= varSize;
 
-        if (!var->getType()->isArrayType()) {
-            int32_t varSize = calculateVariableSize(var->getType());
+        printf("Allocating LocalVar[%zu] %s: size=%d, at fp%+d\n", i, var->getName().c_str(), varSize, currentOffset);
 
-            printf("Allocating LocalVar[%zu] %s: size=%d, at fp%+d\n",
-                   i,
-                   var->getName().c_str(),
-                   varSize,
-                   currentOffset);
-
-            var->setMemoryAddr(framePointerReg, currentOffset);
-            currentOffset -= varSize;
-        }
+        var->setMemoryAddr(framePointerReg, currentOffset);
     }
 
-    printf("--- Phase 4: Allocating MemVariables ---\n");
+    // 第六步：分配临时指针变量
+    printf("--- Phase 6: Allocating Temporary Pointer Variables ---\n");
+    for (size_t i = 0; i < tempPointers.size(); i++) {
+        auto & var = tempPointers[i];
+        int32_t varSize = calculateVariableSize(var->getType());
 
-    // 分配MemVariable
+        // ✅ 修复：先减去变量大小，再分配地址
+        currentOffset -= varSize;
+
+        printf("Allocating TempPtr[%zu]: size=%d, at fp%+d\n", i, varSize, currentOffset);
+
+        var->setMemoryAddr(framePointerReg, currentOffset);
+    }
+
+    // 第七步：分配内存变量
+    printf("--- Phase 7: Allocating MemVariables ---\n");
     for (size_t i = 0; i < memVector.size(); i++) {
         auto & memVar = memVector[i];
-
         int32_t varSize = calculateVariableSize(memVar->getType());
+
+        // ✅ 修复：先减去变量大小，再分配地址
+        currentOffset -= varSize;
 
         printf("Allocating MemVar[%zu] %s: size=%d, at fp%+d\n", i, memVar->getName().c_str(), varSize, currentOffset);
 
         memVar->setMemoryAddr(framePointerReg, currentOffset);
-        currentOffset -= varSize;
     }
 
-    // 第五步：计算栈帧大小
+    // 第八步：计算栈帧大小
     int32_t totalStackSize = -(currentOffset + 4);
-
-    // 8字节对齐
-    totalStackSize = (totalStackSize + 7) & ~7;
+    totalStackSize = (totalStackSize + 7) & ~7; // 8字节对齐
 
     int32_t oldMaxDepth = getMaxDep();
     setMaxDep(totalStackSize);
 
     printf("--- Final Memory Layout Summary ---\n");
-    printf("Stack frame size updated: %d -> %d bytes (8-byte aligned)\n", oldMaxDepth, totalStackSize);
-    printf("Memory layout:\n");
-    printf("  Allocation range: fp-4 to fp%+d\n", currentOffset);
-    printf("  Total usage: %d bytes\n", totalStackSize);
-    printf("  Arrays: %d bytes (%d arrays)\n", totalArraySize, arrayCount);
-    printf("  Variables: %d bytes\n", totalVarSize);
+    printf("Stack frame size: %d -> %d bytes\n", oldMaxDepth, totalStackSize);
+
+    if (!actualParams.empty()) {
+        printf("  Parameters:     %zu params (fp+8 to fp+%d)\n",
+               actualParams.size(),
+               8 + (int32_t) actualParams.size() * 4 - 4);
+    }
+
+    if (!localArrays.empty()) {
+        printf("  Local arrays:   %zu arrays (%d bytes)\n", localArrays.size(), totalArraySize);
+    }
+
+    printf("  Local vars:     %zu variables\n", localVariables.size());
+    printf("  Temp pointers:  %zu variables\n", tempPointers.size());
+    printf("  Global derived: %zu variables (no stack space)\n", globalDerived.size());
+    printf("  Total usage:    %d bytes\n", totalStackSize);
 
     memoryFixed = true;
     printf("=== Memory Reallocation Complete ===\n");

@@ -312,6 +312,9 @@ bool IRGenerator::ir_compile_unit(ast_node * node)
 /// @return 翻译是否成功，true：成功，false：失败
 bool IRGenerator::ir_function_define(ast_node * node)
 {
+    printf("=== IR_FUNCTION_DEFINE 被调用 ===\n");
+    printf("函数名: %s\n", node->sons[1]->name.c_str());
+    printf("================================\n");
     bool result;
 
     ast_node * name_node = node->sons[1];
@@ -341,7 +344,8 @@ bool IRGenerator::ir_function_define(ast_node * node)
         std::vector<FormalParam *> params;
         if (param_node && !param_node->sons.empty()) {
             printf("DEBUG: 从AST获取函数参数，数量: %zu\n", param_node->sons.size());
-            for (auto & paramSon: param_node->sons) {
+            for (size_t i = 0; i < param_node->sons.size(); i++) {
+                auto & paramSon = param_node->sons[i];
                 if (paramSon->sons.size() < 2) {
                     setLastError("形参节点格式错误");
                     return false;
@@ -349,8 +353,20 @@ bool IRGenerator::ir_function_define(ast_node * node)
 
                 Type * paramType = paramSon->sons[0]->type;
                 std::string paramName = paramSon->sons[1]->name;
-                params.push_back(new FormalParam{paramType, paramName});
-                printf("DEBUG: 添加参数: %s\n", paramName.c_str());
+                FormalParam * formalParam = new FormalParam{paramType, paramName};
+
+                // 关键修改：为前4个参数设置ARM寄存器映射
+                if (i < 4) {
+                    formalParam->setRegId(static_cast<int>(i));
+                    printf("DEBUG: 设置函数参数 %s 的寄存器ID为 %zu (对应r%zu)\n", paramName.c_str(), i, i);
+                } else {
+                    // 超过4个参数的通过栈传递，暂时设置为-1
+                    formalParam->setRegId(-1);
+                    printf("DEBUG: 函数参数 %s 超过4个，通过栈传递\n", paramName.c_str());
+                }
+
+                params.push_back(formalParam);
+                printf("DEBUG: 添加参数: %s, regId=%d\n", paramName.c_str(), formalParam->getRegId());
             }
         } else {
             printf("DEBUG: 函数 %s 在AST中没有参数信息\n", name_node->name.c_str());
@@ -364,8 +380,33 @@ bool IRGenerator::ir_function_define(ast_node * node)
         }
 
         printf("DEBUG: 创建新函数: %s, 参数数量: %zu\n", name_node->name.c_str(), newFunc->getParams().size());
+
+        // 新增：验证参数映射
+        printf("=== 函数参数映射验证 ===\n");
+        printf("函数: %s\n", name_node->name.c_str());
+        const std::vector<FormalParam *> & verifyParams = newFunc->getParams();
+        for (size_t i = 0; i < verifyParams.size(); i++) {
+            FormalParam * param = verifyParams[i];
+            printf("参数[%zu]: %s, regId=%d, 类型=%s\n",
+                   i,
+                   param->getName().c_str(),
+                   param->getRegId(),
+                   param->getType()->toString().c_str());
+        }
+        printf("=== 验证完成 ===\n");
+
     } else {
         printf("DEBUG: 使用已注册的函数: %s, 参数数量: %zu\n", name_node->name.c_str(), newFunc->getParams().size());
+
+        // 新增：如果是已注册函数，也需要确保参数有正确的寄存器映射
+        const std::vector<FormalParam *> & existingParams = newFunc->getParams();
+        for (size_t i = 0; i < existingParams.size() && i < 4; i++) {
+            FormalParam * param = existingParams[i];
+            if (param->getRegId() == -1) {
+                param->setRegId(static_cast<int>(i));
+                printf("DEBUG: 为已注册函数参数 %s 设置寄存器ID为 %zu\n", param->getName().c_str(), i);
+            }
+        }
     }
 
     // 当前函数设置有效，变更为当前的函数
@@ -855,7 +896,17 @@ bool IRGenerator::ir_function_call(ast_node * node)
                                                                         arrayVar,
                                                                         correctOffset,
                                                                         ptrType);
-                    node->blockInsts.addInst(addInst);
+                    // 新增：设置全局来源信息
+                    if (!arrayVar->getName().empty() && arrayVar->getName()[0] == '@') {
+                        std::string globalName = arrayVar->getName().substr(1); // 去掉@前缀
+                        addInst->setGlobalSource(globalName, 0);                // 动态偏移，基础偏移为0
+                        printf("DEBUG: 多维数组参数设置全局来源: %s\n", globalName.c_str());
+                    } else if (arrayVar->isDerivedFromGlobal()) {
+                        // 如果数组变量本身派生自全局变量，传播全局来源
+                        arrayVar->propagateGlobalSource(addInst, 0);
+                        printf("DEBUG: 传播全局来源到多维数组参数: %s\n", addInst->getGlobalSourceInfo().c_str());
+                    }
+                                                                        node->blockInsts.addInst(addInst);
                     realParams.push_back(addInst);
 
                     printf("DEBUG: 生成多维数组参数传递: %s -> 偏移量计算\n", arrayName.c_str());
@@ -877,6 +928,23 @@ bool IRGenerator::ir_function_call(ast_node * node)
                                                                               arrayVar,
                                                                               totalOffset,
                                                                               ptrType);
+
+                    // 新增：设置全局来源信息
+                    if (!arrayVar->getName().empty() && arrayVar->getName()[0] == '@') {
+                        std::string globalName = arrayVar->getName().substr(1); // 去掉@前缀
+                        int64_t staticOffset = 0;
+
+                        // 尝试计算静态偏移（如果totalOffset是常量）
+                        if (ConstInt * constOffset = dynamic_cast<ConstInt *>(totalOffset)) {
+                            staticOffset = constOffset->getVal();
+                        }
+
+                        finalAddrInst->setGlobalSource(globalName, staticOffset);
+                        printf("DEBUG: 简单指针参数设置全局来源: %s + %ld\n", globalName.c_str(), staticOffset);
+                    } else if (arrayVar->isDerivedFromGlobal()) {
+                        arrayVar->propagateGlobalSource(finalAddrInst, 0);
+                        printf("DEBUG: 传播全局来源到简单指针参数: %s\n", finalAddrInst->getGlobalSourceInfo().c_str());
+                    }
                     node->blockInsts.addInst(finalAddrInst);
                     realParams.push_back(finalAddrInst);
                 }
@@ -910,6 +978,19 @@ bool IRGenerator::ir_function_call(ast_node * node)
                     // 生成 add 指令
                     BinaryInstruction * addInst =
                         new BinaryInstruction(currentFunc, IRInstOperator::IRINST_OP_ADD_I, paramVar, zero, ptrType);
+                    // 新增：设置全局来源信息
+                    if (!paramVar->getName().empty() && paramVar->getName()[0] == '@') {
+                        std::string globalName = paramVar->getName().substr(1); // 去掉@前缀
+                        addInst->setGlobalSource(globalName, 0);                // 数组基址，偏移为0
+                        printf("DEBUG: 简单数组参数设置全局来源: %s + 0\n", globalName.c_str());
+                        addInst->propagateGlobalSource(ptrVar, 0);
+                        printf("DEBUG: 传播全局来源到 ptrVar: %s\n", ptrVar->getGlobalSourceInfo().c_str());
+                    } else if (paramVar->isDerivedFromGlobal()) {
+                        paramVar->propagateGlobalSource(addInst, 0);
+                        printf("DEBUG: 传播全局来源到简单数组参数: %s\n", addInst->getGlobalSourceInfo().c_str());
+                        addInst->propagateGlobalSource(ptrVar, 0);
+                        printf("DEBUG: 传播全局来源到 ptrVar: %s\n", ptrVar->getGlobalSourceInfo().c_str());
+                    }
                     node->blockInsts.addInst(addInst);
                     node->blockInsts.addInst(new MoveInstruction(currentFunc, ptrVar, addInst));
 
@@ -1042,7 +1123,36 @@ bool IRGenerator::ir_add(ast_node * node)
                                                         right->val,
                                                         IntegerType::getTypeInt());
 
-    // 创建临时变量保存IR的值，以及线性IR指令
+    // 检查左操作数是否是全局变量
+    if (left->val && !left->val->getName().empty() && left->val->getName()[0] == '@') {
+        std::string globalName = left->val->getName().substr(1); // 去掉@前缀
+        int64_t offset = 0;
+
+        // 如果右操作数是常量，获取偏移值
+        if (ConstInt * constVal = dynamic_cast<ConstInt *>(right->val)) {
+            offset = constVal->getVal();
+        }
+
+        // 设置结果的全局来源
+        addInst->setGlobalSource(globalName, offset);
+
+        printf("DEBUG: ADD指令设置全局来源: %s + %ld\n", globalName.c_str(), offset);
+    }
+    // 检查左操作数是否已经有全局来源
+    else if (left->val && left->val->isDerivedFromGlobal()) {
+        int64_t additionalOffset = 0;
+
+        // 如果右操作数是常量，累加偏移
+        if (ConstInt * constVal = dynamic_cast<ConstInt *>(right->val)) {
+            additionalOffset = constVal->getVal();
+        }
+
+        // 传播全局来源信息
+        left->val->propagateGlobalSource(addInst, additionalOffset);
+
+        printf("DEBUG: ADD指令传播全局来源: %s\n", addInst->getGlobalSourceInfo().c_str());
+    }
+                                               // 创建临时变量保存IR的值，以及线性IR指令
     node->blockInsts.addInst(left->blockInsts);
     node->blockInsts.addInst(right->blockInsts);
     node->blockInsts.addInst(addInst);
@@ -2936,6 +3046,16 @@ bool IRGenerator::handleSimplePointerParamAccess(ast_node * node, Value * arrayV
 
     BinaryInstruction * ptrInst =
         new BinaryInstruction(currentFunc, IRInstOperator::IRINST_OP_ADD_I, arrayVar, byteOffset, ptrType);
+    // 新增：检查参数是否有全局来源
+    if (arrayVar->isDerivedFromGlobal()) {
+        // 传播全局来源信息，偏移量是动态的
+        arrayVar->propagateGlobalSource(ptrInst, 0);
+        printf("DEBUG: handleSimplePointerParamAccess 传播全局来源: %s\n", ptrInst->getGlobalSourceInfo().c_str());
+
+        // 也传播给 elemPtr
+        ptrInst->propagateGlobalSource(elemPtr, 0);
+        printf("DEBUG: 传播全局来源到 elemPtr: %s\n", elemPtr->getGlobalSourceInfo().c_str());
+    }
     node->blockInsts.addInst(ptrInst);
     node->blockInsts.addInst(new MoveInstruction(currentFunc, elemPtr, ptrInst));
 
@@ -3022,6 +3142,17 @@ bool IRGenerator::handleMultiDimArrayParamAccess(ast_node * node, Value * arrayV
 
     BinaryInstruction * ptrInst =
         new BinaryInstruction(currentFunc, IRInstOperator::IRINST_OP_ADD_I, arrayVar, byteOffsetInst, ptrType);
+
+    // 新增：检查参数是否有全局来源
+    if (arrayVar->isDerivedFromGlobal()) {
+        // 传播全局来源信息
+        arrayVar->propagateGlobalSource(ptrInst, 0);
+        printf("DEBUG: handleMultiDimArrayParamAccess 传播全局来源: %s\n", ptrInst->getGlobalSourceInfo().c_str());
+
+        // 也传播给 elemPtr
+        ptrInst->propagateGlobalSource(elemPtr, 0);
+        printf("DEBUG: 传播全局来源到多维数组 elemPtr: %s\n", elemPtr->getGlobalSourceInfo().c_str());
+    }
     node->blockInsts.addInst(ptrInst);
     node->blockInsts.addInst(new MoveInstruction(currentFunc, elemPtr, ptrInst));
 
@@ -3064,6 +3195,11 @@ bool IRGenerator::handleRegularArrayAccess(ast_node * node, Value * arrayVar, co
 
         indices.push_back(indexNode->val);
         // printf("DEBUG: 处理数组索引 %zu\n", i - 1);
+    }
+
+    if (!arrayVar->getName().empty() && arrayVar->getName()[0] == '@') {
+        std::string globalName = arrayVar->getName().substr(1); // 去掉@前缀
+        printf("DEBUG: 数组访问基于全局变量: %s\n", globalName.c_str());
     }
 
     // 针对二维数组的处理
@@ -3117,8 +3253,40 @@ bool IRGenerator::handleRegularArrayAccess(ast_node * node, Value * arrayVar, co
         // 4. %t8 = add %l1, %t7  (数组基址 + 字节偏移)
         BinaryInstruction * ptrInst =
             new BinaryInstruction(currentFunc, IRInstOperator::IRINST_OP_ADD_I, arrayVar, offsetResult, ptrType);
+        
+			// 新增：如果数组是全局变量，设置指针的全局来源
+        if (!arrayVar->getName().empty() && arrayVar->getName()[0] == '@') {
+            std::string globalName = arrayVar->getName().substr(1);
+
+            // 尝试计算静态偏移
+            int64_t staticOffset = 0;
+            bool canCalculateStatic = true;
+
+            // 如果所有索引都是常量，计算静态偏移
+            if (ConstInt * rowConst = dynamic_cast<ConstInt *>(rowIndex)) {
+                if (ConstInt * colConst = dynamic_cast<ConstInt *>(colIndex)) {
+                    staticOffset = (rowConst->getVal() * colSize + colConst->getVal()) * 4;
+                    printf("DEBUG: 计算出静态偏移量: %ld\n", staticOffset);
+                } else {
+                    canCalculateStatic = false;
+                }
+            } else {
+                canCalculateStatic = false;
+            }
+
+            if (canCalculateStatic) {
+                ptrInst->setGlobalSource(globalName, staticOffset);
+            } else {
+                ptrInst->setGlobalSource(globalName, 0); // 动态偏移，基础偏移为0
+            }
+        }
+
         node->blockInsts.addInst(ptrInst);
         node->blockInsts.addInst(new MoveInstruction(currentFunc, ptrResult, ptrInst));
+        if (ptrInst->isDerivedFromGlobal()) {
+            ptrInst->propagateGlobalSource(ptrResult, 0);
+            printf("DEBUG: 传播全局来源到二维数组 ptrResult: %s\n", ptrResult->getGlobalSourceInfo().c_str());
+        }
 
         // 5. 读取数组元素的值 (新增)
         MoveInstruction * loadInst = new MoveInstruction(currentFunc,
@@ -3193,8 +3361,20 @@ bool IRGenerator::handleRegularArrayAccess(ast_node * node, Value * arrayVar, co
         // 计算元素指针
         BinaryInstruction * ptrInst =
             new BinaryInstruction(currentFunc, IRInstOperator::IRINST_OP_ADD_I, arrayVar, byteOffsetInst, ptrType);
+        // 新增：如果数组是全局变量，设置指针的全局来源
+        if (!arrayVar->getName().empty() && arrayVar->getName()[0] == '@') {
+            std::string globalName = arrayVar->getName().substr(1);
+            ptrInst->setGlobalSource(globalName, 0); // 动态偏移，基础偏移为0
+            printf("DEBUG: 为多维数组指针设置全局来源: %s\n", globalName.c_str());
+        }
+
         node->blockInsts.addInst(ptrInst);
         node->blockInsts.addInst(new MoveInstruction(currentFunc, elemPtr, ptrInst));
+        // 新增：在 MoveInstruction 之后传播全局来源
+        if (ptrInst->isDerivedFromGlobal()) {
+            ptrInst->propagateGlobalSource(elemPtr, 0);
+            printf("DEBUG: 传播全局来源到多维数组 elemPtr: %s\n", elemPtr->getGlobalSourceInfo().c_str());
+        }
 
         // 创建一个局部变量用于存储数组元素的值
         LocalVariable * elemValue = static_cast<LocalVariable *>(module->newVarValue(IntegerType::getTypeInt()));
@@ -3290,6 +3470,18 @@ bool IRGenerator::handleParameterArrayAccessWithDimensions(ast_node * node,
 
     BinaryInstruction * ptrInst =
         new BinaryInstruction(currentFunc, IRInstOperator::IRINST_OP_ADD_I, arrayVar, byteOffsetInst, ptrType);
+
+    // 新增：检查参数是否有全局来源
+    if (arrayVar->isDerivedFromGlobal()) {
+        // 传播全局来源信息
+        arrayVar->propagateGlobalSource(ptrInst, 0);
+        printf("DEBUG: handleParameterArrayAccessWithDimensions 传播全局来源: %s\n",
+               ptrInst->getGlobalSourceInfo().c_str());
+
+        // 也传播给 elemPtr
+        ptrInst->propagateGlobalSource(elemPtr, 0);
+        printf("DEBUG: 传播全局来源到参数数组 elemPtr: %s\n", elemPtr->getGlobalSourceInfo().c_str());
+    }
     node->blockInsts.addInst(ptrInst);
     node->blockInsts.addInst(new MoveInstruction(currentFunc, elemPtr, ptrInst));
 

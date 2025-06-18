@@ -322,6 +322,27 @@ protected:
     /// @return 是否是2的幂次
     bool isPowerOfTwo(int value);
 
+    /// @brief 检查是否为全局变量
+    bool isGlobalVariable(Value * var);
+
+    /// @brief 检查指针是否从全局变量派生
+    bool isPointerDerivedFromGlobal(Value * var);
+
+    /// @brief 检查匿名指针是否从全局变量派生
+    bool isPointerDerivedFromGlobalAnonymous(Value * var);
+
+    /// @brief 查找变量的原始全局变量
+    Value * findOriginalGlobalVariable(Value * var);
+
+    /// @brief 获取全局变量名称（去掉@前缀）
+    std::string getGlobalVariableName(Value * var);
+
+    /// @brief 函数参数映射表：IR名称 -> FormalParam对象
+    std::map<std::string, FormalParam *> functionParamMap;
+
+    /// @brief 根据IR名称查找函数参数
+    FormalParam * getFormalParamByIRName(const std::string & irName);
+
     /// @brief 二元操作指令翻译成ARM32汇编
     /// @param inst IR指令
     /// @param operator_name 操作码
