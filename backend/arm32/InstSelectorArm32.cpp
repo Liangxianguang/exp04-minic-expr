@@ -20,6 +20,7 @@
 #include "InstSelectorArm32.h"
 #include "PlatformArm32.h"
 #include "ConstInt.h"
+#include "ir/Instructions/BinaryInstruction.h"
 
 #include "PointerType.h"
 #include "RegVariable.h"
@@ -804,200 +805,109 @@ void InstSelectorArm32::translate_store_ptr(Instruction * inst)
     inst->toString(irStr);
     printf("  -> IR instruction: '%s'\n", irStr.c_str());
 
-    // 解析指令：找到指针变量和要存储的值
-    size_t eqPos = irStr.find(" = ");
-    if (eqPos == std::string::npos) {
-        printf("  -> ERROR: Cannot parse store instruction\n");
+    // 直接从指令获取操作数
+    if (inst->getOperandsNum() < 2) {
+        printf("  -> ERROR: Not enough operands\n");
         return;
     }
 
-    std::string leftPart = irStr.substr(0, eqPos);
-    std::string rightPart = irStr.substr(eqPos + 3);
+    Value * ptrVar = inst->getOperand(0);     // 目标指针
+    Value * storeValue = inst->getOperand(1); // 源值
 
-    // 去掉左边的 * 前缀
-    if (leftPart[0] == '*') {
-        leftPart = leftPart.substr(1);
-    }
-
-    Value * ptrVar = nullptr;
-    Value * storeValue = nullptr;
-
-    // 修改：使用正确的 API 获取操作数
-    for (int i = 0; i < inst->getOperandsNum(); i++) {
-        Value * operand = inst->getOperand(i);
-        if (operand && operand->getName() == leftPart) {
-            ptrVar = operand;
-            break;
-        }
-    }
-
-    // 解析要存储的值
-    if (!rightPart.empty() && rightPart.find_first_not_of("0123456789") == std::string::npos) {
-        // 是常量
-        try {
-            int constVal = std::stoi(rightPart);
-            storeValue = new ConstInt(constVal);
-        } catch (const std::exception & e) {
-            printf("  -> ERROR: Cannot parse constant value '%s': %s\n", rightPart.c_str(), e.what());
-            return;
-        }
-    } else {
-        // 是变量，需要在操作数中找
-        for (int i = 0; i < inst->getOperandsNum(); i++) {
-            Value * operand = inst->getOperand(i);
-            if (operand && operand->getName() == rightPart) {
-                storeValue = operand;
-                break;
-            }
-        }
-    }
-
-    if (!ptrVar) {
-        printf("  -> ERROR: Cannot find pointer variable\n");
+    if (!ptrVar || !storeValue) {
+        printf("  -> ERROR: Null operands\n");
         return;
     }
 
     printf("  -> ptrVar name: '%s'\n", ptrVar->getName().c_str());
-    printf("  -> value name: '%s'\n", storeValue ? storeValue->getName().c_str() : "constant");
+    printf("  -> storeValue name: '%s'\n", storeValue->getName().c_str());
 
-    // 其余代码保持不变...
-    // 新增：优先检查全局来源
-    if (ptrVar->isDerivedFromGlobal()) {
-        std::string globalName = ptrVar->getGlobalBaseName();
-        int64_t offset = ptrVar->getGlobalOffset();
-
-        printf("  -> Storing to GLOBAL: %s + %ld\n", globalName.c_str(), offset);
-
-        int32_t addr_reg = simpleRegisterAllocator.Allocate();
-        int32_t value_reg = simpleRegisterAllocator.Allocate();
-
-        // 加载全局变量基址
-        iloc.inst("movw", PlatformArm32::regName[addr_reg], "#:lower16:" + globalName);
-        iloc.inst("movt", PlatformArm32::regName[addr_reg], "#:upper16:" + globalName);
-
-        // 加上偏移
-        if (offset != 0) {
-            iloc.inst("add",
-                      PlatformArm32::regName[addr_reg],
-                      PlatformArm32::regName[addr_reg],
-                      "#" + std::to_string(offset));
-        }
-
-        // 加载要存储的值
-        if (ConstInt * constVal = dynamic_cast<ConstInt *>(storeValue)) {
-            iloc.load_imm(value_reg, constVal->getVal());
-        } else {
-            iloc.load_var(value_reg, storeValue);
-        }
-
-        // 存储到全局地址
-        iloc.inst("str", PlatformArm32::regName[value_reg], "[" + PlatformArm32::regName[addr_reg] + "]");
-
-        simpleRegisterAllocator.free(addr_reg);
-        simpleRegisterAllocator.free(value_reg);
-        printf("=== End translate_store_ptr (GLOBAL) ===\n");
-        return;
-    }
-
-    // 第二层检查：直接全局变量访问
-    if (!ptrVar->getName().empty() && ptrVar->getName()[0] == '@') {
-        printf("  -> Detected GLOBAL variable access: %s\n", ptrVar->getName().c_str());
-
-        std::string symbolName = ptrVar->getName().substr(1);
-
-        int32_t ptr_reg = simpleRegisterAllocator.Allocate();
-        int32_t value_reg = simpleRegisterAllocator.Allocate();
-
-        iloc.inst("movw", PlatformArm32::regName[ptr_reg], "#:lower16:" + symbolName);
-        iloc.inst("movt", PlatformArm32::regName[ptr_reg], "#:upper16:" + symbolName);
-
-        if (ConstInt * constValue = dynamic_cast<ConstInt *>(storeValue)) {
-            iloc.load_imm(value_reg, constValue->getVal());
-        } else {
-            iloc.load_var(value_reg, storeValue);
-        }
-
-        iloc.inst("str", PlatformArm32::regName[value_reg], "[" + PlatformArm32::regName[ptr_reg] + "]");
-
-        simpleRegisterAllocator.free(ptr_reg);
-        simpleRegisterAllocator.free(value_reg);
-        printf("=== End translate_store_ptr (DIRECT GLOBAL) ===\n");
-        return;
-    }
-
-    // 第三层检查：是否是函数参数
-    if (ptrVar->getName().empty() && func) {
-        auto & params = func->getParams();
-        for (size_t i = 0; i < params.size(); i++) {
-            if (params[i] == ptrVar) {
-                printf("  -> Storing via PARAMETER[%zu]\n", i);
-
-                int32_t ptr_reg = simpleRegisterAllocator.Allocate();
-                int32_t value_reg = simpleRegisterAllocator.Allocate();
-
-                // 从参数位置加载指针
-                iloc.inst("ldr", PlatformArm32::regName[ptr_reg], "[fp,#" + std::to_string(8 + i * 4) + "]");
-
-                // 加载要存储的值
-                if (ConstInt * constVal = dynamic_cast<ConstInt *>(storeValue)) {
-                    iloc.load_imm(value_reg, constVal->getVal());
-                } else {
-                    iloc.load_var(value_reg, storeValue);
-                }
-
-                // 通过指针存储值
-                iloc.inst("str", PlatformArm32::regName[value_reg], "[" + PlatformArm32::regName[ptr_reg] + "]");
-
-                simpleRegisterAllocator.free(ptr_reg);
-                simpleRegisterAllocator.free(value_reg);
-                printf("=== End translate_store_ptr (PARAMETER) ===\n");
-                return;
-            }
-        }
-    }
-
-    // 第四层：使用旧的全局变量检测逻辑（兜底）
-    if (isGlobalVariable(ptrVar)) {
-        printf("  -> Detected via legacy global detection\n");
-
-        int32_t ptr_reg = simpleRegisterAllocator.Allocate();
-        int32_t value_reg = simpleRegisterAllocator.Allocate();
-
-        iloc.load_var(ptr_reg, ptrVar);
-
-        if (ConstInt * constValue = dynamic_cast<ConstInt *>(storeValue)) {
-            iloc.load_imm(value_reg, constValue->getVal());
-        } else {
-            iloc.load_var(value_reg, storeValue);
-        }
-
-        iloc.inst("str", PlatformArm32::regName[value_reg], "[" + PlatformArm32::regName[ptr_reg] + "]");
-
-        simpleRegisterAllocator.free(ptr_reg);
-        simpleRegisterAllocator.free(value_reg);
-        printf("=== End translate_store_ptr (LEGACY GLOBAL) ===\n");
-        return;
-    }
-
-    // 最后：局部变量处理
-    printf("  -> Falling back to LOCAL variable processing\n");
+    // 简化逻辑：直接进行局部变量处理
+    printf("  -> Processing store operation: *ptr = value\n");
 
     int32_t ptr_reg = simpleRegisterAllocator.Allocate();
     int32_t value_reg = simpleRegisterAllocator.Allocate();
 
+    // 加载目标地址（ptr变量包含目标地址）
+    printf("  -> Loading target address from ptrVar\n");
     iloc.load_var(ptr_reg, ptrVar);
 
+    // 加载要存储的值
+    printf("  -> Loading source value\n");
     if (ConstInt * constValue = dynamic_cast<ConstInt *>(storeValue)) {
-        iloc.inst("movw", PlatformArm32::regName[value_reg], "#" + std::to_string(constValue->getVal()));
+        iloc.load_imm(value_reg, constValue->getVal());
+        printf("  -> Loaded constant: %d\n", constValue->getVal());
+    } else if (BinaryInstruction * binInst = dynamic_cast<BinaryInstruction *>(storeValue)) {
+        printf("  -> storeValue is BinaryInstruction, generating computation\n");
+
+        // 检查操作类型
+        IRInstOperator op = binInst->getOp();
+        if (op == IRInstOperator::IRINST_OP_MOD_I) {
+            printf("  -> Generating MOD operation\n");
+
+            // 获取操作数
+            Value * arg1 = binInst->getOperand(0);
+            Value * arg2 = binInst->getOperand(1);
+
+            if (!arg1 || !arg2) {
+                printf("  -> ERROR: MOD operands are null\n");
+                simpleRegisterAllocator.free(ptr_reg);
+                simpleRegisterAllocator.free(value_reg);
+                return;
+            }
+
+            // 分配寄存器
+            int32_t arg1_reg = simpleRegisterAllocator.Allocate();
+            int32_t arg2_reg = simpleRegisterAllocator.Allocate();
+
+            // 加载操作数
+            iloc.load_var(arg1_reg, arg1);
+            iloc.load_var(arg2_reg, arg2);
+
+            // 执行模运算：value_reg = arg1 % arg2
+            // ARM32没有直接的模运算指令，需要用 arg1 - (arg1/arg2) * arg2
+
+            // 1. 计算商：value_reg = arg1 / arg2
+            iloc.inst("sdiv",
+                      PlatformArm32::regName[value_reg],
+                      PlatformArm32::regName[arg1_reg],
+                      PlatformArm32::regName[arg2_reg]);
+
+            // 2. 计算商与除数的乘积：value_reg = value_reg * arg2
+            iloc.inst("mul",
+                      PlatformArm32::regName[value_reg],
+                      PlatformArm32::regName[value_reg],
+                      PlatformArm32::regName[arg2_reg]);
+
+            // 3. 计算余数：value_reg = arg1 - value_reg
+            iloc.inst("sub",
+                      PlatformArm32::regName[value_reg],
+                      PlatformArm32::regName[arg1_reg],
+                      PlatformArm32::regName[value_reg]);
+
+            printf("  -> Generated MOD operation: r%d = r%d %% r%d\n", value_reg, arg1_reg, arg2_reg);
+
+            // 释放临时寄存器
+            simpleRegisterAllocator.free(arg1_reg);
+            simpleRegisterAllocator.free(arg2_reg);
+
+        } else {
+            printf("  -> Unsupported binary operation: %d\n", (int) op);
+            // 尝试用原来的方式处理
+            iloc.load_var(value_reg, storeValue);
+        }
     } else {
         iloc.load_var(value_reg, storeValue);
+        printf("  -> Loaded variable value\n");
     }
 
+    // 存储到目标地址
+    printf("  -> Storing value to target address\n");
     iloc.inst("str", PlatformArm32::regName[value_reg], "[" + PlatformArm32::regName[ptr_reg] + "]");
 
     simpleRegisterAllocator.free(ptr_reg);
     simpleRegisterAllocator.free(value_reg);
-    printf("=== End translate_store_ptr (LOCAL) ===\n");
+    printf("=== End translate_store_ptr ===\n");
 }
 
 void InstSelectorArm32::translate_load_ptr(Instruction * inst)

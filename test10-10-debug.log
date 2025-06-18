@@ -1,0 +1,730 @@
+DEBUG: 处理参数 n，子节点数量: 2
+DEBUG: 参数 n 方括号数量: 0，维度值数量: 0
+DEBUG: 普通参数: n
+DEBUG: 处理参数 a，子节点数量: 4
+DEBUG: 参数 a 方括号数量: 1，维度值数量: 0
+DEBUG: 添加第一维（空）: 0
+DEBUG: 数组参数 a 总共有 3 个子节点
+DEBUG: 处理全局变量声明
+DEBUG: 处理变量声明: N, 子节点数量: 2
+DEBUG: 处理全局变量声明
+DEBUG: 处理变量声明: newline, 子节点数量: 2
+DEBUG: 在compile_unit中注册函数: split, 形参节点类型: 7, sons大小: 2
+DEBUG: 注册普通参数: n
+DEBUG: 添加参数: n
+DEBUG: 提取维度 0: 0
+DEBUG: 保存函数 split 参数 1 (a) 的维度信息，维度数: 1
+DEBUG: 注册数组参数: a 为指针类型 (i32*)
+DEBUG: 添加参数: a
+注册函数原型: split 成功，参数数量: 2
+DEBUG: 在compile_unit中注册函数: main, 形参节点类型: 7, sons大小: 0
+注册函数原型: main 成功，参数数量: 0
+=== IR_FUNCTION_DEFINE 被调用 ===
+函数名: split
+================================
+DEBUG: 处理函数定义: split
+DEBUG: 使用已注册的函数: split, 参数数量: 2
+DEBUG: 为已注册函数参数 n 设置寄存器ID为 0
+DEBUG: 为已注册函数参数 a 设置寄存器ID为 1
+DEBUG: 处理函数形参，数量: 2, 函数参数数量: 2
+DEBUG: 处理函数参数: n, 类型: int
+DEBUG: 为普通参数创建局部变量和赋值: n
+DEBUG: 处理函数数组参数: a, 类型: pointer (i32*)
+DEBUG: 成功注册变量到符号表: a -> 0x56062ac7c6d0
+DEBUG: 直接注册数组参数到符号表: a (避免局部变量赋值)
+DEBUG: 处理变量声明: i, 子节点数量: 2
+DEBUG: 为局部变量 i 生成了默认初始化为0的指令
+DEBUG: 处理函数数组参数访问: a
+DEBUG: 使用保存的维度信息，维度数: 1
+DEBUG: 维度 0: 0
+DEBUG: 维度 0, 步长: 1
+DEBUG: 完成使用维度信息的数组参数访问
+DEBUG: 通过指针为数组元素赋值: * = 
+DEBUG: 函数 split 的block节点指令数量: 23
+DEBUG: 函数 split 的node节点指令数量: 23
+DEBUG: 函数 split 的最终IR指令数量: 27
+=== IR_FUNCTION_DEFINE 被调用 ===
+函数名: main
+================================
+DEBUG: 处理函数定义: main
+DEBUG: 使用已注册的函数: main, 参数数量: 0
+DEBUG: 处理函数形参，数量: 0, 函数参数数量: 0
+DEBUG: 处理变量声明: i, 子节点数量: 2
+DEBUG: 为局部变量 i 生成了默认初始化为0的指令
+DEBUG: 处理变量声明: m, 子节点数量: 2
+DEBUG: 为局部变量 m 生成了默认初始化为0的指令
+DEBUG: 处理数组定义: b
+DEBUG: 数组维度 1: 4
+DEBUG: 创建局部数组变量: b
+DEBUG: 处理函数调用: split 在第-1行
+DEBUG: 函数调用 split 提供的参数数量: 2
+DEBUG: 找到函数: split, 需要2个参数
+DEBUG: 处理参数 #0, 节点类型: 2, 变量名: m
+DEBUG: 形参 #0 类型检查 - isPointerType: 否
+DEBUG: 找到变量: m, 变量存在: 是
+DEBUG: 变量 m 类型检查 - isArrayType: 否, isPointerType: 否
+DEBUG: 不满足数组参数条件，按普通参数处理
+DEBUG: 按普通参数处理: m
+DEBUG: 处理参数 #1, 节点类型: 2, 变量名: b
+DEBUG: 形参 #1 类型检查 - isPointerType: 是
+DEBUG: 找到变量: b, 变量存在: 是
+DEBUG: 变量 b 类型检查 - isArrayType: 是, isPointerType: 否
+DEBUG: *** 传递数组参数: b (add %array, 0 得到指针) ***
+DEBUG: 创建了数组到指针衰减:  -> 
+DEBUG: 函数调用参数检查通过: split
+DEBUG: 函数调用指令创建完成，指令对象地址: 0x56062acd5ec0
+DEBUG: 函数调用指令的返回值类型: i32
+DEBUG: 处理变量声明: t, 子节点数量: 2
+DEBUG: 为局部变量 t 生成了默认初始化为0的指令
+DEBUG: 完成多维数组访问，读取了元素值: 
+DEBUG: 处理函数调用: putint 在第-1行
+DEBUG: 函数调用 putint 提供的参数数量: 1
+DEBUG: 找到函数: putint, 需要1个参数
+DEBUG: 处理参数 #0, 节点类型: 2, 变量名: t
+DEBUG: 形参 #0 类型检查 - isPointerType: 否
+DEBUG: 找到变量: t, 变量存在: 是
+DEBUG: 变量 t 类型检查 - isArrayType: 否, isPointerType: 否
+DEBUG: 不满足数组参数条件，按普通参数处理
+DEBUG: 按普通参数处理: t
+DEBUG: 函数调用参数检查通过: putint
+DEBUG: 函数调用指令创建完成，指令对象地址: 0x56062acd7150
+DEBUG: 函数调用指令的返回值类型: 其他
+DEBUG: 处理函数调用: putch 在第-1行
+DEBUG: 函数调用 putch 提供的参数数量: 1
+DEBUG: 找到函数: putch, 需要1个参数
+DEBUG: 处理参数 #0, 节点类型: 2, 变量名: newline
+DEBUG: 形参 #0 类型检查 - isPointerType: 否
+DEBUG: 找到变量: newline, 变量存在: 是
+DEBUG: 变量 newline 类型检查 - isArrayType: 否, isPointerType: 否
+DEBUG: 不满足数组参数条件，按普通参数处理
+DEBUG: 按普通参数处理: newline
+DEBUG: 函数调用参数检查通过: putch
+DEBUG: 函数调用指令创建完成，指令对象地址: 0x56062acd72d0
+DEBUG: 函数调用指令的返回值类型: 其他
+DEBUG: 函数 main 的block节点指令数量: 30
+DEBUG: 函数 main 的node节点指令数量: 30
+DEBUG: 函数 main 的最终IR指令数量: 33
+=== Generating Global Variable Section ===
+=== Identifying Global Variables from IR ===
+--- Phase 1: Checking module global variables ---
+    Scalar type size calculation: 4 bytes
+Discovered global variable from module: N, size=4, isArray=false, initialized=false
+    Scalar type size calculation: 4 bytes
+Discovered global variable from module: newline, size=4, isArray=false, initialized=false
+--- Phase 2: Checking function references ---
+Analyzing function: split
+Analyzing function: main
+=== Total discovered 2 global variables ===
+  - N: 4 bytes, isArray=false, initialized=false
+  - newline: 4 bytes, isArray=false, initialized=false
+Generated global variable: N = 4 bytes
+Generated global variable: newline = 4 bytes
+=== Global Variable Section Complete ===
+=== Stack Allocation for Function split ===
+Allocating local variable n: size=4, offset=fp-4
+Allocating local variable : size=4, offset=fp-8
+Allocating local variable i: size=4, offset=fp-12
+Allocating local variable : size=4, offset=fp-16
+Allocating local variable : size=0, offset=fp-16
+Allocating local variable : size=4, offset=fp-20
+Allocating temporary variable: size=4, offset=fp-24
+Allocating temporary variable: size=4, offset=fp-28
+Allocating temporary variable: size=4, offset=fp-32
+Allocating temporary variable: size=4, offset=fp-36
+Allocating temporary variable: size=4, offset=fp-40
+Allocating temporary variable: size=0, offset=fp-40
+Allocating temporary variable: size=4, offset=fp-44
+Allocating temporary variable: size=4, offset=fp-48
+=== Stack Allocation Complete for Function split: total 48 bytes ===
+
+=== Memory Allocation Analysis for Function split ===
+--- Building Function Parameter Mapping ---
+映射: %t0 -> 参数 n (regId: 0)
+映射: %t1 -> 参数 a (regId: 1)
+✓ Function parameter mapping complete.
+--- Checking Current Memory Allocation ---
+=== Memory Layout for Function split ===
+Stack layout (high to low address):
+  Address    | Variable   | Category | Type            | Size
+  -----------|------------|----------|-----------------|------
+  fp-4 | n          | LocalVar | normal          | 4
+  fp-8 |            | LocalVar | normal          | 4
+  fp-12 | i          | LocalVar | normal          | 4
+  fp-16 |            | LocalVar | normal          | 4
+  fp-16 |            | LocalVar | pointer         | 4
+  fp-20 |            | LocalVar | normal          | 4
+Total variables: LocalVar=6, MemVar=0
+Current stack frame size: 48 bytes
+=== End Memory Layout ===
+=== Validating Memory Allocation ===
+CONFLICT #1 at offset -16:
+  -  (LocalVar, normal)
+  -  (LocalVar, pointer)
+✗ Found 1 memory allocation conflicts.
+=== Validation Complete ===
+--- DETECTED CONFLICTS: Applying Memory Fix ---
+=== Starting Memory Reallocation for Function split ===
+--- Phase 1: Identifying Function Parameters ---
+Function split has 2 parameters
+Found local variable: n
+Found local variable: 
+Found local variable: i
+Found local variable: 
+Found temp pointer variable
+Found local variable: 
+--- Phase 2: Allocating Function Parameters ---
+--- Phase 3: Handling Global-Derived Variables ---
+--- Phase 4: Allocating ALL Local Arrays First ---
+--- Phase 5: Allocating All Local Variables ---
+Allocating LocalVar[0] n: size=4, at fp-12
+Allocating LocalVar[1] : size=4, at fp-16
+Allocating LocalVar[2] i: size=4, at fp-20
+Allocating LocalVar[3] : size=4, at fp-24
+Allocating LocalVar[4] : size=4, at fp-28
+--- Phase 6: Allocating All Temporary Pointer Variables ---
+Allocating TempPtr[0]: size=4, at fp-32
+--- Phase 7: Allocating All MemVariables ---
+--- Final Memory Layout Summary ---
+Stack frame size: 48 -> 32 bytes
+  Local vars:     5 variables
+  Temp pointers:  1 variables
+  Global derived: 0 variables (no stack space)
+  Total usage:    32 bytes (16字节对齐)
+=== Memory Reallocation Complete ===
+--- Post-Fix Validation ---
+=== Memory Layout for Function split ===
+Stack layout (high to low address):
+  Address    | Variable   | Category | Type            | Size
+  -----------|------------|----------|-----------------|------
+  fp-12 | n          | LocalVar | normal          | 4
+  fp-16 |            | LocalVar | normal          | 4
+  fp-20 | i          | LocalVar | normal          | 4
+  fp-24 |            | LocalVar | normal          | 4
+  fp-28 |            | LocalVar | normal          | 4
+  fp-32 |            | LocalVar | pointer         | 4
+Total variables: LocalVar=6, MemVar=0
+Current stack frame size: 32 bytes
+=== End Memory Layout ===
+=== Validating Memory Allocation ===
+✓ No memory allocation conflicts detected.
+=== Validation Complete ===
+=== Memory Allocation Analysis Complete ===
+
+=== 函数 split 开始保存参数 (总数: 2) ===
+  保存寄存器参数 n: r0 -> r4
+  参数 n 更新寄存器ID: 0 -> 4
+  保存寄存器参数 a: r1 -> r5
+  参数 a 更新寄存器ID: 1 -> 5
+=== 参数保存完成 ===
+ASSIGN:  = 
+ASSIGN:  = 0
+=== LOAD_VAR DEBUG ===
+变量: '0', regId: -1, 目标寄存器: r0
+变量类型: 8ConstInt
+=== END DEBUG ===
+=== LOAD_VAR DEBUG ===
+变量: '@N', regId: -1, 目标寄存器: r0
+变量类型: 14GlobalVariable
+=== END DEBUG ===
+=== LOAD_VAR DEBUG ===
+变量: '1', regId: -1, 目标寄存器: r1
+变量类型: 8ConstInt
+=== END DEBUG ===
+ASSIGN:  = 
+=== LOAD_VAR DEBUG ===
+变量: '', regId: -1, 目标寄存器: r0
+变量类型: 17BinaryInstruction
+★ 这是一个二元指令，检查操作数...
+  操作数数量: 2
+  操作数[0]: '@N', 类型: 14GlobalVariable
+  操作数[1]: '1', 类型: 8ConstInt
+★ 未能在操作数中找到函数参数
+=== END DEBUG ===
+=== LOAD_VAR DEBUG ===
+变量: '', regId: -1, 目标寄存器: r0
+变量类型: 13LocalVariable
+=== END DEBUG ===
+=== LOAD_VAR DEBUG ===
+变量: '-1', regId: -1, 目标寄存器: r1
+变量类型: 8ConstInt
+=== END DEBUG ===
+ASSIGN:  = 
+=== LOAD_VAR DEBUG ===
+变量: '', regId: -1, 目标寄存器: r0
+变量类型: 17BinaryInstruction
+★ 这是一个二元指令，检查操作数...
+  操作数数量: 2
+  操作数[0]: '', 类型: 13LocalVariable
+  操作数[1]: '-1', 类型: 8ConstInt
+★ 未能在操作数中找到函数参数
+=== END DEBUG ===
+=== LOAD_VAR DEBUG ===
+变量: '', regId: -1, 目标寄存器: r0
+变量类型: 13LocalVariable
+=== END DEBUG ===
+=== LOAD_VAR DEBUG ===
+变量: '', regId: -1, 目标寄存器: r0
+变量类型: 13LocalVariable
+=== END DEBUG ===
+=== LOAD_VAR DEBUG ===
+变量: '10', regId: -1, 目标寄存器: r1
+变量类型: 8ConstInt
+=== END DEBUG ===
+=== LOAD_VAR DEBUG ===
+变量: '0', regId: -1, 目标寄存器: r0
+变量类型: 8ConstInt
+=== END DEBUG ===
+=== LOAD_VAR DEBUG ===
+变量: '', regId: -1, 目标寄存器: r1
+变量类型: 13LocalVariable
+=== END DEBUG ===
+=== LOAD_VAR DEBUG ===
+变量: '', regId: -1, 目标寄存器: r0
+变量类型: 17BinaryInstruction
+★ 这是一个二元指令，检查操作数...
+  操作数数量: 2
+  操作数[0]: '0', 类型: 8ConstInt
+  操作数[1]: '', 类型: 13LocalVariable
+★ 未能在操作数中找到函数参数
+=== END DEBUG ===
+=== LOAD_VAR DEBUG ===
+变量: '', regId: -1, 目标寄存器: r0
+变量类型: 17BinaryInstruction
+★ 这是一个二元指令，检查操作数...
+  操作数数量: 2
+  操作数[0]: '', 类型: 17BinaryInstruction
+  -> 发现BinaryInstruction操作数，递归追踪...
+    子操作数[0]: '0', 类型: 8ConstInt
+    子操作数[1]: '', 类型: 13LocalVariable
+  操作数[1]: '4', 类型: 8ConstInt
+★ 未能在操作数中找到函数参数
+=== END DEBUG ===
+ASSIGN:  = 
+=== LOAD_VAR DEBUG ===
+变量: '', regId: -1, 目标寄存器: r0
+变量类型: 17BinaryInstruction
+★ 这是一个二元指令，检查操作数...
+  操作数数量: 2
+  操作数[0]: '', 类型: 11FormalParam
+  操作数[1]: '', 类型: 17BinaryInstruction
+  -> 发现BinaryInstruction操作数，递归追踪...
+    子操作数[0]: '', 类型: 17BinaryInstruction
+    子操作数[1]: '4', 类型: 8ConstInt
+★ 未能在操作数中找到函数参数
+=== END DEBUG ===
+  -> Found pointer operation:  = *
+ASSIGN:  = *
+  -> Detected pointer dereference, calling translate_load_ptr
+Executing translate_load_ptr
+  -> result name: ''
+  -> ptrVar name: ''
+    -> Checking variable: ''
+    -> Anonymous variable, checking if derived from global
+      -> Checking anonymous pointer for global derivation
+      -> No global derivation found for anonymous variable
+  -> Falling back to LOCAL variable processing
+=== LOAD_VAR DEBUG ===
+变量: '', regId: -1, 目标寄存器: r0
+变量类型: 13LocalVariable
+=== END DEBUG ===
+=== End translate_load_ptr (LOCAL) ===
+  -> Found pointer operation: * = 
+ASSIGN: * = 
+  -> Detected pointer store, calling translate_store_ptr
+=== Executing translate_store_ptr ===
+  -> IR instruction: '* = '
+  -> ptrVar name: ''
+  -> storeValue name: ''
+    -> Checking variable: ''
+    -> Anonymous variable, checking if derived from global
+      -> Checking anonymous pointer for global derivation
+      -> No global derivation found for anonymous variable
+  -> Processing LOCAL array element storage
+=== LOAD_VAR DEBUG ===
+变量: '', regId: -1, 目标寄存器: r0
+变量类型: 13LocalVariable
+=== END DEBUG ===
+=== LOAD_VAR DEBUG ===
+变量: '', regId: -1, 目标寄存器: r1
+变量类型: 17BinaryInstruction
+★ 这是一个二元指令，检查操作数...
+  操作数数量: 2
+  操作数[0]: '', 类型: 13LocalVariable
+  操作数[1]: '10', 类型: 8ConstInt
+★ 未能在操作数中找到函数参数
+=== END DEBUG ===
+=== End translate_store_ptr (LOCAL) ===
+=== LOAD_VAR DEBUG ===
+变量: '', regId: -1, 目标寄存器: r0
+变量类型: 13LocalVariable
+=== END DEBUG ===
+=== LOAD_VAR DEBUG ===
+变量: '10', regId: -1, 目标寄存器: r1
+变量类型: 8ConstInt
+=== END DEBUG ===
+ASSIGN:  = 
+=== LOAD_VAR DEBUG ===
+变量: '', regId: -1, 目标寄存器: r0
+变量类型: 17BinaryInstruction
+★ 这是一个二元指令，检查操作数...
+  操作数数量: 2
+  操作数[0]: '', 类型: 13LocalVariable
+  操作数[1]: '10', 类型: 8ConstInt
+★ 未能在操作数中找到函数参数
+=== END DEBUG ===
+=== LOAD_VAR DEBUG ===
+变量: '', regId: -1, 目标寄存器: r0
+变量类型: 13LocalVariable
+=== END DEBUG ===
+=== LOAD_VAR DEBUG ===
+变量: '1', regId: -1, 目标寄存器: r1
+变量类型: 8ConstInt
+=== END DEBUG ===
+ASSIGN:  = 
+=== LOAD_VAR DEBUG ===
+变量: '', regId: -1, 目标寄存器: r0
+变量类型: 17BinaryInstruction
+★ 这是一个二元指令，检查操作数...
+  操作数数量: 2
+  操作数[0]: '', 类型: 13LocalVariable
+  操作数[1]: '1', 类型: 8ConstInt
+★ 未能在操作数中找到函数参数
+=== END DEBUG ===
+ASSIGN:  = 0
+=== LOAD_VAR DEBUG ===
+变量: '0', regId: -1, 目标寄存器: r0
+变量类型: 8ConstInt
+=== END DEBUG ===
+=== LOAD_VAR DEBUG ===
+变量: '', regId: -1, 目标寄存器: r0
+变量类型: 13LocalVariable
+=== END DEBUG ===
+=== Stack Allocation for Function main ===
+Allocating local variable : size=4, offset=fp-4
+Allocating local variable i: size=4, offset=fp-8
+Allocating local variable m: size=4, offset=fp-12
+Allocating local variable b: size=16, offset=fp-28
+Allocating local variable : size=0, offset=fp-28
+Allocating local variable t: size=4, offset=fp-32
+Allocating local variable : size=4, offset=fp-36
+Allocating local variable : size=0, offset=fp-36
+Allocating local variable : size=4, offset=fp-40
+Allocating temporary variable: size=0, offset=fp-40
+Allocating temporary variable: size=4, offset=fp-44
+Allocating temporary variable: size=4, offset=fp-48
+Allocating temporary variable: size=4, offset=fp-52
+Allocating temporary variable: size=4, offset=fp-56
+Allocating temporary variable: size=0, offset=fp-56
+Allocating temporary variable: size=4, offset=fp-60
+=== Stack Allocation Complete for Function main: total 60 bytes ===
+
+=== Memory Allocation Analysis for Function main ===
+--- Building Function Parameter Mapping ---
+✓ Function parameter mapping complete.
+--- Checking Current Memory Allocation ---
+=== Memory Layout for Function main ===
+Stack layout (high to low address):
+  Address    | Variable   | Category | Type            | Size
+  -----------|------------|----------|-----------------|------
+  fp-4 |            | LocalVar | normal          | 4
+  fp-8 | i          | LocalVar | normal          | 4
+  fp-12 | m          | LocalVar | normal          | 4
+  fp-28 | b          | LocalVar | array[4]        | 16
+  fp-28 |            | LocalVar | pointer         | 4
+  fp-32 | t          | LocalVar | normal          | 4
+  fp-36 |            | LocalVar | normal          | 4
+  fp-36 |            | LocalVar | pointer         | 4
+  fp-40 |            | LocalVar | normal          | 4
+Total variables: LocalVar=9, MemVar=0
+Current stack frame size: 60 bytes
+=== End Memory Layout ===
+=== Validating Memory Allocation ===
+CONFLICT #1 at offset -36:
+  -  (LocalVar, normal)
+  -  (LocalVar, pointer)
+CONFLICT #2 at offset -28:
+  - b (LocalVar, normal)
+  -  (LocalVar, pointer)
+✗ Found 2 memory allocation conflicts.
+=== Validation Complete ===
+--- DETECTED CONFLICTS: Applying Memory Fix ---
+=== Starting Memory Reallocation for Function main ===
+--- Phase 1: Identifying Function Parameters ---
+Function main has 0 parameters
+Found local variable: 
+Found local variable: i
+Found local variable: m
+Found local array: b
+Found temp pointer variable
+Found local variable: t
+Found local variable: 
+Found temp pointer variable
+Found local variable: 
+--- Phase 2: Allocating Function Parameters ---
+--- Phase 3: Handling Global-Derived Variables ---
+--- Phase 4: Allocating ALL Local Arrays First ---
+Array size calculation: 16 bytes
+Allocating Local Array[0] b: size=16, at fp-24
+--- Phase 5: Allocating All Local Variables ---
+Allocating LocalVar[0] : size=4, at fp-36
+Allocating LocalVar[1] i: size=4, at fp-40
+Allocating LocalVar[2] m: size=4, at fp-44
+Allocating LocalVar[3] t: size=4, at fp-48
+Allocating LocalVar[4] : size=4, at fp-52
+Allocating LocalVar[5] : size=4, at fp-56
+--- Phase 6: Allocating All Temporary Pointer Variables ---
+Allocating TempPtr[0]: size=4, at fp-60
+Allocating TempPtr[1]: size=4, at fp-64
+--- Phase 7: Allocating All MemVariables ---
+--- Final Memory Layout Summary ---
+Stack frame size: 60 -> 64 bytes
+  Local arrays:   1 arrays (优先分配，8字节对齐)
+Array size calculation: 16 bytes
+    b: allocated (16 bytes)
+  Local vars:     6 variables
+  Temp pointers:  2 variables
+  Global derived: 0 variables (no stack space)
+  Total usage:    64 bytes (16字节对齐)
+=== Memory Reallocation Complete ===
+--- Post-Fix Validation ---
+=== Memory Layout for Function main ===
+Stack layout (high to low address):
+  Address    | Variable   | Category | Type            | Size
+  -----------|------------|----------|-----------------|------
+  fp-24 | b          | LocalVar | array[4]        | 16
+  fp-36 |            | LocalVar | normal          | 4
+  fp-40 | i          | LocalVar | normal          | 4
+  fp-44 | m          | LocalVar | normal          | 4
+  fp-48 | t          | LocalVar | normal          | 4
+  fp-52 |            | LocalVar | normal          | 4
+  fp-56 |            | LocalVar | normal          | 4
+  fp-60 |            | LocalVar | pointer         | 4
+  fp-64 |            | LocalVar | pointer         | 4
+Total variables: LocalVar=9, MemVar=0
+Current stack frame size: 64 bytes
+=== End Memory Layout ===
+=== Validating Memory Allocation ===
+✓ No memory allocation conflicts detected.
+=== Validation Complete ===
+=== Memory Allocation Analysis Complete ===
+
+ASSIGN: @N = 4
+=== LOAD_VAR DEBUG ===
+变量: '4', regId: -1, 目标寄存器: r0
+变量类型: 8ConstInt
+=== END DEBUG ===
+ASSIGN: @newline = 10
+=== LOAD_VAR DEBUG ===
+变量: '10', regId: -1, 目标寄存器: r0
+变量类型: 8ConstInt
+=== END DEBUG ===
+ASSIGN:  = 0
+=== LOAD_VAR DEBUG ===
+变量: '0', regId: -1, 目标寄存器: r0
+变量类型: 8ConstInt
+=== END DEBUG ===
+ASSIGN:  = 0
+=== LOAD_VAR DEBUG ===
+变量: '0', regId: -1, 目标寄存器: r0
+变量类型: 8ConstInt
+=== END DEBUG ===
+ASSIGN:  = 1478
+=== LOAD_VAR DEBUG ===
+变量: '1478', regId: -1, 目标寄存器: r0
+变量类型: 8ConstInt
+=== END DEBUG ===
+=== LOAD_VAR DEBUG ===
+变量: '', regId: -1, 目标寄存器: r0
+变量类型: 13LocalVariable
+=== END DEBUG ===
+=== LOAD_VAR DEBUG ===
+变量: '0', regId: -1, 目标寄存器: r1
+变量类型: 8ConstInt
+=== END DEBUG ===
+ASSIGN:  = 
+=== LOAD_VAR DEBUG ===
+变量: '', regId: -1, 目标寄存器: r0
+变量类型: 17BinaryInstruction
+★ 这是一个二元指令，检查操作数...
+  操作数数量: 2
+  操作数[0]: '', 类型: 13LocalVariable
+  操作数[1]: '0', 类型: 8ConstInt
+★ 未能在操作数中找到函数参数
+=== END DEBUG ===
+ASSIGN: r0 = 
+=== LOAD_VAR DEBUG ===
+变量: '', regId: -1, 目标寄存器: r0
+变量类型: 13LocalVariable
+=== END DEBUG ===
+ASSIGN: r1 = 
+=== LOAD_VAR DEBUG ===
+变量: '', regId: -1, 目标寄存器: r1
+变量类型: 13LocalVariable
+=== END DEBUG ===
+  Processing Arg[0]: 'r0' (LOCAL) -> r0
+    -> Checking variable: 'r0'
+    -> Checking if r0 is derived from global
+    -> LOCAL/CONSTANT variable -> r0
+ASSIGN: r0 = r0
+    -> Used assignment for local variable
+  Processing Arg[1]: 'r1' (LOCAL) -> r1
+    -> Checking variable: 'r1'
+    -> Checking if r1 is derived from global
+    -> LOCAL/CONSTANT variable -> r1
+ASSIGN: r1 = r1
+    -> Used assignment for local variable
+ASSIGN:  = r0
+ASSIGN:  = r0
+ASSIGN:  = 
+=== LOAD_VAR DEBUG ===
+变量: '', regId: -1, 目标寄存器: r0
+变量类型: 19FuncCallInstruction
+=== END DEBUG ===
+ASSIGN:  = 0
+=== LOAD_VAR DEBUG ===
+变量: '0', regId: -1, 目标寄存器: r0
+变量类型: 8ConstInt
+=== END DEBUG ===
+ASSIGN:  = 0
+=== LOAD_VAR DEBUG ===
+变量: '0', regId: -1, 目标寄存器: r0
+变量类型: 8ConstInt
+=== END DEBUG ===
+=== LOAD_VAR DEBUG ===
+变量: '', regId: -1, 目标寄存器: r0
+变量类型: 13LocalVariable
+=== END DEBUG ===
+=== LOAD_VAR DEBUG ===
+变量: '4', regId: -1, 目标寄存器: r1
+变量类型: 8ConstInt
+=== END DEBUG ===
+ASSIGN:  = 
+=== LOAD_VAR DEBUG ===
+变量: '', regId: -1, 目标寄存器: r0
+变量类型: 17BinaryInstruction
+★ 这是一个二元指令，检查操作数...
+  操作数数量: 2
+  操作数[0]: '', 类型: 13LocalVariable
+  操作数[1]: '4', 类型: 8ConstInt
+★ 未能在操作数中找到函数参数
+=== END DEBUG ===
+=== LOAD_VAR DEBUG ===
+变量: '', regId: -1, 目标寄存器: r0
+变量类型: 13LocalVariable
+=== END DEBUG ===
+=== LOAD_VAR DEBUG ===
+变量: '0', regId: -1, 目标寄存器: r0
+变量类型: 8ConstInt
+=== END DEBUG ===
+=== LOAD_VAR DEBUG ===
+变量: '', regId: -1, 目标寄存器: r1
+变量类型: 13LocalVariable
+=== END DEBUG ===
+=== LOAD_VAR DEBUG ===
+变量: '', regId: -1, 目标寄存器: r0
+变量类型: 17BinaryInstruction
+★ 这是一个二元指令，检查操作数...
+  操作数数量: 2
+  操作数[0]: '0', 类型: 8ConstInt
+  操作数[1]: '', 类型: 13LocalVariable
+★ 未能在操作数中找到函数参数
+=== END DEBUG ===
+=== LOAD_VAR DEBUG ===
+变量: '', regId: -1, 目标寄存器: r0
+变量类型: 13LocalVariable
+=== END DEBUG ===
+=== LOAD_VAR DEBUG ===
+变量: '', regId: -1, 目标寄存器: r1
+变量类型: 17BinaryInstruction
+★ 这是一个二元指令，检查操作数...
+  操作数数量: 2
+  操作数[0]: '', 类型: 17BinaryInstruction
+  -> 发现BinaryInstruction操作数，递归追踪...
+    子操作数[0]: '0', 类型: 8ConstInt
+    子操作数[1]: '', 类型: 13LocalVariable
+  操作数[1]: '4', 类型: 8ConstInt
+★ 未能在操作数中找到函数参数
+=== END DEBUG ===
+ASSIGN:  = 
+=== LOAD_VAR DEBUG ===
+变量: '', regId: -1, 目标寄存器: r0
+变量类型: 17BinaryInstruction
+★ 这是一个二元指令，检查操作数...
+  操作数数量: 2
+  操作数[0]: '', 类型: 13LocalVariable
+  操作数[1]: '', 类型: 17BinaryInstruction
+  -> 发现BinaryInstruction操作数，递归追踪...
+    子操作数[0]: '', 类型: 17BinaryInstruction
+    子操作数[1]: '4', 类型: 8ConstInt
+★ 未能在操作数中找到函数参数
+=== END DEBUG ===
+  -> Found pointer operation:  = *
+ASSIGN:  = *
+  -> Detected pointer dereference, calling translate_load_ptr
+Executing translate_load_ptr
+  -> result name: ''
+  -> ptrVar name: ''
+    -> Checking variable: ''
+    -> Anonymous variable, checking if derived from global
+      -> Checking anonymous pointer for global derivation
+      -> No global derivation found for anonymous variable
+  -> Falling back to LOCAL variable processing
+=== LOAD_VAR DEBUG ===
+变量: '', regId: -1, 目标寄存器: r0
+变量类型: 13LocalVariable
+=== END DEBUG ===
+=== End translate_load_ptr (LOCAL) ===
+ASSIGN:  = 
+=== LOAD_VAR DEBUG ===
+变量: '', regId: -1, 目标寄存器: r0
+变量类型: 13LocalVariable
+=== END DEBUG ===
+ASSIGN: r0 = 
+=== LOAD_VAR DEBUG ===
+变量: '', regId: -1, 目标寄存器: r0
+变量类型: 13LocalVariable
+=== END DEBUG ===
+  Processing Arg[0]: 'r0' (LOCAL) -> r0
+    -> Checking variable: 'r0'
+    -> Checking if r0 is derived from global
+    -> LOCAL/CONSTANT variable -> r0
+ASSIGN: r0 = r0
+    -> Used assignment for local variable
+ASSIGN: r0 = @newline
+=== LOAD_VAR DEBUG ===
+变量: '@newline', regId: -1, 目标寄存器: r0
+变量类型: 14GlobalVariable
+=== END DEBUG ===
+  Processing Arg[0]: 'r0' (LOCAL) -> r0
+    -> Checking variable: 'r0'
+    -> Checking if r0 is derived from global
+    -> LOCAL/CONSTANT variable -> r0
+ASSIGN: r0 = r0
+    -> Used assignment for local variable
+=== LOAD_VAR DEBUG ===
+变量: '', regId: -1, 目标寄存器: r0
+变量类型: 13LocalVariable
+=== END DEBUG ===
+=== LOAD_VAR DEBUG ===
+变量: '1', regId: -1, 目标寄存器: r1
+变量类型: 8ConstInt
+=== END DEBUG ===
+ASSIGN:  = 
+=== LOAD_VAR DEBUG ===
+变量: '', regId: -1, 目标寄存器: r0
+变量类型: 17BinaryInstruction
+★ 这是一个二元指令，检查操作数...
+  操作数数量: 2
+  操作数[0]: '', 类型: 13LocalVariable
+  操作数[1]: '1', 类型: 8ConstInt
+★ 未能在操作数中找到函数参数
+=== END DEBUG ===
+ASSIGN:  = 0
+=== LOAD_VAR DEBUG ===
+变量: '0', regId: -1, 目标寄存器: r0
+变量类型: 8ConstInt
+=== END DEBUG ===
+=== LOAD_VAR DEBUG ===
+变量: '', regId: -1, 目标寄存器: r0
+变量类型: 13LocalVariable
+=== END DEBUG ===

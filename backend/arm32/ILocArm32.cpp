@@ -695,6 +695,7 @@ void ILocArm32::load_var(int rs_reg_no, Value * src_var)
             }
         }
         printf("★ 未能在操作数中找到函数参数\n");
+        printf("★ 这是一个二元运算，需要在调用层处理\n");
     }
 
     printf("=== END DEBUG ===\n");
@@ -733,7 +734,13 @@ void ILocArm32::load_var(int rs_reg_no, Value * src_var)
             std::string baseReg = PlatformArm32::regName[var_baseRegId];
 
             if (PlatformArm32::constExpr(var_offset)) {
-                emit("add", rsReg, baseReg, toStr(var_offset));
+                if (var_offset < 0) {
+                    // 负偏移使用 sub 指令: sub r0,fp,#40
+                    emit("sub", rsReg, baseReg, toStr(-var_offset));
+                } else {
+                    // 正偏移使用 add 指令: add r0,fp,#16
+                    emit("add", rsReg, baseReg, toStr(var_offset));
+                }
             } else {
                 load_imm(rs_reg_no, var_offset);
                 emit("add", rsReg, baseReg, rsReg);
@@ -852,10 +859,15 @@ void ILocArm32::leaStack(int rs_reg_no, int base_reg_no, int off)
     std::string rs_reg_name = PlatformArm32::regName[rs_reg_no];
     std::string base_reg_name = PlatformArm32::regName[base_reg_no];
 
-    if (PlatformArm32::constExpr(off))
-        // add r8,fp,#-16
-        emit("add", rs_reg_name, base_reg_name, toStr(off));
-    else {
+    if (PlatformArm32::constExpr(off)) {
+        if (off < 0) {
+            // 负偏移使用 sub 指令: sub r8,fp,#40
+            emit("sub", rs_reg_name, base_reg_name, toStr(-off));
+        } else {
+            // 正偏移使用 add 指令: add r8,fp,#16
+            emit("add", rs_reg_name, base_reg_name, toStr(off));
+        }
+    } else {
         // ldr r8,=-257
         load_imm(rs_reg_no, off);
 
