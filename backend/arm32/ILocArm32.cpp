@@ -425,13 +425,42 @@ void ILocArm32::load_var(int rs_reg_no, Value * src_var)
         }
         printf("=== END DEBUG (函数参数a2) ===\n");
         return;
+
+    } else if (varName == "%t3") {
+        printf("★★★ 函数参数a3: %s -> 使用r3 ★★★\n", varName.c_str());
+        if (rs_reg_no != 3) {
+            emit("mov", PlatformArm32::regName[rs_reg_no], "r3");
+            printf("生成: mov r%d, r3\n", rs_reg_no);
+        } else {
+            printf("目标就是r3，无需移动\n");
+        }
+        printf("=== END DEBUG (函数参数a3) ===\n");
+        return;
+
+    } else if (varName.length() >= 3 && varName.substr(0, 2) == "%t") {
+        // 处理 %t4, %t5, %t6 等栈参数
+        int paramIndex = std::stoi(varName.substr(2));
+        if (paramIndex >= 4) {
+            printf("★★★ 栈参数 %s (索引: %d) -> 从栈加载 ★★★\n", varName.c_str(), paramIndex);
+            
+            // 栈参数的偏移计算：
+            // 栈参数从 fp+8 开始（fp+0是保存的fp, fp+4是返回地址）
+            // 第5个参数(t4)在 fp+8, 第6个(t5)在 fp+12, 以此类推
+            int stack_offset = 8 + (paramIndex - 4) * 4;
+            
+            printf("从栈加载参数: ldr r%d, [fp, #%d]\n", rs_reg_no, stack_offset);
+            load_base(rs_reg_no, ARM32_FP_REG_NO, stack_offset);
+            printf("=== END DEBUG (栈参数) ===\n");
+            return;
+        }
     }
 
     // **方案2：通过FormalParam类型识别**
     if (auto fp = dynamic_cast<FormalParam *>(src_var)) {
         printf("★ 这是函数参数: %s, regId: %d\n", fp->getName().c_str(), fp->getRegId());
 
-        if (fp->getRegId() != -1 && fp->getRegId() < 4) {
+        if (fp->getRegId() != -1 && fp->getRegId() < 16) {
+            // 寄存器参数
             int32_t src_regId = fp->getRegId();
             printf("使用参数寄存器: r%d\n", src_regId);
 
@@ -439,8 +468,22 @@ void ILocArm32::load_var(int rs_reg_no, Value * src_var)
                 emit("mov", PlatformArm32::regName[rs_reg_no], PlatformArm32::regName[src_regId]);
                 printf("生成: mov r%d, r%d\n", rs_reg_no, src_regId);
             }
-            printf("=== END DEBUG (FormalParam) ===\n");
+            printf("=== END DEBUG (FormalParam寄存器) ===\n");
             return;
+        } else {
+            // 栈参数：检查是否设置了内存地址
+            int32_t baseRegId = -1;
+            int64_t offset = -1;
+            
+            if (fp->getMemoryAddr(&baseRegId, &offset)) {
+                printf("★★★ 栈参数 %s: 基址r%d, 偏移%ld ★★★\n", fp->getName().c_str(), baseRegId, offset);
+                load_base(rs_reg_no, baseRegId, offset);
+                printf("生成: ldr r%d, [r%d, #%ld]\n", rs_reg_no, baseRegId, offset);
+                printf("=== END DEBUG (FormalParam栈参数) ===\n");
+                return;
+            } else {
+                printf("ERROR: 栈参数 %s 没有设置内存地址\n", fp->getName().c_str());
+            }
         }
     } // **方案3：追踪BinaryInstruction的操作数，寻找函数参数**
     if (auto binInst = dynamic_cast<BinaryInstruction *>(src_var)) {

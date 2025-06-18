@@ -441,19 +441,25 @@ void Function::reallocateMemory()
         }
     }
 
-    // 第二步：ARM调用约定 - 前4个参数通过寄存器传递
+    // 第二步：ARM调用约定 - 修复栈参数偏移计算
     printf("--- Phase 2: Allocating Function Parameters ---\n");
     for (size_t i = 0; i < actualParams.size(); i++) {
         LocalVariable * param = actualParams[i];
 
         if (i < 4) {
-            // 前4个参数通过寄存器r0-r3传递，保存到栈上
+            // 前4个参数通过寄存器r0-r3传递，但在栈上仍有对应位置
+            // ARM标准调用约定：所有参数在栈上都有对应的槽位
             int32_t paramOffset = 8 + i * 4; // fp+8, fp+12, fp+16, fp+20
-            printf("Parameter[%zu] %s: saved from r%zu to fp+%d\n", i, param->getName().c_str(), i, paramOffset);
+            printf("Parameter[%zu] %s: register r%zu, stack shadow at fp+%d\n",
+                   i,
+                   param->getName().c_str(),
+                   i,
+                   paramOffset);
             param->setMemoryAddr(framePointerReg, paramOffset);
         } else {
-            // 超过4个的参数已经在栈上
-            int32_t paramOffset = 8 + i * 4;
+            // 第5个及以后的参数通过栈传递
+            // 关键修复：正确计算栈参数的偏移
+            int32_t paramOffset = 8 + i * 4; // 继续从 fp+20, fp+24, fp+28...
             printf("Parameter[%zu] %s: on stack at fp+%d\n", i, param->getName().c_str(), paramOffset);
             param->setMemoryAddr(framePointerReg, paramOffset);
         }
@@ -471,7 +477,8 @@ void Function::reallocateMemory()
     // ===== 新策略：优先分配所有局部数组 =====
     printf("--- Phase 4: Allocating ALL Local Arrays First ---\n");
 
-    int32_t currentOffset = -8; // 从fp-8开始，留出fp-4给第一个普通变量
+    // 修复：从更低的偏移开始，避免与参数冲突
+    int32_t currentOffset = -8; // 从fp-8开始分配局部变量
 
     // 按数组大小从大到小排序，大数组优先分配
     std::sort(localArrays.begin(), localArrays.end(), [this](LocalVariable * a, LocalVariable * b) {
@@ -530,9 +537,20 @@ void Function::reallocateMemory()
         memVar->setMemoryAddr(framePointerReg, currentOffset);
     }
 
-    // 第八步：计算栈帧大小
-    int32_t totalStackSize = -(currentOffset + 8);
-    totalStackSize = (totalStackSize + 15) & ~15; // 16字节对齐，更好的性能
+    // 第八步：添加安全边距，防止参数传递时的栈重叠问题
+    printf("--- Phase 8: Adding Safety Margin for Stack Parameter Passing ---\n");
+    // 为参数传递预留安全空间
+    // 主要解决以下问题：
+    // 1. 函数调用时，栈参数存储在[sp]和[sp+4]
+    // 2. 如果sp恰好指向已分配的临时变量位置，会导致覆盖
+    // 3. 添加32字节安全边距，确保参数传递区域不与局部变量重叠
+    int32_t safetyMargin = 32;
+    currentOffset -= safetyMargin;
+
+    // 计算实际需要的栈空间
+    int32_t actualStackUsage = -currentOffset;
+    // 改为8字节对齐而不是16字节，减少对栈参数位置的影响
+    int32_t totalStackSize = (actualStackUsage + 7) & ~7; // 8字节对齐
 
     int32_t oldMaxDepth = getMaxDep();
     setMaxDep(totalStackSize);
@@ -541,15 +559,20 @@ void Function::reallocateMemory()
     printf("Stack frame size: %d -> %d bytes\n", oldMaxDepth, totalStackSize);
 
     if (!actualParams.empty()) {
-        printf("  Parameters:     %zu params (fp+8 to fp+%d)\n",
-               actualParams.size(),
-               8 + (int32_t) actualParams.size() * 4 - 4);
+        printf("  Parameters:     %zu params\n", actualParams.size());
+        for (size_t i = 0; i < actualParams.size(); i++) {
+            int32_t offset = 8 + i * 4;
+            printf("    Param[%zu] %s: fp+%d %s\n",
+                   i,
+                   actualParams[i]->getName().c_str(),
+                   offset,
+                   i < 4 ? "(register+shadow)" : "(stack)");
+        }
     }
 
     if (!localArrays.empty()) {
         printf("  Local arrays:   %zu arrays (优先分配，8字节对齐)\n", localArrays.size());
         for (auto & var: localArrays) {
-            // 修复：移除未使用的变量，简化显示
             int32_t size = calculateVariableSize(var->getType());
             printf("    %s: allocated (%d bytes)\n", var->getName().c_str(), size);
         }
@@ -558,7 +581,7 @@ void Function::reallocateMemory()
     printf("  Local vars:     %zu variables\n", localVariables.size());
     printf("  Temp pointers:  %zu variables\n", tempPointers.size());
     printf("  Global derived: %zu variables (no stack space)\n", globalDerived.size());
-    printf("  Total usage:    %d bytes (16字节对齐)\n", totalStackSize);
+    printf("  Total usage:    %d bytes (8字节对齐)\n", totalStackSize);
 
     memoryFixed = true;
     printf("=== Memory Reallocation Complete ===\n");

@@ -279,15 +279,18 @@ void InstSelectorArm32::translate_entry(Instruction * inst)
                 printf("  栈参数 %s (索引: %zu) - 通过栈传递\n", param->getName().c_str(), i);
 
                 // 栈参数的偏移计算：
-                // 栈参数从 fp+8 开始（fp+0是保存的fp, fp+4是返回地址）
-                // 第5个参数在 fp+8, 第6个在 fp+12, 以此类推
-                int stack_offset = 8 + (i - 4) * 4;
+                // 动态计算基于实际保护的寄存器数量
+                // 对于add6函数（2个寄存器）：fp+8开始是参数
+                // 对于main函数（3个寄存器）：fp+12开始是参数
+                int base_offset = func->getProtectedReg().size() * 4;
+                int stack_offset = base_offset + (i - 4) * 4;
 
                 // 设置参数为栈变量（regId = -1 表示不在寄存器中）
                 param->setRegId(-1);
 
-                // 这里可能需要设置栈偏移，但具体实现依赖于内存管理系统
-                printf("  栈参数 %s 偏移: fp+%d\n", param->getName().c_str(), stack_offset);
+                // 设置栈偏移：基址寄存器为fp(ARM32_FP_REG_NO)，偏移为计算的stack_offset
+                param->setMemoryAddr(ARM32_FP_REG_NO, stack_offset);
+                printf("  栈参数 %s 设置: regId=-1, baseReg=fp, 偏移=+%d\n", param->getName().c_str(), stack_offset);
             }
         }
         printf("=== 参数保存完成 ===\n");
