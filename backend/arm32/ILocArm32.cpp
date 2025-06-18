@@ -847,7 +847,19 @@ void ILocArm32::lea_var(int rs_reg_no, Value * var)
 /// @param tmp_reg_no 第三方寄存器
 void ILocArm32::store_var(int src_reg_no, Value * dest_var, int tmp_reg_no)
 {
-    // 被保存目标变量肯定不是常量
+    // 添加调试输出
+    printf("DEBUG: store_var - src_reg=r%d, dest_var='%s'\n", 
+           src_reg_no, dest_var->getName().c_str());
+    
+    // 检查是否存在变量冲突
+    if (!dest_var->getName().empty()) {
+        int32_t dest_baseRegId = -1;
+        int64_t dest_offset = -1;
+        bool hasMemAddr = dest_var->getMemoryAddr(&dest_baseRegId, &dest_offset);
+        if (hasMemAddr) {
+            printf("DEBUG: dest_var memory addr: fp%+ld\n", dest_offset);
+        }
+    }
 
     if (dest_var->getRegId() != -1) {
 

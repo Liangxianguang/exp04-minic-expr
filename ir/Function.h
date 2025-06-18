@@ -174,42 +174,46 @@ public:
     ///
     void realArgCountReset();
 
-	/// 
-	///添加对循环控制结构所需的break和continue标签的支持-lxg
+    ///
+    ///添加对循环控制结构所需的break和continue标签的支持-lxg
 
     /// @brief 设置循环的break标签
     /// @param label break跳转目标标签
-    void setBreakLabel(Instruction* label) {
+    void setBreakLabel(Instruction * label)
+    {
         breakLabel = label;
     }
-    
+
     /// @brief 获取当前循环的break标签
     /// @return break跳转目标标签
-    Instruction* getBreakLabel() {
+    Instruction * getBreakLabel()
+    {
         return breakLabel;
     }
-    
+
     /// @brief 设置循环的continue标签
     /// @param label continue跳转目标标签
-    void setContinueLabel(Instruction* label) {
+    void setContinueLabel(Instruction * label)
+    {
         continueLabel = label;
     }
-    
+
     /// @brief 获取当前循环的continue标签
     /// @return continue跳转目标标签
-    Instruction* getContinueLabel() {
+    Instruction * getContinueLabel()
+    {
         return continueLabel;
     }
 
-	// 在 public 部分的其他函数声明后添加-lxg
-    
+    // 在 public 部分的其他函数声明后添加-lxg
+
     /// @brief 用于在逻辑运算过程中传递临时指令的辅助结构
     struct ExtraData {
         /// @brief 布尔值检查指令
-        BinaryInstruction* boolCheckInst = nullptr;
-        
+        BinaryInstruction * boolCheckInst = nullptr;
+
         /// @brief 将布尔值移动到结果变量的指令
-        MoveInstruction* moveInst = nullptr;
+        MoveInstruction * moveInst = nullptr;
     };
 
     /// @brief 重新分配所有变量的内存地址（修复地址冲突）
@@ -229,7 +233,8 @@ public:
 
     /// @brief 获取额外数据的引用
     /// @return 额外数据的引用
-    ExtraData& getExtraData() {
+    ExtraData & getExtraData()
+    {
         return extraData;
     }
 
@@ -261,12 +266,12 @@ private:
     ///
     /// @brief 当前循环的break标签，用于break语句跳转
     ///
-    Instruction* breakLabel = nullptr;
-    
+    Instruction * breakLabel = nullptr;
+
     ///
     /// @brief 当前循环的continue标签，用于continue语句跳转
     ///
-    Instruction* continueLabel = nullptr;
+    Instruction * continueLabel = nullptr;
 
     ///
     /// @brief 线性IR指令块，可包含多条IR指令
@@ -333,8 +338,8 @@ private:
     ///
     int32_t realArgCount = 0;
 
-	// 在 private 部分的其他成员变量后添加-lxg
-    
+    // 在 private 部分的其他成员变量后添加-lxg
+
     /// @brief 用于在函数间传递临时指令的额外数据
     ExtraData extraData;
 

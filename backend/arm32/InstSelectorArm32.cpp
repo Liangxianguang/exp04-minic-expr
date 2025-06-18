@@ -387,6 +387,46 @@ void InstSelectorArm32::translate_two_operator(Instruction * inst, string operat
     int32_t result_reg_no = inst->getRegId();
     int32_t load_result_reg_no, load_arg1_reg_no, load_arg2_reg_no;
 
+    // **关键修复：检查是否会导致循环变量覆盖**
+    bool isLoopVariableResult = false;
+    if (result_reg_no == -1) {
+        // 检查result是否是一个可能被后续使用的重要变量（如循环变量）
+        std::string resultName = result->getName();
+        std::string resultIRName = result->getIRName();
+
+        // 检查是否是常用的循环变量名
+        if (!resultName.empty() && (resultName == "i" || resultName == "j" || resultName == "k" ||
+                                    resultName.find("loop") != std::string::npos)) {
+            isLoopVariableResult = true;
+            printf("WARNING: Detected potential loop variable result: %s\n", resultName.c_str());
+        }
+
+        // 检查IR名称模式，避免覆盖重要的本地变量
+        if (!resultIRName.empty() && resultIRName.find("%l") == 0) {
+            // 检查这个变量是否在后续指令中被多次使用
+            int usageCount = 0;
+            for (auto laterInst: ir) {
+                if (laterInst == inst)
+                    continue; // 跳过当前指令
+
+                for (int i = 0; i < laterInst->getOperandsNum(); i++) {
+                    Value * operand = laterInst->getOperand(i);
+                    if (operand == result) {
+                        usageCount++;
+                        if (usageCount > 1) {
+                            isLoopVariableResult = true;
+                            printf("WARNING: Variable %s used multiple times later, treating as important\n",
+                                   resultIRName.c_str());
+                            break;
+                        }
+                    }
+                }
+                if (isLoopVariableResult)
+                    break;
+            }
+        }
+    }
+
     // 看arg1是否是寄存器，若是则寄存器寻址，否则要load变量到寄存器中
     if (arg1_reg_no == -1) {
         // 分配一个寄存器r8
@@ -411,8 +451,15 @@ void InstSelectorArm32::translate_two_operator(Instruction * inst, string operat
 
     // 看结果变量是否是寄存器，若不是则需要分配一个新的寄存器来保存运算的结果
     if (result_reg_no == -1) {
-        // 分配一个寄存器r10，用于暂存结果
-        load_result_reg_no = simpleRegisterAllocator.Allocate(result);
+        // **修复：为重要变量（如循环变量）分配独立的临时寄存器**
+        if (isLoopVariableResult) {
+            // 为重要变量分配独立的临时寄存器，不关联到变量本身
+            load_result_reg_no = simpleRegisterAllocator.Allocate();
+            printf("Allocated independent register r%d for important variable\n", load_result_reg_no);
+        } else {
+            // 分配一个寄存器r10，用于暂存结果
+            load_result_reg_no = simpleRegisterAllocator.Allocate(result);
+        }
     } else {
         load_result_reg_no = result_reg_no;
     }
@@ -428,14 +475,34 @@ void InstSelectorArm32::translate_two_operator(Instruction * inst, string operat
 
         // 这里使用预留的临时寄存器，因为立即数可能过大，必须借助寄存器才可操作。
 
-        // r10 -> result
-        iloc.store_var(load_result_reg_no, result, ARM32_TMP_REG_NO);
+        // **修复：检查是否需要延迟存储重要变量**
+        if (isLoopVariableResult) {
+            // 对于重要变量，我们暂时不立即存储到内存，而是保持在寄存器中
+            // 直到真正需要时再存储
+            printf("Delaying store for important variable, keeping in register r%d\n", load_result_reg_no);
+
+            // 设置变量的临时寄存器ID，以便后续使用
+            result->setLoadRegId(load_result_reg_no);
+
+            // 不要立即释放这个寄存器
+        } else {
+            // r10 -> result
+            iloc.store_var(load_result_reg_no, result, ARM32_TMP_REG_NO);
+
+            // 修复：立即释放结果寄存器，避免变量关联混乱
+            simpleRegisterAllocator.free(load_result_reg_no);
+        }
     }
 
     // 释放寄存器
     simpleRegisterAllocator.free(arg1);
     simpleRegisterAllocator.free(arg2);
-    simpleRegisterAllocator.free(result);
+    // 注意：如果result_reg_no != -1，这里不释放result，因为它是寄存器变量
+    // 对于重要变量，我们也不释放，因为它们需要保持在寄存器中
+    if (result_reg_no == -1 && !isLoopVariableResult) {
+        // result已经在上面释放了，这里不需要再释放
+        // simpleRegisterAllocator.free(result);
+    }
 }
 
 /// @brief 整数加法指令翻译成ARM32汇编

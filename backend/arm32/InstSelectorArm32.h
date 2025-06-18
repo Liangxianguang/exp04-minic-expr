@@ -151,12 +151,17 @@ protected:
         if (result_reg_no == -1) {
             // r10 -> result
             iloc.store_var(load_result_reg_no, result, ARM32_TMP_REG_NO);
+            // 修复：立即释放结果寄存器，避免变量关联混乱
+            simpleRegisterAllocator.free(load_result_reg_no);
         }
 
         // 释放寄存器
         simpleRegisterAllocator.free(arg1);
         simpleRegisterAllocator.free(arg2);
-        simpleRegisterAllocator.free(result);
+        // 注意：如果result_reg_no != -1，这里不释放result，因为它是寄存器变量
+        if (result_reg_no == -1) {
+            // result已经在上面释放了，这里不需要再释放
+        }
     }
 
     /// @brief 整数负号指令翻译成ARM32汇编
@@ -195,11 +200,16 @@ protected:
         if (result_reg_no == -1) {
             // 保存结果到内存
             iloc.store_var(load_result_reg_no, result, ARM32_TMP_REG_NO);
+            // 修复：立即释放结果寄存器，避免变量关联混乱
+            simpleRegisterAllocator.free(load_result_reg_no);
         }
 
         // 释放寄存器
         simpleRegisterAllocator.free(arg1);
-        simpleRegisterAllocator.free(result);
+        // 注意：如果result_reg_no != -1，这里不释放result，因为它是寄存器变量
+        if (result_reg_no == -1) {
+            // result已经在上面释放了，这里不需要再释放
+        }
     }
 
     //添加关系运算符的处理函数实现-lxg
@@ -251,12 +261,17 @@ protected:
         // 保存结果
         if (result_reg_no == -1) {
             iloc.store_var(load_result_reg_no, result, ARM32_TMP_REG_NO);
+            // 修复：立即释放结果寄存器，避免变量关联混乱
+            simpleRegisterAllocator.free(load_result_reg_no);
         }
 
         // 释放寄存器
         simpleRegisterAllocator.free(arg1);
         simpleRegisterAllocator.free(arg2);
-        simpleRegisterAllocator.free(result);
+        // 注意：如果result_reg_no != -1，这里不释放result，因为它是寄存器变量
+        if (result_reg_no == -1) {
+            // result已经在上面释放了，这里不需要再释放
+        }
     }
 
     /// @brief 整数小于指令翻译成ARM32汇编
