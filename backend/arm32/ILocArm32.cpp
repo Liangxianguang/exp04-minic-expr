@@ -385,90 +385,58 @@ void ILocArm32::mov_reg(int rs_reg_no, int src_reg_no)
 /// @param src_var 源操作数
 void ILocArm32::load_var(int rs_reg_no, Value * src_var)
 {
-    printf("=== LOAD_VAR DEBUG ===\n");
-    printf("变量: '%s', regId: %d, 目标寄存器: r%d\n", src_var->getIRName().c_str(), src_var->getRegId(), rs_reg_no);
-    printf("变量类型: %s\n", typeid(*src_var).name());
-
     // **关键修复：检查是否是函数参数**
     std::string varName = src_var->getIRName();
 
     // **方案1：通过IR名称识别函数参数**
     if (varName == "%t0") {
-        printf("★★★ 函数参数a0: %s -> 使用r0 ★★★\n", varName.c_str());
         if (rs_reg_no != 0) {
             emit("mov", PlatformArm32::regName[rs_reg_no], "r0");
-            printf("生成: mov r%d, r0\n", rs_reg_no);
-        } else {
-            printf("目标就是r0，无需移动\n");
         }
-        printf("=== END DEBUG (函数参数a0) ===\n");
         return;
 
     } else if (varName == "%t1") {
-        printf("★★★ 函数参数a1: %s -> 使用r1 ★★★\n", varName.c_str());
         if (rs_reg_no != 1) {
             emit("mov", PlatformArm32::regName[rs_reg_no], "r1");
-            printf("生成: mov r%d, r1\n", rs_reg_no);
-        } else {
-            printf("目标就是r1，无需移动\n");
         }
-        printf("=== END DEBUG (函数参数a1) ===\n");
         return;
 
     } else if (varName == "%t2") {
-        printf("★★★ 函数参数a2: %s -> 使用r2 ★★★\n", varName.c_str());
         if (rs_reg_no != 2) {
             emit("mov", PlatformArm32::regName[rs_reg_no], "r2");
-            printf("生成: mov r%d, r2\n", rs_reg_no);
-        } else {
-            printf("目标就是r2，无需移动\n");
         }
-        printf("=== END DEBUG (函数参数a2) ===\n");
         return;
 
     } else if (varName == "%t3") {
-        printf("★★★ 函数参数a3: %s -> 使用r3 ★★★\n", varName.c_str());
         if (rs_reg_no != 3) {
             emit("mov", PlatformArm32::regName[rs_reg_no], "r3");
-            printf("生成: mov r%d, r3\n", rs_reg_no);
-        } else {
-            printf("目标就是r3，无需移动\n");
         }
-        printf("=== END DEBUG (函数参数a3) ===\n");
         return;
 
     } else if (varName.length() >= 3 && varName.substr(0, 2) == "%t") {
         // 处理 %t4, %t5, %t6 等栈参数
         int paramIndex = std::stoi(varName.substr(2));
         if (paramIndex >= 4) {
-            printf("★★★ 栈参数 %s (索引: %d) -> 从栈加载 ★★★\n", varName.c_str(), paramIndex);
 
             // 栈参数的偏移计算：
             // 栈参数从 fp+8 开始（fp+0是保存的fp, fp+4是返回地址）
             // 第5个参数(t4)在 fp+8, 第6个(t5)在 fp+12, 以此类推
             int stack_offset = 8 + (paramIndex - 4) * 4;
 
-            printf("从栈加载参数: ldr r%d, [fp, #%d]\n", rs_reg_no, stack_offset);
             load_base(rs_reg_no, ARM32_FP_REG_NO, stack_offset);
-            printf("=== END DEBUG (栈参数) ===\n");
             return;
         }
     }
 
     // **方案2：通过FormalParam类型识别**
     if (auto fp = dynamic_cast<FormalParam *>(src_var)) {
-        printf("★ 这是函数参数: %s, regId: %d\n", fp->getName().c_str(), fp->getRegId());
-
         if (fp->getRegId() != -1 && fp->getRegId() < 16) {
             // 寄存器参数
             int32_t src_regId = fp->getRegId();
-            printf("使用参数寄存器: r%d\n", src_regId);
 
             if (src_regId != rs_reg_no) {
                 emit("mov", PlatformArm32::regName[rs_reg_no], PlatformArm32::regName[src_regId]);
-                printf("生成: mov r%d, r%d\n", rs_reg_no, src_regId);
             }
-            printf("=== END DEBUG (FormalParam寄存器) ===\n");
             return;
         } else {
             // 栈参数：检查是否设置了内存地址
@@ -476,20 +444,12 @@ void ILocArm32::load_var(int rs_reg_no, Value * src_var)
             int64_t offset = -1;
 
             if (fp->getMemoryAddr(&baseRegId, &offset)) {
-                printf("★★★ 栈参数 %s: 基址r%d, 偏移%ld ★★★\n", fp->getName().c_str(), baseRegId, offset);
                 load_base(rs_reg_no, baseRegId, offset);
-                printf("生成: ldr r%d, [r%d, #%ld]\n", rs_reg_no, baseRegId, offset);
-                printf("=== END DEBUG (FormalParam栈参数) ===\n");
                 return;
-            } else {
-                printf("ERROR: 栈参数 %s 没有设置内存地址\n", fp->getName().c_str());
             }
         }
     } // **方案3：追踪BinaryInstruction的操作数，寻找函数参数**
     if (auto binInst = dynamic_cast<BinaryInstruction *>(src_var)) {
-        printf("★ 这是一个二元指令，检查操作数...\n");
-        printf("  操作数数量: %d\n", binInst->getOperandsNum());
-
         // **首先检查是否所有操作数都是常量，如果是则直接计算**
         bool allConstant = true;
         std::vector<int> constValues;
@@ -524,13 +484,7 @@ void ILocArm32::load_var(int rs_reg_no, Value * src_var)
             }
 
             if (allConstant) {
-                printf("★★★ 常量折叠: %d %s %d = %d ★★★\n",
-                       constValues[0],
-                       (op == IRInstOperator::IRINST_OP_ADD_I) ? "+" : "*",
-                       constValues[1],
-                       result);
                 load_imm(rs_reg_no, result);
-                printf("=== END DEBUG (常量折叠) ===\n");
                 return;
             }
         }
@@ -539,55 +493,35 @@ void ILocArm32::load_var(int rs_reg_no, Value * src_var)
         // 检查所有操作数，寻找函数参数
         for (int32_t i = 0; i < binInst->getOperandsNum(); i++) {
             Value * operand = binInst->getOperand(i);
-            printf("  操作数[%d]: ", i);
 
             if (!operand) {
-                printf("null\n");
                 continue;
             }
 
             std::string opName = operand->getIRName();
-            printf("'%s', 类型: %s\n", opName.c_str(), typeid(*operand).name());
 
             // 检查操作数是否是函数参数
             if (opName == "%t0") {
-                printf("★★★ 追踪到函数参数a0，使用r0 ★★★\n");
                 if (rs_reg_no != 0) {
                     emit("mov", PlatformArm32::regName[rs_reg_no], "r0");
-                    printf("生成: mov r%d, r0\n", rs_reg_no);
-                } else {
-                    printf("目标就是r0，无需移动\n");
                 }
-                printf("=== END DEBUG (追踪到a0) ===\n");
                 return;
 
             } else if (opName == "%t1") {
-                printf("★★★ 追踪到函数参数a1，使用r1 ★★★\n");
                 if (rs_reg_no != 1) {
                     emit("mov", PlatformArm32::regName[rs_reg_no], "r1");
-                    printf("生成: mov r%d, r1\n", rs_reg_no);
-                } else {
-                    printf("目标就是r1，无需移动\n");
                 }
-                printf("=== END DEBUG (追踪到a1) ===\n");
                 return;
 
             } else if (opName == "%t2") {
-                printf("★★★ 追踪到函数参数a2，使用r2 ★★★\n");
                 if (rs_reg_no != 2) {
                     emit("mov", PlatformArm32::regName[rs_reg_no], "r2");
-                    printf("生成: mov r%d, r2\n", rs_reg_no);
-                } else {
-                    printf("目标就是r2，无需移动\n");
                 }
-                printf("=== END DEBUG (追踪到a2) ===\n");
                 return;
             }
 
             // 递归检查BinaryInstruction类型的操作数
             if (auto binOperand = dynamic_cast<BinaryInstruction *>(operand)) {
-                printf("  -> 发现BinaryInstruction操作数，递归追踪...\n");
-
                 // **首先检查这个BinaryInstruction是否可以常量折叠**
                 bool canFold = true;
                 std::vector<int> subConstValues;
@@ -620,12 +554,6 @@ void ILocArm32::load_var(int rs_reg_no, Value * src_var)
                     }
 
                     if (canFold) {
-                        printf("    -> 子表达式常量折叠: %d %s %d = %d\n",
-                               subConstValues[0],
-                               (subOp == IRInstOperator::IRINST_OP_ADD_I) ? "+" : "*",
-                               subConstValues[1],
-                               subResult);
-
                         // 检查当前表达式是否现在可以整体常量折叠
                         if (binInst->getOperandsNum() == 2) {
                             // 获取另一个操作数
@@ -644,13 +572,7 @@ void ILocArm32::load_var(int rs_reg_no, Value * src_var)
                                 }
 
                                 if (canFold) {
-                                    printf("★★★ 完整表达式常量折叠: %d %s %d = %d ★★★\n",
-                                           (i == 0) ? subResult : otherVal,
-                                           (currentOp == IRInstOperator::IRINST_OP_ADD_I) ? "+" : "*",
-                                           (i == 0) ? otherVal : subResult,
-                                           finalResult);
                                     load_imm(rs_reg_no, finalResult);
-                                    printf("=== END DEBUG (完整常量折叠) ===\n");
                                     return;
                                 }
                             }
@@ -666,55 +588,33 @@ void ILocArm32::load_var(int rs_reg_no, Value * src_var)
                         continue;
 
                     std::string subOpName = subOperand->getIRName();
-                    printf("    子操作数[%d]: '%s', 类型: %s\n", j, subOpName.c_str(), typeid(*subOperand).name());
 
                     if (subOpName == "%t0") {
-                        printf("★★★ 递归追踪到函数参数a0，使用r0 ★★★\n");
                         if (rs_reg_no != 0) {
                             emit("mov", PlatformArm32::regName[rs_reg_no], "r0");
-                            printf("生成: mov r%d, r0\n", rs_reg_no);
-                        } else {
-                            printf("目标就是r0，无需移动\n");
                         }
-                        printf("=== END DEBUG (递归追踪到a0) ===\n");
                         return;
 
                     } else if (subOpName == "%t1") {
-                        printf("★★★ 递归追踪到函数参数a1，使用r1 ★★★\n");
                         if (rs_reg_no != 1) {
                             emit("mov", PlatformArm32::regName[rs_reg_no], "r1");
-                            printf("生成: mov r%d, r1\n", rs_reg_no);
-                        } else {
-                            printf("目标就是r1，无需移动\n");
                         }
-                        printf("=== END DEBUG (递归追踪到a1) ===\n");
                         return;
 
                     } else if (subOpName == "%t2") {
-                        printf("★★★ 递归追踪到函数参数a2，使用r2 ★★★\n");
                         if (rs_reg_no != 2) {
                             emit("mov", PlatformArm32::regName[rs_reg_no], "r2");
-                            printf("生成: mov r%d, r2\n", rs_reg_no);
-                        } else {
-                            printf("目标就是r2，无需移动\n");
                         }
-                        printf("=== END DEBUG (递归追踪到a2) ===\n");
                         return;
                     }
 
                     // 检查子操作数是否是FormalParam
                     if (auto fpSubOperand = dynamic_cast<FormalParam *>(subOperand)) {
                         int paramRegId = fpSubOperand->getRegId();
-                        printf("    -> 发现FormalParam子操作数，regId: %d\n", paramRegId);
                         if (paramRegId >= 0 && paramRegId < 4) {
-                            printf("★★★ 递归追踪到函数参数寄存器r%d ★★★\n", paramRegId);
                             if (rs_reg_no != paramRegId) {
                                 emit("mov", PlatformArm32::regName[rs_reg_no], PlatformArm32::regName[paramRegId]);
-                                printf("生成: mov r%d, r%d\n", rs_reg_no, paramRegId);
-                            } else {
-                                printf("目标就是r%d，无需移动\n", paramRegId);
                             }
-                            printf("=== END DEBUG (递归追踪到FormalParam) ===\n");
                             return;
                         }
                     }
@@ -725,24 +625,14 @@ void ILocArm32::load_var(int rs_reg_no, Value * src_var)
             if (auto fpOperand = dynamic_cast<FormalParam *>(operand)) {
                 int paramRegId = fpOperand->getRegId();
                 if (paramRegId >= 0 && paramRegId < 4) {
-                    printf("★★★ 追踪到函数参数寄存器r%d ★★★\n", paramRegId);
                     if (rs_reg_no != paramRegId) {
                         emit("mov", PlatformArm32::regName[rs_reg_no], PlatformArm32::regName[paramRegId]);
-                        printf("生成: mov r%d, r%d\n", rs_reg_no, paramRegId);
-                    } else {
-                        printf("目标就是r%d，无需移动\n", paramRegId);
                     }
-                    printf("=== END DEBUG (追踪到FormalParam) ===\n");
                     return;
                 }
             }
         }
-        printf("★ 未能在操作数中找到函数参数\n");
-        printf("★ 这是一个二元运算，需要在调用层处理\n");
     }
-
-    printf("=== END DEBUG ===\n");
-
     // 原有的load_var逻辑保持不变...
     if (Instanceof(constVal, ConstInt *, src_var)) {
         load_imm(rs_reg_no, constVal->getVal());
@@ -849,29 +739,7 @@ void ILocArm32::store_var(int src_reg_no, Value * dest_var, int tmp_reg_no)
 {
     // 添加安全检查
     if (!dest_var) {
-        printf("ERROR: store_var - dest_var is NULL!\n");
         return;
-    }
-
-    // 添加调试输出
-    printf("DEBUG: store_var - src_reg=r%d, dest_var='%s', type=%s, regId=%d\n",
-           src_reg_no,
-           dest_var->getName().c_str(),
-           typeid(*dest_var).name(),
-           dest_var->getRegId());
-
-    // 检查是否存在变量冲突
-    if (!dest_var->getName().empty()) {
-        int32_t dest_baseRegId = -1;
-        int64_t dest_offset = -1;
-        bool hasMemAddr = dest_var->getMemoryAddr(&dest_baseRegId, &dest_offset);
-        if (hasMemAddr) {
-            printf("DEBUG: dest_var memory addr: fp%+ld\n", dest_offset);
-        } else {
-            printf("DEBUG: dest_var has no memory address\n");
-        }
-    } else {
-        printf("DEBUG: dest_var name is empty\n");
     }
 
     if (dest_var->getRegId() != -1) {
@@ -880,8 +748,6 @@ void ILocArm32::store_var(int src_reg_no, Value * dest_var, int tmp_reg_no)
 
         // -1表示非寄存器，其他表示寄存器的索引值
         int dest_reg_id = dest_var->getRegId();
-
-        printf("DEBUG: store to register r%d\n", dest_reg_id);
 
         // 寄存器不一样才需要mov操作
         if (src_reg_no != dest_reg_id) {
@@ -893,8 +759,6 @@ void ILocArm32::store_var(int src_reg_no, Value * dest_var, int tmp_reg_no)
     } else if (Instanceof(globalVar, GlobalVariable *, dest_var)) {
         // 全局变量
 
-        printf("DEBUG: store to global variable %s\n", globalVar->getName().c_str());
-
         // 读取符号的地址到寄存器r10
         load_symbol(tmp_reg_no, globalVar->getName());
 
@@ -904,23 +768,14 @@ void ILocArm32::store_var(int src_reg_no, Value * dest_var, int tmp_reg_no)
     } else {
 
         // 对于局部变量，则直接从栈基址+偏移寻址
-
-        printf("DEBUG: store to local/memory variable\n");
-
         // 栈帧偏移
         int32_t dest_baseRegId = -1;
         int64_t dest_offset = -1;
 
         bool result = dest_var->getMemoryAddr(&dest_baseRegId, &dest_offset);
         if (!result) {
-            printf("ERROR: Failed to get memory address for variable '%s', type=%s\n",
-                   dest_var->getName().c_str(),
-                   typeid(*dest_var).name());
-            printf("ERROR: This is likely a bug in variable allocation\n");
             return; // 安全返回，避免段错误
         }
-
-        printf("DEBUG: store to memory [r%d, #%ld]\n", dest_baseRegId, dest_offset);
 
         // str r8,[r9]
         // str r8, [fp, # - 16]
@@ -1025,12 +880,6 @@ void ILocArm32::load_global_with_offset(int rs_reg_no, const std::string & globa
                  PlatformArm32::regName[rs_reg_no],
                  PlatformArm32::regName[temp_reg]);
         }
-        printf("DEBUG: 加载全局地址带偏移: %s + %ld -> %s\n",
-               globalVar.c_str(),
-               offset,
-               PlatformArm32::regName[rs_reg_no].c_str());
-    } else {
-        printf("DEBUG: 加载全局地址: %s -> %s\n", globalVar.c_str(), PlatformArm32::regName[rs_reg_no].c_str());
     }
 }
 
@@ -1051,9 +900,6 @@ std::string ILocArm32::extractGlobalSource(Value * value)
     // 这里需要分析IR指令，查找形如 "%t79 = add @array, offset" 的指令
     // 由于我们没有直接的IR访问，暂时通过名称模式来识别
     // 实际实现中应该遍历当前函数的IR指令
-
-    printf("DEBUG: 分析Value的全局来源: %s\n", valueName.c_str());
-
     // 暂时返回空，实际需要在后端翻译时通过IR分析实现
     return "";
 }

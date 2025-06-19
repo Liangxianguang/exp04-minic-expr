@@ -156,24 +156,8 @@ ast_node * IRGenerator::ir_visit_ast_node(ast_node * node)
 /// @brief 未知节点类型的节点处理
 /// @param node AST节点
 /// @return 翻译是否成功，true：成功，false：失败
-// bool IRGenerator::ir_default(ast_node * node)
-// {
-//     // 未知的节点
-//     printf("Unkown node(%d)\n", (int) node->node_type);
-//     return true;
-// }
 bool IRGenerator::ir_default(ast_node * node)
 {
-    // 打印更详细的节点信息
-    printf("Unkown node(%d): 地址=%p", (int) node->node_type, (void *) node);
-
-    // 如果可能的话，打印更多信息
-    if (node) {
-        printf(", 行号=%ld, 名称=%s, 子节点数=%zu\n", node->line_no, node->name.c_str(), node->sons.size());
-    } else {
-        printf("\n");
-    }
-
     // 返回true允许继续处理，不会导致整个编译失败
     return true;
 }
@@ -181,22 +165,6 @@ bool IRGenerator::ir_default(ast_node * node)
 /// @brief 编译单元AST节点翻译成线性中间IR
 /// @param node AST节点
 /// @return 翻译是否成功，true：成功，false：失败
-// bool IRGenerator::ir_compile_unit(ast_node * node)
-// {
-//     module->setCurrentFunction(nullptr);
-
-//     for (auto son: node->sons) {
-
-//         // 遍历编译单元，要么是函数定义，要么是语句
-//         ast_node * son_node = ir_visit_ast_node(son);
-//         if (!son_node) {
-//             // TODO 自行追加语义错误处理
-//             return false;
-//         }
-//     }
-
-//     return true;
-// }
 bool IRGenerator::ir_compile_unit(ast_node * node)
 {
     module->setCurrentFunction(nullptr);
@@ -205,7 +173,6 @@ bool IRGenerator::ir_compile_unit(ast_node * node)
     for (auto son: node->sons) {
         if (son->node_type == ast_operator_type::AST_OP_VAR_DECL ||
             son->node_type == ast_operator_type::AST_OP_DECL_STMT) {
-            printf("DEBUG: 处理全局变量声明\n");
             ast_node * var_node = ir_visit_ast_node(son);
             if (!var_node) {
                 setLastError("处理全局变量失败");
@@ -220,11 +187,6 @@ bool IRGenerator::ir_compile_unit(ast_node * node)
             ast_node * type_node = son->sons[0];
             ast_node * name_node = son->sons[1];
             ast_node * param_node = son->sons[2];
-
-            printf("DEBUG: 在compile_unit中注册函数: %s, 形参节点类型: %d, sons大小: %zu\n",
-                   name_node->name.c_str(),
-                   static_cast<int>(param_node->node_type),
-                   param_node->sons.size());
 
             // 收集参数信息
             std::vector<FormalParam *> params;
@@ -245,52 +207,32 @@ bool IRGenerator::ir_compile_unit(ast_node * node)
                             for (size_t dimIdx = 2; dimIdx < paramSon->sons.size(); dimIdx++) {
                                 if (paramSon->sons[dimIdx]->node_type == ast_operator_type::AST_OP_LEAF_LITERAL_UINT) {
                                     dimensions.push_back(paramSon->sons[dimIdx]->integer_val);
-                                    printf("DEBUG: 提取维度 %zu: %d\n",
-                                           dimIdx - 2,
-                                           paramSon->sons[dimIdx]->integer_val);
                                 }
                             }
 
                             // 保存维度信息到映射表
                             functionParameterDimensions[name_node->name][paramIdx] = dimensions;
 
-                            printf("DEBUG: 保存函数 %s 参数 %d (%s) 的维度信息，维度数: %zu\n",
-                                   name_node->name.c_str(),
-                                   (int) paramIdx,
-                                   paramName.c_str(),
-                                   dimensions.size());
-
                             // 统一使用简单指针类型注册参数
                             paramType = const_cast<Type *>(
                                 static_cast<const Type *>(PointerType::get(IntegerType::getTypeInt())));
-                            printf("DEBUG: 注册数组参数: %s 为指针类型 (i32*)\n", paramName.c_str());
-                        } else {
-                            printf("DEBUG: 注册普通参数: %s\n", paramName.c_str());
                         }
 
                         params.push_back(new FormalParam{paramType, paramName});
-                        printf("DEBUG: 添加参数: %s\n", paramName.c_str());
                     }
                 }
             } else {
                 // 如果AST中没有参数信息，但根据函数名称可以推断需要参数
                 if (name_node->name == "get_one") {
                     params.push_back(new FormalParam{IntegerType::getTypeInt(), "a"});
-                    printf("DEBUG: 为函数 %s 添加参数: a\n", name_node->name.c_str());
                 } else if (name_node->name == "deepWhileBr") {
                     params.push_back(new FormalParam{IntegerType::getTypeInt(), "a"});
                     params.push_back(new FormalParam{IntegerType::getTypeInt(), "b"});
-                    printf("DEBUG: 为函数 %s 添加参数: a, b\n", name_node->name.c_str());
                 }
             }
 
             // 注册函数原型(带参数信息)
-            Function * func = module->newFunction(name_node->name, type_node->type, params);
-            if (func) {
-                printf("注册函数原型: %s 成功，参数数量: %zu\n", name_node->name.c_str(), params.size());
-            } else {
-                printf("注册函数原型: %s 失败\n", name_node->name.c_str());
-            }
+            module->newFunction(name_node->name, type_node->type, params);
         }
     }
 
@@ -312,13 +254,9 @@ bool IRGenerator::ir_compile_unit(ast_node * node)
 /// @return 翻译是否成功，true：成功，false：失败
 bool IRGenerator::ir_function_define(ast_node * node)
 {
-    printf("=== IR_FUNCTION_DEFINE 被调用 ===\n");
-    printf("函数名: %s\n", node->sons[1]->name.c_str());
-    printf("================================\n");
     bool result;
 
     ast_node * name_node = node->sons[1];
-    printf("DEBUG: 处理函数定义: %s\n", name_node->name.c_str());
 
     // 创建一个函数，用于当前函数处理
     if (module->getCurrentFunction()) {
@@ -343,7 +281,6 @@ bool IRGenerator::ir_function_define(ast_node * node)
         // 如果函数不存在，使用AST中的信息创建函数参数列表
         std::vector<FormalParam *> params;
         if (param_node && !param_node->sons.empty()) {
-            printf("DEBUG: 从AST获取函数参数，数量: %zu\n", param_node->sons.size());
             for (size_t i = 0; i < param_node->sons.size(); i++) {
                 auto & paramSon = param_node->sons[i];
                 if (paramSon->sons.size() < 2) {
@@ -358,18 +295,13 @@ bool IRGenerator::ir_function_define(ast_node * node)
                 // 关键修改：为前4个参数设置ARM寄存器映射
                 if (i < 4) {
                     formalParam->setRegId(static_cast<int>(i));
-                    printf("DEBUG: 设置函数参数 %s 的寄存器ID为 %zu (对应r%zu)\n", paramName.c_str(), i, i);
                 } else {
                     // 超过4个参数的通过栈传递，暂时设置为-1
                     formalParam->setRegId(-1);
-                    printf("DEBUG: 函数参数 %s 超过4个，通过栈传递\n", paramName.c_str());
                 }
 
                 params.push_back(formalParam);
-                printf("DEBUG: 添加参数: %s, regId=%d\n", paramName.c_str(), formalParam->getRegId());
             }
-        } else {
-            printf("DEBUG: 函数 %s 在AST中没有参数信息\n", name_node->name.c_str());
         }
 
         // 创建一个新的函数定义
@@ -379,24 +311,12 @@ bool IRGenerator::ir_function_define(ast_node * node)
             return false;
         }
 
-        printf("DEBUG: 创建新函数: %s, 参数数量: %zu\n", name_node->name.c_str(), newFunc->getParams().size());
-
         // 新增：验证参数映射
-        printf("=== 函数参数映射验证 ===\n");
-        printf("函数: %s\n", name_node->name.c_str());
         const std::vector<FormalParam *> & verifyParams = newFunc->getParams();
         for (size_t i = 0; i < verifyParams.size(); i++) {
-            FormalParam * param = verifyParams[i];
-            printf("参数[%zu]: %s, regId=%d, 类型=%s\n",
-                   i,
-                   param->getName().c_str(),
-                   param->getRegId(),
-                   param->getType()->toString().c_str());
+            // param validation loop
         }
-        printf("=== 验证完成 ===\n");
-
     } else {
-        printf("DEBUG: 使用已注册的函数: %s, 参数数量: %zu\n", name_node->name.c_str(), newFunc->getParams().size());
 
         // 新增：如果是已注册函数，也需要确保参数有正确的寄存器映射
         const std::vector<FormalParam *> & existingParams = newFunc->getParams();
@@ -404,7 +324,6 @@ bool IRGenerator::ir_function_define(ast_node * node)
             FormalParam * param = existingParams[i];
             if (param->getRegId() == -1) {
                 param->setRegId(static_cast<int>(i));
-                printf("DEBUG: 为已注册函数参数 %s 设置寄存器ID为 %zu\n", param->getName().c_str(), i);
             }
         }
     }
@@ -434,7 +353,6 @@ bool IRGenerator::ir_function_define(ast_node * node)
             if (globalVar) {
                 MoveInstruction * initInst = new MoveInstruction(newFunc, globalVar, module->newConstInt(initValue));
                 irCode.addInst(initInst);
-                printf("DEBUG: 在main函数中初始化全局变量 %s = %d\n", varName.c_str(), initValue);
             }
         }
     }
@@ -473,17 +391,10 @@ bool IRGenerator::ir_function_define(ast_node * node)
         return false;
     }
 
-    // 打印调试信息
-    printf("DEBUG: 函数 %s 的block节点指令数量: %zu\n",
-           name_node->name.c_str(),
-           block_node->blockInsts.getInsts().size());
-
     // IR指令追加到当前的节点中
     node->blockInsts.addInst(block_node->blockInsts);
 
     // 此时，所有指令都加入到当前函数中，也就是node->blockInsts
-    printf("DEBUG: 函数 %s 的node节点指令数量: %zu\n", name_node->name.c_str(), node->blockInsts.getInsts().size());
-
     // node节点的指令移动到函数的IR指令列表中
     irCode.addInst(node->blockInsts);
 
@@ -492,9 +403,6 @@ bool IRGenerator::ir_function_define(ast_node * node)
 
     // 函数出口指令
     irCode.addInst(new ExitInstruction(newFunc, retValue));
-
-    // 打印最终IR指令
-    printf("DEBUG: 函数 %s 的最终IR指令数量: %zu\n", name_node->name.c_str(), irCode.getInsts().size());
 
     // 恢复成外部函数
     module->setCurrentFunction(nullptr);
@@ -505,92 +413,9 @@ bool IRGenerator::ir_function_define(ast_node * node)
     return true;
 }
 
-// /// @brief 形式参数AST节点翻译成线性中间IR
-// /// @param node AST节点
-// /// @return 翻译是否成功，true：成功，false：失败
-// bool IRGenerator::ir_function_formal_params(ast_node * node)
-// {
-//     // TODO 目前形参还不支持，直接返回true
-
-//     // 每个形参变量都创建对应的临时变量，用于表达实参转递的值
-//     // 而真实的形参则创建函数内的局部变量。
-//     // 然后产生赋值指令，用于把表达实参值的临时变量拷贝到形参局部变量上。
-//     // 请注意这些指令要放在Entry指令后面，因此处理的先后上要注意。
-
-//     return true;
-// }
 /// @brief 形式参数AST节点翻译成线性中间IR-lxg
 /// @param node AST节点
 /// @return 翻译是否成功，true：成功，false：失败
-// bool IRGenerator::ir_function_formal_params(ast_node * node)
-// {
-//     // 获取当前正在处理的函数
-//     Function * currentFunc = module->getCurrentFunction();
-//     if (!currentFunc) {
-//         setLastError("未在函数上下文中处理形参");
-//         return false;
-//     }
-
-//     // 获取函数的IR代码列表
-//     InterCode & irCode = currentFunc->getInterCode();
-
-//     printf("DEBUG: 处理函数形参，数量: %zu, 函数参数数量: %zu\n", node->sons.size(),
-//     currentFunc->getParams().size());
-
-//     // 获取函数的参数列表
-//     const std::vector<FormalParam *> & functionParams = currentFunc->getParams();
-
-//     // 遍历函数的所有形参，创建对应的局部变量和临时变量
-//     for (size_t i = 0; i < functionParams.size(); i++) {
-//         FormalParam * param = functionParams[i];
-
-//         // 函数参数的类型和名称
-//         Type * paramType = param->getType();
-//         std::string paramName = param->getName();
-
-//         if (!paramType) {
-//             setLastError("函数参数 " + paramName + " 类型无效");
-//             return false;
-//         }
-
-//         // 检查是否是数组参数（通过AST节点类型判断）
-//         bool isArrayParam = false;
-//         if (i < node->sons.size()) {
-//             isArrayParam = (node->sons[i]->node_type == ast_operator_type::AST_OP_FUNC_FORMAL_PARAM_ARRAY);
-//         }
-
-//         // 根据是否是数组参数决定实际的参数类型
-//         Type * actualParamType = paramType;
-//         if (isArrayParam) {
-//             // 数组参数在C语言中实际上是指针类型
-//             actualParamType =
-//                 const_cast<Type *>(static_cast<const Type *>(PointerType::get(IntegerType::getTypeInt())));
-//             printf("DEBUG: 处理函数数组参数: %s, 类型: pointer (i32*)\n", paramName.c_str());
-//         } else {
-//             printf("DEBUG: 处理函数参数: %s, 类型: %s\n", paramName.c_str(), paramType->isInt32Type() ? "int" :
-//             "其他");
-//         }
-
-//         // 1. 创建局部变量作为实际的形参变量（在函数内部使用）
-//         Value * localParam = module->newVarValue(actualParamType, paramName);
-//         if (!localParam) {
-//             setLastError("创建形参局部变量失败: " + paramName);
-//             return false;
-//         }
-
-//         // 2. 获取函数形参本身作为源值
-//         Value * paramValue = param;
-
-//         // 3. 创建赋值指令，将形参值复制到局部变量
-//         MoveInstruction * moveInst =
-//             new MoveInstruction(currentFunc, static_cast<LocalVariable *>(localParam), paramValue);
-
-//         // 4. 将赋值指令添加到函数的IR代码中（在Entry指令之后）
-//         irCode.addInst(moveInst);
-//     }
-
-//     return true;
-// }
 bool IRGenerator::ir_function_formal_params(ast_node * node)
 {
     // 获取当前正在处理的函数
@@ -602,8 +427,6 @@ bool IRGenerator::ir_function_formal_params(ast_node * node)
 
     // 获取函数的IR代码列表
     InterCode & irCode = currentFunc->getInterCode();
-
-    printf("DEBUG: 处理函数形参，数量: %zu, 函数参数数量: %zu\n", node->sons.size(), currentFunc->getParams().size());
 
     // 获取函数的参数列表
     const std::vector<FormalParam *> & functionParams = currentFunc->getParams();
@@ -632,20 +455,13 @@ bool IRGenerator::ir_function_formal_params(ast_node * node)
             Type * actualParamType =
                 const_cast<Type *>(static_cast<const Type *>(PointerType::get(IntegerType::getTypeInt())));
 
-            printf("DEBUG: 处理函数数组参数: %s, 类型: pointer (i32*)\n", paramName.c_str());
-
             // 直接在符号表中注册参数，避免创建局部变量和赋值指令
             if (!module->newVarValueWithValue(actualParamType, paramName, param)) {
                 setLastError("注册数组形参到符号表失败: " + paramName);
                 return false;
             }
-
-            printf("DEBUG: 直接注册数组参数到符号表: %s (避免局部变量赋值)\n", paramName.c_str());
-
         } else {
             // 普通参数：保持原来的方式，创建局部变量并赋值
-            printf("DEBUG: 处理函数参数: %s, 类型: %s\n", paramName.c_str(), paramType->isInt32Type() ? "int" : "其他");
-
             // 1. 创建局部变量作为实际的形参变量（在函数内部使用）
             Value * localParam = module->newVarValue(paramType, paramName);
             if (!localParam) {
@@ -662,90 +478,11 @@ bool IRGenerator::ir_function_formal_params(ast_node * node)
 
             // 4. 将赋值指令添加到函数的IR代码中（在Entry指令之后）
             irCode.addInst(moveInst);
-
-            printf("DEBUG: 为普通参数创建局部变量和赋值: %s\n", paramName.c_str());
         }
     }
 
     return true;
 }
-
-/// @brief 函数调用AST节点翻译成线性中间IR
-/// @param node AST节点
-/// @return 翻译是否成功，true：成功，false：失败
-// bool IRGenerator::ir_function_call(ast_node * node)
-// {
-//     std::vector<Value *> realParams;
-
-//     // 获取当前正在处理的函数
-//     Function * currentFunc = module->getCurrentFunction();
-
-//     // 函数调用的节点包含两个节点：
-//     // 第一个节点：函数名节点
-//     // 第二个节点：实参列表节点
-
-//     std::string funcName = node->sons[0]->name;
-//     int64_t lineno = node->sons[0]->line_no;
-
-//     ast_node * paramsNode = node->sons[1];
-
-//     // 根据函数名查找函数，看是否存在。若不存在则出错
-//     // 这里约定函数必须先定义后使用
-//     auto calledFunction = module->findFunction(funcName);
-//     if (nullptr == calledFunction) {
-//         minic_log(LOG_ERROR, "函数(%s)未定义或声明", funcName.c_str());
-//         return false;
-//     }
-
-//     // 当前函数存在函数调用
-//     currentFunc->setExistFuncCall(true);
-
-//     // 如果没有孩子，也认为是没有参数
-//     if (!paramsNode->sons.empty()) {
-
-//         int32_t argsCount = (int32_t) paramsNode->sons.size();
-
-//         // 当前函数中调用函数实参个数最大值统计，实际上是统计实参传参需在栈中分配的大小
-//         // 因为目前的语言支持的int和float都是四字节的，只统计个数即可
-//         if (argsCount > currentFunc->getMaxFuncCallArgCnt()) {
-//             currentFunc->setMaxFuncCallArgCnt(argsCount);
-//         }
-
-//         // 遍历参数列表，孩子是表达式
-//         // 这里自左往右计算表达式
-//         for (auto son: paramsNode->sons) {
-
-//             // 遍历Block的每个语句，进行显示或者运算
-//             ast_node * temp = ir_visit_ast_node(son);
-//             if (!temp) {
-//                 return false;
-//             }
-
-//             realParams.push_back(temp->val);
-//             node->blockInsts.addInst(temp->blockInsts);
-//         }
-//     }
-
-//     // TODO 这里请追加函数调用的语义错误检查，这里只进行了函数参数的个数检查等，其它请自行追加。
-//     if (realParams.size() != calledFunction->getParams().size()) {
-//         // 函数参数的个数不一致，语义错误
-//         minic_log(LOG_ERROR, "第%lld行的被调用函数(%s)未定义或声明", (long long) lineno, funcName.c_str());
-//         return false;
-//     }
-
-//     // 返回调用有返回值，则需要分配临时变量，用于保存函数调用的返回值
-//     Type * type = calledFunction->getReturnType();
-
-//     FuncCallInstruction * funcCallInst = new FuncCallInstruction(currentFunc, calledFunction, realParams, type);
-
-//     // 创建函数调用指令
-//     node->blockInsts.addInst(funcCallInst);
-
-//     // 函数调用结果Value保存到node中，可能为空，上层节点可利用这个值
-//     node->val = funcCallInst;
-
-//     return true;
-// }
 
 ///允许编译器动态创建函数原型-lxg
 /// @brief 函数调用AST节点翻译成线性中间IR
@@ -765,11 +502,7 @@ bool IRGenerator::ir_function_call(ast_node * node)
     std::string funcName = node->sons[0]->name;
     int64_t lineno = node->sons[0]->line_no;
 
-    printf("DEBUG: 处理函数调用: %s 在第%lld行\n", funcName.c_str(), (long long) lineno);
-
     ast_node * paramsNode = node->sons[1];
-    int actualParamCount = paramsNode->sons.size();
-    printf("DEBUG: 函数调用 %s 提供的参数数量: %d\n", funcName.c_str(), actualParamCount);
 
     // 根据函数名查找函数，看是否存在。若不存在则出错
     auto calledFunction = module->findFunction(funcName);
@@ -779,9 +512,6 @@ bool IRGenerator::ir_function_call(ast_node * node)
         minic_log(LOG_ERROR, "%s", error.c_str());
         return false;
     }
-
-    int formalParamCount = calledFunction->getParams().size();
-    printf("DEBUG: 找到函数: %s, 需要%d个参数\n", funcName.c_str(), formalParamCount);
 
     // 当前函数存在函数调用
     currentFunc->setExistFuncCall(true);
@@ -795,75 +525,22 @@ bool IRGenerator::ir_function_call(ast_node * node)
         if (argsCount > currentFunc->getMaxFuncCallArgCnt()) {
             currentFunc->setMaxFuncCallArgCnt(argsCount);
         }
-
-        // for (auto son: paramsNode->sons) {
-        //     // 遍历Block的每个语句，进行显示或者运算
-        //     ast_node * temp = ir_visit_ast_node(son);
-        //     if (!temp) {
-        //         setLastError("处理函数" + funcName + "的参数时失败");
-        //         return false;
-        //     }
-
-        //     realParams.push_back(temp->val);
-        //     node->blockInsts.addInst(temp->blockInsts);
-        // }
         const std::vector<FormalParam *> & formalParams = calledFunction->getParams();
 
         // 遍历参数列表，孩子是表达式
         // 这里自左往右计算表达式
-        // for (size_t i = 0; i < paramsNode->sons.size(); i++) {
-        //     ast_node * son = paramsNode->sons[i];
-
-        //     // 检查是否传递数组参数
-        //     if (son->node_type == ast_operator_type::AST_OP_LEAF_VAR_ID) {
-        //         Value * paramVar = module->findVarValue(son->name);
-
-        //         // 检查形参是否为指针类型（即数组参数）
-        //         bool shouldPassAsPointer = false;
-
-        //         if (i < formalParams.size()) {
-        //             Type * formalParamType = formalParams[i]->getType();
-        //             shouldPassAsPointer = formalParamType && formalParamType->isPointerType();
-        //         }
-
-        //         if (paramVar && paramVar->getType()->isArrayType() && shouldPassAsPointer) {
-        //             // 数组参数：直接传递数组变量（作为指针）
-        //             printf("DEBUG: 传递数组参数: %s (作为指针)\n", son->name.c_str());
-        //             realParams.push_back(paramVar);
-        //             continue;
-        //         }
-        //     }
-
-        //     // 处理其他类型的参数（包括表达式、常量等）
-        //     ast_node * temp = ir_visit_ast_node(son);
-        //     if (!temp) {
-        //         setLastError("处理函数" + funcName + "的参数时失败");
-        //         return false;
-        //     }
-
-        //     realParams.push_back(temp->val);
-        //     node->blockInsts.addInst(temp->blockInsts);
-        // }
-        // 在参数处理循环中添加调试信息：
         for (size_t i = 0; i < paramsNode->sons.size(); i++) {
             ast_node * son = paramsNode->sons[i];
-
-            printf("DEBUG: 处理参数 #%zu, 节点类型: %d, 变量名: %s\n",
-                   i,
-                   static_cast<int>(son->node_type),
-                   son->name.c_str());
 
             // 检查形参是否为指针类型（即数组参数）
             bool shouldPassAsPointer = false;
             if (i < formalParams.size()) {
                 Type * formalParamType = formalParams[i]->getType();
                 shouldPassAsPointer = formalParamType && formalParamType->isPointerType();
-                printf("DEBUG: 形参 #%zu 类型检查 - isPointerType: %s\n", i, shouldPassAsPointer ? "是" : "否");
             }
 
             // 关键修改：正确处理不同维度的数组参数传递
             if (son->node_type == ast_operator_type::AST_OP_ARRAY_ACCESS && shouldPassAsPointer) {
-                printf("DEBUG: *** 处理数组访问作为指针参数: %s[...] ***\n", son->sons[0]->name.c_str());
 
                 // 获取形参的实际类型
                 Type * formalParamType = formalParams[i]->getType();
@@ -880,7 +557,6 @@ bool IRGenerator::ir_function_call(ast_node * node)
                 if (ArrayType * arrayParamType = dynamic_cast<ArrayType *>(formalParamType)) {
                     // 形参是数组类型 int[0][2][3]...
                     const std::vector<int> & paramDimensions = arrayParamType->getDimensions();
-                    printf("DEBUG: 形参是多维数组类型，维度数: %zu\n", paramDimensions.size());
 
                     // 计算正确的偏移量，考虑形参的维度信息
                     Value * correctOffset = calculateParameterOffset(son, paramDimensions, node->blockInsts);
@@ -900,19 +576,16 @@ bool IRGenerator::ir_function_call(ast_node * node)
                     if (!arrayVar->getName().empty() && arrayVar->getName()[0] == '@') {
                         std::string globalName = arrayVar->getName().substr(1); // 去掉@前缀
                         addInst->setGlobalSource(globalName, 0);                // 动态偏移，基础偏移为0
-                        printf("DEBUG: 多维数组参数设置全局来源: %s\n", globalName.c_str());
                     } else if (arrayVar->isDerivedFromGlobal()) {
                         // 如果数组变量本身派生自全局变量，传播全局来源
                         arrayVar->propagateGlobalSource(addInst, 0);
-                        printf("DEBUG: 传播全局来源到多维数组参数: %s\n", addInst->getGlobalSourceInfo().c_str());
+
                     }
-                                                                        node->blockInsts.addInst(addInst);
+                    node->blockInsts.addInst(addInst);
                     realParams.push_back(addInst);
 
-                    printf("DEBUG: 生成多维数组参数传递: %s -> 偏移量计算\n", arrayName.c_str());
                 } else {
                     // 形参是简单指针类型 int*，按照原有逻辑处理
-                    printf("DEBUG: 形参是简单指针类型，使用原逻辑\n");
 
                     // 计算实际的数组偏移量
                     Value * totalOffset = calculateArrayAccessOffset(son, node->blockInsts);
@@ -940,16 +613,12 @@ bool IRGenerator::ir_function_call(ast_node * node)
                         }
 
                         finalAddrInst->setGlobalSource(globalName, staticOffset);
-                        printf("DEBUG: 简单指针参数设置全局来源: %s + %ld\n", globalName.c_str(), staticOffset);
                     } else if (arrayVar->isDerivedFromGlobal()) {
                         arrayVar->propagateGlobalSource(finalAddrInst, 0);
-                        printf("DEBUG: 传播全局来源到简单指针参数: %s\n", finalAddrInst->getGlobalSourceInfo().c_str());
                     }
                     node->blockInsts.addInst(finalAddrInst);
                     realParams.push_back(finalAddrInst);
                 }
-
-                printf("DEBUG: 完成数组访问参数传递\n");
                 continue;
             }
 
@@ -957,18 +626,8 @@ bool IRGenerator::ir_function_call(ast_node * node)
             else if (son->node_type == ast_operator_type::AST_OP_LEAF_VAR_ID) {
                 Value * paramVar = module->findVarValue(son->name);
 
-                printf("DEBUG: 找到变量: %s, 变量存在: %s\n", son->name.c_str(), paramVar ? "是" : "否");
-
-                if (paramVar) {
-                    printf("DEBUG: 变量 %s 类型检查 - isArrayType: %s, isPointerType: %s\n",
-                           son->name.c_str(),
-                           paramVar->getType()->isArrayType() ? "是" : "否",
-                           paramVar->getType()->isPointerType() ? "是" : "否");
-                }
-
                 if (paramVar && paramVar->getType()->isArrayType() && shouldPassAsPointer) {
                     // 数组参数：生成 add %array, 0 得到指针
-                    printf("DEBUG: *** 传递数组参数: %s (add %%array, 0 得到指针) ***\n", son->name.c_str());
 
                     Type * ptrType =
                         const_cast<Type *>(static_cast<const Type *>(PointerType::get(IntegerType::getTypeInt())));
@@ -982,33 +641,21 @@ bool IRGenerator::ir_function_call(ast_node * node)
                     if (!paramVar->getName().empty() && paramVar->getName()[0] == '@') {
                         std::string globalName = paramVar->getName().substr(1); // 去掉@前缀
                         addInst->setGlobalSource(globalName, 0);                // 数组基址，偏移为0
-                        printf("DEBUG: 简单数组参数设置全局来源: %s + 0\n", globalName.c_str());
                         addInst->propagateGlobalSource(ptrVar, 0);
-                        printf("DEBUG: 传播全局来源到 ptrVar: %s\n", ptrVar->getGlobalSourceInfo().c_str());
                     } else if (paramVar->isDerivedFromGlobal()) {
                         paramVar->propagateGlobalSource(addInst, 0);
-                        printf("DEBUG: 传播全局来源到简单数组参数: %s\n", addInst->getGlobalSourceInfo().c_str());
                         addInst->propagateGlobalSource(ptrVar, 0);
-                        printf("DEBUG: 传播全局来源到 ptrVar: %s\n", ptrVar->getGlobalSourceInfo().c_str());
                     }
                     node->blockInsts.addInst(addInst);
                     node->blockInsts.addInst(new MoveInstruction(currentFunc, ptrVar, addInst));
 
                     realParams.push_back(ptrVar);
 
-                    printf("DEBUG: 创建了数组到指针衰减: %s -> %s\n",
-                           paramVar->getIRName().c_str(),
-                           ptrVar->getIRName().c_str());
                     continue;
-                } else {
-                    printf("DEBUG: 不满足数组参数条件，按普通参数处理\n");
                 }
-            } else {
-                printf("DEBUG: 节点类型不是 AST_OP_LEAF_VAR_ID\n");
             }
 
             // 处理其他类型的参数
-            printf("DEBUG: 按普通参数处理: %s\n", son->name.c_str());
             ast_node * temp = ir_visit_ast_node(son);
             if (!temp) {
                 setLastError("处理函数" + funcName + "的参数时失败");
@@ -1028,27 +675,18 @@ bool IRGenerator::ir_function_call(ast_node * node)
         setLastError(error);
         minic_log(LOG_ERROR, "%s", error.c_str());
 
-        // 调试输出每个形参的名称和类型
-        printf("DEBUG: 函数 %s 的形参列表:\n", funcName.c_str());
+        // 每个形参的名称和类型
         for (size_t i = 0; i < calledFunction->getParams().size(); i++) {
-            auto param = calledFunction->getParams()[i];
-            printf("  参数 #%zu: %s\n", i, param->getName().c_str());
+            // parameter information logging
         }
 
         return false;
     }
 
-    printf("DEBUG: 函数调用参数检查通过: %s\n", funcName.c_str());
     // 返回调用有返回值，则需要分配临时变量，用于保存函数调用的返回值
     Type * type = calledFunction->getReturnType();
 
     FuncCallInstruction * funcCallInst = new FuncCallInstruction(currentFunc, calledFunction, realParams, type);
-
-    //关键调试：创建指令后立即检查-lxg
-    printf("DEBUG: 函数调用指令创建完成，指令对象地址: %p\n", (void *) funcCallInst);
-    if (funcCallInst) {
-        printf("DEBUG: 函数调用指令的返回值类型: %s\n", funcCallInst->getType()->isInt32Type() ? "i32" : "其他");
-    }
 
     // 创建函数调用指令
     node->blockInsts.addInst(funcCallInst);
@@ -1135,8 +773,6 @@ bool IRGenerator::ir_add(ast_node * node)
 
         // 设置结果的全局来源
         addInst->setGlobalSource(globalName, offset);
-
-        printf("DEBUG: ADD指令设置全局来源: %s + %ld\n", globalName.c_str(), offset);
     }
     // 检查左操作数是否已经有全局来源
     else if (left->val && left->val->isDerivedFromGlobal()) {
@@ -1150,7 +786,6 @@ bool IRGenerator::ir_add(ast_node * node)
         // 传播全局来源信息
         left->val->propagateGlobalSource(addInst, additionalOffset);
 
-        printf("DEBUG: ADD指令传播全局来源: %s\n", addInst->getGlobalSourceInfo().c_str());
     }
                                                // 创建临时变量保存IR的值，以及线性IR指令
     node->blockInsts.addInst(left->blockInsts);
@@ -2211,10 +1846,6 @@ bool IRGenerator::ir_assign(ast_node * node)
         );
         storeInst->setIsPointerStore(true); // 标记为指针存储，需要在MoveInstruction类中添加此字段和方法
         node->blockInsts.addInst(storeInst);
-
-        printf("DEBUG: 通过指针为数组元素赋值: *%s = %s\n",
-               left->arrayPtr->getIRName().c_str(),
-               right->val->getIRName().c_str());
     } else {
         // 普通赋值
         MoveInstruction * movInst = new MoveInstruction(module->getCurrentFunction(), left->val, right->val);
@@ -2283,19 +1914,6 @@ bool IRGenerator::ir_leaf_node_type(ast_node * node)
 /// @brief 标识符叶子节点翻译成线性中间IR，变量声明的不走这个语句
 /// @param node AST节点
 /// @return 翻译是否成功，true：成功，false：失败
-// bool IRGenerator::ir_leaf_node_var_id(ast_node * node)
-// {
-//     Value * val;
-
-//     // 查找ID型Value
-//     // 变量，则需要在符号表中查找对应的值
-
-//     val = module->findVarValue(node->name);
-
-//     node->val = val;
-
-//     return true;
-// }
 bool IRGenerator::ir_leaf_node_var_id(ast_node * node)
 {
     if (!node) {
@@ -2308,27 +1926,20 @@ bool IRGenerator::ir_leaf_node_var_id(ast_node * node)
         return false;
     }
 
-    // printf("DEBUG: 查找变量: %s\n", node->name.c_str());
-
     // 查找ID型Value
     // 变量，则需要在符号表中查找对应的值
     Value * val = module->findVarValue(node->name);
 
     if (!val) {
-        printf("DEBUG: 在符号表中未找到变量: %s, 尝试查找函数参数\n", node->name.c_str());
 
         // 查找是否是函数参数
         Function * currentFunc = module->getCurrentFunction();
         if (currentFunc) {
             for (auto & param: currentFunc->getParams()) {
                 if (param->getName() == node->name) {
-                    printf("DEBUG: 找到匹配的函数参数: %s\n", node->name.c_str());
                     // 如果找到了匹配的参数名，试图再次在符号表中查找
                     // 这里假设之前在ir_function_formal_params已经创建了这个变量
                     val = module->findVarValue(node->name);
-                    if (val) {
-                        printf("DEBUG: 再次查找成功，找到变量: %s\n", node->name.c_str());
-                    }
                     break;
                 }
             }
@@ -2336,7 +1947,6 @@ bool IRGenerator::ir_leaf_node_var_id(ast_node * node)
     }
 
     if (!val) {
-        printf("ERROR: 变量未找到: %s\n", node->name.c_str());
         setLastError("变量未找到: " + node->name);
         return false;
     }
@@ -2413,8 +2023,6 @@ bool IRGenerator::ir_variable_declare(ast_node * node)
 
     std::string varName = node->sons[1]->name;
 
-    printf("DEBUG: 处理变量声明: %s, 子节点数量: %zu\n", varName.c_str(), node->sons.size());
-
     // 创建变量
     Value * var = module->newVarValue(varType, varName);
     if (!var) {
@@ -2427,7 +2035,6 @@ bool IRGenerator::ir_variable_declare(ast_node * node)
 
     // 处理变量初始化
     if (node->sons.size() > 2 && node->sons[2]) {
-        printf("DEBUG: 变量 %s 有初始化表达式\n", varName.c_str());
 
         if (currentFunc) {
             // 局部变量初始化
@@ -2449,15 +2056,11 @@ bool IRGenerator::ir_variable_declare(ast_node * node)
 
                     // 添加赋值指令
                     node->blockInsts.addInst(moveInst);
-                    printf("DEBUG: 为局部变量 %s 生成了初始化为%u的指令\n", varName.c_str(), value);
                 } else {
                     setLastError("变量 " + varName + " 的初始化表达式没有产生有效值");
                     return false;
                 }
             } else {
-                printf("DEBUG: 初始化表达式生成的值类型: %s\n",
-                       init_expr->val->getType()->isInt32Type() ? "int32" : "其他");
-
                 // 生成赋值指令
                 MoveInstruction * moveInst = new MoveInstruction(currentFunc, var, init_expr->val);
 
@@ -2465,18 +2068,14 @@ bool IRGenerator::ir_variable_declare(ast_node * node)
                 node->blockInsts.addInst(init_expr->blockInsts);
                 node->blockInsts.addInst(moveInst);
 
-                printf("DEBUG: 为局部变量 %s 生成了初始化指令\n", varName.c_str());
             }
         } else {
             // 全局变量初始化
             if (node->sons[2]->node_type == ast_operator_type::AST_OP_LEAF_LITERAL_UINT) {
                 uint32_t value = node->sons[2]->integer_val;
-                printf("DEBUG: 记录全局变量 %s 的初始值 %u\n", varName.c_str(), value);
 
                 // 保存全局变量的初始值
                 globalVarInitValues[varName] = value;
-            } else {
-                printf("DEBUG: 全局变量 %s 的初始化表达式太复杂，当前不支持\n", varName.c_str());
             }
         }
     } else if (currentFunc) {
@@ -2485,7 +2084,6 @@ bool IRGenerator::ir_variable_declare(ast_node * node)
             ConstInt * zeroVal = module->newConstInt(0);
             MoveInstruction * moveInst = new MoveInstruction(currentFunc, var, zeroVal);
             node->blockInsts.addInst(moveInst);
-            printf("DEBUG: 为局部变量 %s 生成了默认初始化为0的指令\n", varName.c_str());
         }
     }
     node->val = var;
@@ -2505,7 +2103,6 @@ bool IRGenerator::ir_array_def(ast_node * node)
 
     // 获取数组名
     std::string arrayName = node->sons[0]->name;
-    printf("DEBUG: 处理数组定义: %s\n", arrayName.c_str());
 
     // 收集维度信息
     std::vector<int> dimensions;
@@ -2520,7 +2117,6 @@ bool IRGenerator::ir_array_def(ast_node * node)
                 return false;
             }
             dimensions.push_back(dimSize);
-            printf("DEBUG: 数组维度 %zu: %d\n", i, dimSize);
         } else {
             // 处理表达式作为维度大小
             ast_node * dimExpr = ir_visit_ast_node(node->sons[i]);
@@ -2537,7 +2133,6 @@ bool IRGenerator::ir_array_def(ast_node * node)
                     return false;
                 }
                 dimensions.push_back(dimSize);
-                printf("DEBUG: 数组维度 %zu: %d (从表达式)\n", i, dimSize);
             } else {
                 setLastError("数组维度必须是常量表达式");
                 return false;
@@ -2569,20 +2164,14 @@ bool IRGenerator::ir_array_def(ast_node * node)
     if (currentFunc) {
         // 局部数组变量
         arrayVar = module->newVarValue(arrayType, arrayName);
-        printf("DEBUG: 创建局部数组变量: %s\n", arrayName.c_str());
 
         // 处理数组初始化 (如果有)
         if (node->sons.size() > dimensions.size() + 1) {
-            ast_node * initNode = node->sons.back();
-            if (initNode) {
-                printf("DEBUG: 数组初始化暂不支持\n");
-                // 目前不处理数组初始化，这需要更复杂的实现
-            }
+            // array initialization handling
         }
     } else {
         // 全局数组变量
         arrayVar = module->newVarValue(arrayType, arrayName);
-        printf("DEBUG: 创建全局数组变量: %s\n", arrayName.c_str());
 
         // 全局数组初始化同样暂不支持
     }
@@ -2619,9 +2208,8 @@ bool IRGenerator::ir_array_access(ast_node * node)
 
     // 检查是否是函数参数（数组参数）
     if (isCurrentFunctionParameter(arrayName)) {
-        printf("DEBUG: 处理函数数组参数访问: %s\n", arrayName.c_str());
 
-        // 🔧 关键修改：获取保存的维度信息
+        // 获取保存的维度信息
         std::string funcName = currentFunc->getName();
 
         // 找到参数索引
@@ -2639,15 +2227,9 @@ bool IRGenerator::ir_array_access(ast_node * node)
             // 使用保存的维度信息进行正确的偏移计算
             const std::vector<int> & dimensions = functionParameterDimensions[funcName][paramIndex];
 
-            printf("DEBUG: 使用保存的维度信息，维度数: %zu\n", dimensions.size());
-            for (size_t i = 0; i < dimensions.size(); i++) {
-                printf("DEBUG: 维度 %zu: %d\n", i, dimensions[i]);
-            }
-
             return handleParameterArrayAccessWithDimensions(node, arrayVar, dimensions);
         } else {
             // 没有维度信息，按简单指针处理
-            printf("DEBUG: 没有找到维度信息，按简单指针处理\n");
             return handleSimplePointerParamAccess(node, arrayVar);
         }
     }
@@ -2669,7 +2251,6 @@ bool IRGenerator::ir_empty_stmt(ast_node * node)
 {
     // 空语句不需要生成任何实际代码
     // 只需要返回成功即可
-    printf("DEBUG: 处理空语句\n");
     return true;
 }
 
@@ -2681,8 +2262,6 @@ bool IRGenerator::ir_function_formal_param_array(ast_node * node)
     // 数组参数在C语言中实际上是指针
     // 这里不需要特殊处理，因为在ir_function_formal_params中已经处理了
     // 这个函数主要是为了防止ir_default被调用
-
-    printf("DEBUG: 处理数组形参节点: %s\n", node->sons.size() > 1 ? node->sons[1]->name.c_str() : "未知");
 
     return true;
 }
@@ -2752,7 +2331,6 @@ Value * IRGenerator::calculateLinearOffset(ast_node * node, InterCode & blockIns
 
     // 如果所有索引都是0，直接返回0，避免复杂计算
     if (allZeros) {
-        printf("DEBUG: 所有索引都是0，返回常量0\n");
         return module->newConstInt(0);
     }
 
@@ -2779,7 +2357,6 @@ Value * IRGenerator::calculateLinearOffset(ast_node * node, InterCode & blockIns
     // 获取数组维度信息
     ArrayType * arrayType = dynamic_cast<ArrayType *>(arrayVar->getType());
     if (!arrayType) {
-        printf("DEBUG: 数组参数无法获取维度信息，使用简化计算\n");
         return module->newConstInt(0);
     }
 
@@ -2804,8 +2381,6 @@ Value * IRGenerator::calculateLinearOffset(ast_node * node, InterCode & blockIns
         for (size_t j = i; j < dimensions.size(); j++) {
             coefficient *= dimensions[j];
         }
-
-        // printf("DEBUG: 维度 %zu 的系数: %d\n", i - 1, coefficient);
 
         if (coefficient == 1) {
             BinaryInstruction * addInst = new BinaryInstruction(currentFunc,
@@ -2945,9 +2520,7 @@ Value * IRGenerator::calculateArrayAccessOffset(ast_node * arrayAccessNode, Inte
     ArrayType * arrayType = dynamic_cast<ArrayType *>(arrayVar->getType());
     if (!arrayType) {
         // 如果无法获取维度信息，使用简化计算
-        printf("DEBUG: 无法获取数组维度信息，使用简化偏移计算\n");
-
-        // 只处理第一个索引
+		// 只处理第一个索引
         ast_node * indexNode = ir_visit_ast_node(arrayAccessNode->sons[1]);
         if (!indexNode || !indexNode->val) {
             return nullptr;
@@ -3050,11 +2623,9 @@ bool IRGenerator::handleSimplePointerParamAccess(ast_node * node, Value * arrayV
     if (arrayVar->isDerivedFromGlobal()) {
         // 传播全局来源信息，偏移量是动态的
         arrayVar->propagateGlobalSource(ptrInst, 0);
-        printf("DEBUG: handleSimplePointerParamAccess 传播全局来源: %s\n", ptrInst->getGlobalSourceInfo().c_str());
 
         // 也传播给 elemPtr
         ptrInst->propagateGlobalSource(elemPtr, 0);
-        printf("DEBUG: 传播全局来源到 elemPtr: %s\n", elemPtr->getGlobalSourceInfo().c_str());
     }
     node->blockInsts.addInst(ptrInst);
     node->blockInsts.addInst(new MoveInstruction(currentFunc, elemPtr, ptrInst));
@@ -3070,8 +2641,6 @@ bool IRGenerator::handleSimplePointerParamAccess(ast_node * node, Value * arrayV
     node->offsetValue = byteOffset;
     node->arrayPtr = elemPtr;
     node->val = elemValue;
-
-    printf("DEBUG: 完成简单指针参数访问\n");
     return true;
 }
 
@@ -3147,11 +2716,9 @@ bool IRGenerator::handleMultiDimArrayParamAccess(ast_node * node, Value * arrayV
     if (arrayVar->isDerivedFromGlobal()) {
         // 传播全局来源信息
         arrayVar->propagateGlobalSource(ptrInst, 0);
-        printf("DEBUG: handleMultiDimArrayParamAccess 传播全局来源: %s\n", ptrInst->getGlobalSourceInfo().c_str());
 
         // 也传播给 elemPtr
         ptrInst->propagateGlobalSource(elemPtr, 0);
-        printf("DEBUG: 传播全局来源到多维数组 elemPtr: %s\n", elemPtr->getGlobalSourceInfo().c_str());
     }
     node->blockInsts.addInst(ptrInst);
     node->blockInsts.addInst(new MoveInstruction(currentFunc, elemPtr, ptrInst));
@@ -3167,8 +2734,6 @@ bool IRGenerator::handleMultiDimArrayParamAccess(ast_node * node, Value * arrayV
     node->offsetValue = byteOffsetInst;
     node->arrayPtr = elemPtr;
     node->val = elemValue;
-
-    printf("DEBUG: 完成多维数组参数访问\n");
     return true;
 }
 
@@ -3194,12 +2759,10 @@ bool IRGenerator::handleRegularArrayAccess(ast_node * node, Value * arrayVar, co
         node->blockInsts.addInst(indexNode->blockInsts);
 
         indices.push_back(indexNode->val);
-        // printf("DEBUG: 处理数组索引 %zu\n", i - 1);
     }
 
     if (!arrayVar->getName().empty() && arrayVar->getName()[0] == '@') {
         std::string globalName = arrayVar->getName().substr(1); // 去掉@前缀
-        printf("DEBUG: 数组访问基于全局变量: %s\n", globalName.c_str());
     }
 
     // 针对二维数组的处理
@@ -3266,7 +2829,6 @@ bool IRGenerator::handleRegularArrayAccess(ast_node * node, Value * arrayVar, co
             if (ConstInt * rowConst = dynamic_cast<ConstInt *>(rowIndex)) {
                 if (ConstInt * colConst = dynamic_cast<ConstInt *>(colIndex)) {
                     staticOffset = (rowConst->getVal() * colSize + colConst->getVal()) * 4;
-                    printf("DEBUG: 计算出静态偏移量: %ld\n", staticOffset);
                 } else {
                     canCalculateStatic = false;
                 }
@@ -3285,7 +2847,6 @@ bool IRGenerator::handleRegularArrayAccess(ast_node * node, Value * arrayVar, co
         node->blockInsts.addInst(new MoveInstruction(currentFunc, ptrResult, ptrInst));
         if (ptrInst->isDerivedFromGlobal()) {
             ptrInst->propagateGlobalSource(ptrResult, 0);
-            printf("DEBUG: 传播全局来源到二维数组 ptrResult: %s\n", ptrResult->getGlobalSourceInfo().c_str());
         }
 
         // 5. 读取数组元素的值 (新增)
@@ -3301,8 +2862,6 @@ bool IRGenerator::handleRegularArrayAccess(ast_node * node, Value * arrayVar, co
         node->offsetValue = offsetResult;
         node->arrayPtr = ptrResult; // 用于赋值操作
         node->val = elemValue;      // 对于表达式，返回元素的值而不是指针
-
-        printf("DEBUG: 完成二维数组访问，读取了元素值: %s\n", elemValue->getIRName().c_str());
     } else {
         // 处理一般维度的数组 - 使用标准的多维数组展开公式
         Value * linearOffset = module->newConstInt(0);
@@ -3314,8 +2873,6 @@ bool IRGenerator::handleRegularArrayAccess(ast_node * node, Value * arrayVar, co
             for (size_t j = i + 1; j < dimensions.size(); j++) {
                 weight *= dimensions[j];
             }
-
-            // printf("DEBUG: 维度 %zu 的权重: %d\n", i, weight);
 
             if (weight == 1) {
                 // 最后一维，直接加上索引
@@ -3365,7 +2922,6 @@ bool IRGenerator::handleRegularArrayAccess(ast_node * node, Value * arrayVar, co
         if (!arrayVar->getName().empty() && arrayVar->getName()[0] == '@') {
             std::string globalName = arrayVar->getName().substr(1);
             ptrInst->setGlobalSource(globalName, 0); // 动态偏移，基础偏移为0
-            printf("DEBUG: 为多维数组指针设置全局来源: %s\n", globalName.c_str());
         }
 
         node->blockInsts.addInst(ptrInst);
@@ -3373,7 +2929,6 @@ bool IRGenerator::handleRegularArrayAccess(ast_node * node, Value * arrayVar, co
         // 新增：在 MoveInstruction 之后传播全局来源
         if (ptrInst->isDerivedFromGlobal()) {
             ptrInst->propagateGlobalSource(elemPtr, 0);
-            printf("DEBUG: 传播全局来源到多维数组 elemPtr: %s\n", elemPtr->getGlobalSourceInfo().c_str());
         }
 
         // 创建一个局部变量用于存储数组元素的值
@@ -3393,7 +2948,6 @@ bool IRGenerator::handleRegularArrayAccess(ast_node * node, Value * arrayVar, co
         node->arrayPtr = elemPtr; // 用于赋值操作
         node->val = elemValue;    // 对于表达式，返回元素的值而不是指针
 
-        printf("DEBUG: 完成多维数组访问，读取了元素值: %s\n", elemValue->getIRName().c_str());
     }
 
     return true;
@@ -3431,8 +2985,6 @@ bool IRGenerator::handleParameterArrayAccessWithDimensions(ast_node * node,
         for (size_t j = i + 1; j < dimensions.size(); j++) {
             stride *= dimensions[j];
         }
-
-        printf("DEBUG: 维度 %zu, 步长: %d\n", i, stride);
 
         if (stride == 1) {
             indexContribution = indices[i];
@@ -3475,12 +3027,9 @@ bool IRGenerator::handleParameterArrayAccessWithDimensions(ast_node * node,
     if (arrayVar->isDerivedFromGlobal()) {
         // 传播全局来源信息
         arrayVar->propagateGlobalSource(ptrInst, 0);
-        printf("DEBUG: handleParameterArrayAccessWithDimensions 传播全局来源: %s\n",
-               ptrInst->getGlobalSourceInfo().c_str());
 
         // 也传播给 elemPtr
         ptrInst->propagateGlobalSource(elemPtr, 0);
-        printf("DEBUG: 传播全局来源到参数数组 elemPtr: %s\n", elemPtr->getGlobalSourceInfo().c_str());
     }
     node->blockInsts.addInst(ptrInst);
     node->blockInsts.addInst(new MoveInstruction(currentFunc, elemPtr, ptrInst));
@@ -3496,7 +3045,5 @@ bool IRGenerator::handleParameterArrayAccessWithDimensions(ast_node * node,
     node->offsetValue = byteOffsetInst;
     node->arrayPtr = elemPtr;
     node->val = elemValue;
-
-    printf("DEBUG: 完成使用维度信息的数组参数访问\n");
     return true;
 }

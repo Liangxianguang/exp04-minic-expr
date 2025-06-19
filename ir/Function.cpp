@@ -370,7 +370,6 @@ int32_t Function::calculateVariableSize(Type * type)
         ArrayType * arrayType = dynamic_cast<ArrayType *>(type);
         if (arrayType) {
             int32_t totalSize = arrayType->getTotalSize();
-            printf("Array size calculation: %d bytes\n", totalSize);
             return totalSize;
         }
         return 32; // 备用默认值
@@ -388,12 +387,9 @@ void Function::reallocateMemory()
         return;
     }
 
-    printf("=== Starting Memory Reallocation for Function %s ===\n", getName().c_str());
-
     const int32_t framePointerReg = 11;
 
     // 第一步：正确识别函数参数
-    printf("--- Phase 1: Identifying Function Parameters ---\n");
     std::set<Value *> paramSet;
     for (auto param: params) {
         paramSet.insert(param);
@@ -406,54 +402,38 @@ void Function::reallocateMemory()
     std::vector<LocalVariable *> tempPointers;   // 临时指针变量
     std::vector<LocalVariable *> globalDerived;  // 派生自全局变量的值
 
-    printf("Function %s has %zu parameters\n", getName().c_str(), params.size());
-
     // 分类所有变量
     for (auto & var: varsVector) {
         // 跳过全局变量
         if (!var->getName().empty() && var->getName()[0] == '@') {
-            printf("Skipping global variable %s\n", var->getName().c_str());
             continue;
         }
 
         // 检查是否派生自全局变量
         if (var->isDerivedFromGlobal()) {
-            globalDerived.push_back(var);
-            printf("Found global-derived variable: %s -> %s\n",
-                   var->getName().c_str(),
-                   var->getGlobalSourceInfo().c_str());
             continue;
         }
 
         if (paramSet.find(var) != paramSet.end()) {
             actualParams.push_back(var);
-            printf("Found parameter: %s (type: %s)\n",
-                   var->getName().c_str(),
-                   var->getType()->isPointerType() ? "pointer" : "other");
         } else if (var->getType()->isPointerType() && var->getName().empty()) {
             tempPointers.push_back(var);
-            printf("Found temp pointer variable\n");
         } else if (var->getType()->isArrayType()) {
             localArrays.push_back(var);
-            printf("Found local array: %s\n", var->getName().c_str());
         } else if (var->getType()->isArrayType()) {
             localArrays.push_back(var);
-            printf("Found local array: %s\n", var->getName().c_str());
         } else {
             // 判断是否为循环变量（名字为i/j/k或含loop）
             std::string n = var->getName();
             if (n == "i" || n == "j" || n == "k" || n.find("loop") != std::string::npos) {
                 loopVariables.push_back(var);
-                printf("Found loop variable: %s\n", n.c_str());
             } else {
                 localVariables.push_back(var);
-                printf("Found local variable: %s\n", var->getName().c_str());
             }
         }
     }
 
     // 第二步：ARM调用约定 - 修复栈参数偏移计算
-    printf("--- Phase 2: Allocating Function Parameters ---\n");
     for (size_t i = 0; i < actualParams.size(); i++) {
         LocalVariable * param = actualParams[i];
 
@@ -461,32 +441,21 @@ void Function::reallocateMemory()
             // 前4个参数通过寄存器r0-r3传递，但在栈上仍有对应位置
             // ARM标准调用约定：所有参数在栈上都有对应的槽位
             int32_t paramOffset = 8 + i * 4; // fp+8, fp+12, fp+16, fp+20
-            printf("Parameter[%zu] %s: register r%zu, stack shadow at fp+%d\n",
-                   i,
-                   param->getName().c_str(),
-                   i,
-                   paramOffset);
             param->setMemoryAddr(framePointerReg, paramOffset);
         } else {
             // 第5个及以后的参数通过栈传递
             // 关键修复：正确计算栈参数的偏移
             int32_t paramOffset = 8 + i * 4; // 继续从 fp+20, fp+24, fp+28...
-            printf("Parameter[%zu] %s: on stack at fp+%d\n", i, param->getName().c_str(), paramOffset);
             param->setMemoryAddr(framePointerReg, paramOffset);
         }
     }
 
     // 第三步：处理派生自全局变量的值（不需要栈空间）
-    printf("--- Phase 3: Handling Global-Derived Variables ---\n");
     for (auto & var: globalDerived) {
-        printf("Global-derived variable %s: %s (no stack allocation needed)\n",
-               var->getName().c_str(),
-               var->getGlobalSourceInfo().c_str());
         var->setMemoryAddr(-1, -999999); // 特殊标记：不在栈上
     }
 
     // ===== 新策略：优先分配所有局部数组 =====
-    printf("--- Phase 4: Allocating ALL Local Arrays First ---\n");
 
     // 修复：从更低的偏移开始，避免与参数冲突
     int32_t currentOffset = -8; // 从fp-8开始分配局部变量
@@ -502,13 +471,6 @@ void Function::reallocateMemory()
 
         // 数组基址对齐到8字节边界，便于访问
         currentOffset = (currentOffset - arraySize) & ~7;
-
-        printf("Allocating Local Array[%zu] %s: size=%d, at fp%+d\n",
-               i,
-               var->getName().c_str(),
-               arraySize,
-               currentOffset);
-
         var->setMemoryAddr(framePointerReg, currentOffset);
 
         // 为下一个数组留出间隔
@@ -516,50 +478,41 @@ void Function::reallocateMemory()
     }
 
     // 新增：优先分配循环变量，确保它们不会与其他变量重叠
-    printf("--- Phase 4.5: Allocating Loop Variables ---\n");
     for (size_t i = 0; i < loopVariables.size(); i++) {
         auto & var = loopVariables[i];
         int32_t varSize = calculateVariableSize(var->getType());
         currentOffset -= varSize;
-        printf("Allocating LoopVar[%zu] %s: size=%d, at fp%+d\n", i, var->getName().c_str(), varSize, currentOffset);
         var->setMemoryAddr(framePointerReg, currentOffset);
     }
 
     // 第五步：分配所有普通局部变量
-    printf("--- Phase 5: Allocating All Local Variables ---\n");
     for (size_t i = 0; i < localVariables.size(); i++) {
         auto & var = localVariables[i];
         int32_t varSize = calculateVariableSize(var->getType());
 
         currentOffset -= varSize;
-        printf("Allocating LocalVar[%zu] %s: size=%d, at fp%+d\n", i, var->getName().c_str(), varSize, currentOffset);
         var->setMemoryAddr(framePointerReg, currentOffset);
     }
 
     // 第六步：分配所有临时指针变量
-    printf("--- Phase 6: Allocating All Temporary Pointer Variables ---\n");
     for (size_t i = 0; i < tempPointers.size(); i++) {
         auto & var = tempPointers[i];
         int32_t varSize = calculateVariableSize(var->getType());
 
         currentOffset -= varSize;
-        printf("Allocating TempPtr[%zu]: size=%d, at fp%+d\n", i, varSize, currentOffset);
         var->setMemoryAddr(framePointerReg, currentOffset);
     }
 
     // 第七步：分配所有内存变量
-    printf("--- Phase 7: Allocating All MemVariables ---\n");
     for (size_t i = 0; i < memVector.size(); i++) {
         auto & memVar = memVector[i];
         int32_t varSize = calculateVariableSize(memVar->getType());
 
         currentOffset -= varSize;
-        printf("Allocating MemVar[%zu] %s: size=%d, at fp%+d\n", i, memVar->getName().c_str(), varSize, currentOffset);
         memVar->setMemoryAddr(framePointerReg, currentOffset);
     }
 
     // 第八步：扫描所有指令，为未分配内存的指令结果分配空间
-    printf("--- Phase 8: Allocating Memory for Instruction Results ---\n");
     std::vector<Instruction *> needMemoryInsts;
     
     for (auto inst : code.getInsts()) {
@@ -575,24 +528,15 @@ void Function::reallocateMemory()
         }
     }
     
-    printf("Found %zu instructions that need memory allocation\n", needMemoryInsts.size());
-    
     for (size_t i = 0; i < needMemoryInsts.size(); i++) {
         auto inst = needMemoryInsts[i];
         int32_t varSize = calculateVariableSize(inst->getType());
         
         currentOffset -= varSize;
-        printf("Allocating InstResult[%zu] %s (type=%s): size=%d, at fp%+d\n", 
-               i, 
-               inst->getName().c_str(),
-               typeid(*inst).name(),
-               varSize, 
-               currentOffset);
         inst->setMemoryAddr(framePointerReg, currentOffset);
     }
 
     // 第九步：添加安全边距，防止参数传递时的栈重叠问题
-    printf("--- Phase 9: Adding Safety Margin for Stack Parameter Passing ---\n");
     // 为参数传递预留安全空间
     // 主要解决以下问题：
     // 1. 函数调用时，栈参数存储在[sp]和[sp+4]
@@ -606,45 +550,14 @@ void Function::reallocateMemory()
     // 改为8字节对齐而不是16字节，减少对栈参数位置的影响
     int32_t totalStackSize = (actualStackUsage + 7) & ~7; // 8字节对齐
 
-    int32_t oldMaxDepth = getMaxDep();
     setMaxDep(totalStackSize);
 
-    printf("--- Final Memory Layout Summary ---\n");
-    printf("Stack frame size: %d -> %d bytes\n", oldMaxDepth, totalStackSize);
-
-    if (!actualParams.empty()) {
-        printf("  Parameters:     %zu params\n", actualParams.size());
-        for (size_t i = 0; i < actualParams.size(); i++) {
-            int32_t offset = 8 + i * 4;
-            printf("    Param[%zu] %s: fp+%d %s\n",
-                   i,
-                   actualParams[i]->getName().c_str(),
-                   offset,
-                   i < 4 ? "(register+shadow)" : "(stack)");
-        }
-    }
-
-    if (!localArrays.empty()) {
-        printf("  Local arrays:   %zu arrays (优先分配，8字节对齐)\n", localArrays.size());
-        for (auto & var: localArrays) {
-            int32_t size = calculateVariableSize(var->getType());
-            printf("    %s: allocated (%d bytes)\n", var->getName().c_str(), size);
-        }
-    }
-
-    printf("  Local vars:     %zu variables\n", localVariables.size());
-    printf("  Temp pointers:  %zu variables\n", tempPointers.size());
-    printf("  Global derived: %zu variables (no stack space)\n", globalDerived.size());
-    printf("  Total usage:    %d bytes (8字节对齐)\n", totalStackSize);
-
     memoryFixed = true;
-    printf("=== Memory Reallocation Complete ===\n");
 }
 
 /// @brief 验证内存分配是否有冲突
 bool Function::validateMemoryAllocation()
 {
-    printf("=== Validating Memory Allocation ===\n");
 
     // 使用map来收集所有的地址分配信息
     std::map<int64_t, std::vector<std::string>> offsetMap;
@@ -673,32 +586,18 @@ bool Function::validateMemoryAllocation()
 
     // 检查冲突
     bool hasConflict = false;
-    int conflictCount = 0;
 
     for (auto & pair: offsetMap) {
         if (pair.second.size() > 1) {
-            printf("CONFLICT #%d at offset %ld:\n", ++conflictCount, pair.first);
-            for (auto & varInfo: pair.second) {
-                printf("  - %s\n", varInfo.c_str());
-            }
             hasConflict = true;
         }
     }
-
-    if (!hasConflict) {
-        printf("✓ No memory allocation conflicts detected.\n");
-    } else {
-        printf("✗ Found %d memory allocation conflicts.\n", conflictCount);
-    }
-
-    printf("=== Validation Complete ===\n");
     return !hasConflict;
 }
 
 /// @brief 打印详细的内存布局信息（调试用）
 void Function::printMemoryLayout()
 {
-    printf("=== Memory Layout for Function %s ===\n", getName().c_str());
 
     // 收集所有变量的地址信息
     std::vector<std::tuple<int64_t, std::string, std::string, std::string, int32_t>> layout;
@@ -754,22 +653,4 @@ void Function::printMemoryLayout()
     std::sort(layout.begin(), layout.end(), [](const auto & a, const auto & b) {
         return std::get<0>(a) > std::get<0>(b);
     });
-
-    // 打印布局表
-    printf("Stack layout (high to low address):\n");
-    printf("  Address    | Variable   | Category | Type            | Size\n");
-    printf("  -----------|------------|----------|-----------------|------\n");
-
-    for (auto & item: layout) {
-        printf("  fp%+ld | %-10s | %-8s | %-15s | %d\n",
-               std::get<0>(item),         // offset
-               std::get<1>(item).c_str(), // name
-               std::get<2>(item).c_str(), // category
-               std::get<3>(item).c_str(), // type
-               std::get<4>(item));        // size
-    }
-
-    printf("Total variables: LocalVar=%zu, MemVar=%zu\n", varsVector.size(), memVector.size());
-    printf("Current stack frame size: %d bytes\n", getMaxDep());
-    printf("=== End Memory Layout ===\n");
 }

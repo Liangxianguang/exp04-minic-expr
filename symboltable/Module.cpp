@@ -334,12 +334,6 @@ Value * Module::newVarValueWithValue(Type * type, const std::string & name, Valu
         return nullptr;
     }
 
-    // 检查当前作用域中是否已经存在同名变量
-    Value * tempValue = scopeStack->findCurrentScope(name);
-    if (tempValue) {
-        // 变量名已存在，对于函数参数这是正常的（覆盖）
-        printf("DEBUG: 覆盖已存在的变量: %s\n", name.c_str());
-    }
 
     // 确保Value对象有正确的名称
     // 由于我们无法直接通过名称插入到ScopeStack，
@@ -348,7 +342,6 @@ Value * Module::newVarValueWithValue(Type * type, const std::string & name, Valu
     // 直接在当前作用域中注册这个值（只传递value参数）
     scopeStack->insertValue(value);
 
-    printf("DEBUG: 成功注册变量到符号表: %s -> %p\n", name.c_str(), (void *) value);
     return value;
 }
 

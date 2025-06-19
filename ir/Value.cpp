@@ -151,9 +151,6 @@ void Value::setGlobalSource(const std::string & baseName, int64_t offset)
     globalBaseName = baseName;
     globalOffset = offset;
     hasGlobalSource = true;
-
-    // 调试输出
-    printf("Setting global source for Value '%s': base=%s, offset=%ld\n", getName().c_str(), baseName.c_str(), offset);
 }
 
 /// @brief 清除全局来源信息
@@ -192,13 +189,6 @@ void Value::propagateGlobalSource(Value * target, int64_t additionalOffset) cons
 {
     if (target && isDerivedFromGlobal()) {
         target->setGlobalSource(globalBaseName, globalOffset + additionalOffset);
-
-        // 调试输出
-        printf("Propagating global source from '%s' to '%s': base=%s, offset=%ld\n",
-               getName().c_str(),
-               target->getName().c_str(),
-               globalBaseName.c_str(),
-               globalOffset + additionalOffset);
     }
 }
 

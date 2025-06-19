@@ -1316,14 +1316,10 @@ std::any MiniCCSTVisitor::visitParam(MiniCParser::ParamContext * ctx)
     // 创建名称节点
     ast_node * nameNode = ast_node::New(paramName, lineno);
 
-    // **关键修改：正确提取维度信息**
-    printf("DEBUG: 处理参数 %s，子节点数量: %zu\n", paramName.c_str(), ctx->children.size());
-
     // 检查是否有T_DIGIT节点（维度值）
     std::vector<std::string> digits;
     for (auto digitNode: ctx->T_DIGIT()) {
         digits.push_back(digitNode->getText());
-        // printf("DEBUG: 找到维度值: %s\n", digitNode->getText().c_str());
     }
 
     // 计算方括号数量
@@ -1333,8 +1329,6 @@ std::any MiniCCSTVisitor::visitParam(MiniCParser::ParamContext * ctx)
             arrayDimCount++;
         }
     }
-
-    printf("DEBUG: 参数 %s 方括号数量: %d，维度值数量: %zu\n", paramName.c_str(), arrayDimCount, digits.size());
 
     if (arrayDimCount > 0) {
         // 数组参数
@@ -1348,38 +1342,31 @@ std::any MiniCCSTVisitor::visitParam(MiniCParser::ParamContext * ctx)
             // 第一维总是0（表示指针）
             ast_node * firstDimNode = ast_node::New(digit_int_attr{0, lineno});
             paramNode->insert_son_node(firstDimNode);
-            printf("DEBUG: 添加第一维（空）: 0\n");
 
             // 如果还有其他方括号但没有数字，可能都是空的
             for (int i = 1; i < arrayDimCount; i++) {
                 // 这种情况在语法上不太可能，但为了安全处理
                 ast_node * dimNode = ast_node::New(digit_int_attr{0, lineno});
                 paramNode->insert_son_node(dimNode);
-                printf("DEBUG: 添加额外空维度: 0\n");
             }
         } else {
             // 情况：int a[][2] 或 int a[][2][3] （有具体维度值）
             // 第一维总是0（空的）
             ast_node * firstDimNode = ast_node::New(digit_int_attr{0, lineno});
             paramNode->insert_son_node(firstDimNode);
-            printf("DEBUG: 添加第一维（空）: 0\n");
 
             // 添加后续的具体维度
             for (const std::string & dimStr: digits) {
                 uint32_t dimValue = std::stoul(dimStr);
                 ast_node * dimNode = ast_node::New(digit_int_attr{dimValue, lineno});
                 paramNode->insert_son_node(dimNode);
-                // printf("DEBUG: 添加具体维度: %u\n", dimValue);
             }
         }
 
-        printf("DEBUG: 数组参数 %s 总共有 %zu 个子节点\n", paramName.c_str(), paramNode->sons.size());
-
         return paramNode;
     } else {
-        // 普通参数
-        printf("DEBUG: 普通参数: %s\n", paramName.c_str());
-        ast_node * paramNode = new ast_node(ast_operator_type::AST_OP_FUNC_FORMAL_PARAM);
+        // 普通参数        
+		ast_node * paramNode = new ast_node(ast_operator_type::AST_OP_FUNC_FORMAL_PARAM);
         paramNode->insert_son_node(typeNode);
         paramNode->insert_son_node(nameNode);
         return paramNode;
