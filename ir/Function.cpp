@@ -401,6 +401,7 @@ void Function::reallocateMemory()
 
     std::vector<LocalVariable *> actualParams;   // 实际函数参数
     std::vector<LocalVariable *> localArrays;    // 局部数组
+	std::vector<LocalVariable *> loopVariables;   // 循环变量
     std::vector<LocalVariable *> localVariables; // 局部变量
     std::vector<LocalVariable *> tempPointers;   // 临时指针变量
     std::vector<LocalVariable *> globalDerived;  // 派生自全局变量的值
@@ -435,9 +436,19 @@ void Function::reallocateMemory()
         } else if (var->getType()->isArrayType()) {
             localArrays.push_back(var);
             printf("Found local array: %s\n", var->getName().c_str());
+        } else if (var->getType()->isArrayType()) {
+            localArrays.push_back(var);
+            printf("Found local array: %s\n", var->getName().c_str());
         } else {
-            localVariables.push_back(var);
-            printf("Found local variable: %s\n", var->getName().c_str());
+            // 判断是否为循环变量（名字为i/j/k或含loop）
+            std::string n = var->getName();
+            if (n == "i" || n == "j" || n == "k" || n.find("loop") != std::string::npos) {
+                loopVariables.push_back(var);
+                printf("Found loop variable: %s\n", n.c_str());
+            } else {
+                localVariables.push_back(var);
+                printf("Found local variable: %s\n", var->getName().c_str());
+            }
         }
     }
 
@@ -504,6 +515,16 @@ void Function::reallocateMemory()
         currentOffset -= 8;
     }
 
+    // 新增：优先分配循环变量，确保它们不会与其他变量重叠
+    printf("--- Phase 4.5: Allocating Loop Variables ---\n");
+    for (size_t i = 0; i < loopVariables.size(); i++) {
+        auto & var = loopVariables[i];
+        int32_t varSize = calculateVariableSize(var->getType());
+        currentOffset -= varSize;
+        printf("Allocating LoopVar[%zu] %s: size=%d, at fp%+d\n", i, var->getName().c_str(), varSize, currentOffset);
+        var->setMemoryAddr(framePointerReg, currentOffset);
+    }
+
     // 第五步：分配所有普通局部变量
     printf("--- Phase 5: Allocating All Local Variables ---\n");
     for (size_t i = 0; i < localVariables.size(); i++) {
@@ -537,8 +558,41 @@ void Function::reallocateMemory()
         memVar->setMemoryAddr(framePointerReg, currentOffset);
     }
 
-    // 第八步：添加安全边距，防止参数传递时的栈重叠问题
-    printf("--- Phase 8: Adding Safety Margin for Stack Parameter Passing ---\n");
+    // 第八步：扫描所有指令，为未分配内存的指令结果分配空间
+    printf("--- Phase 8: Allocating Memory for Instruction Results ---\n");
+    std::vector<Instruction *> needMemoryInsts;
+    
+    for (auto inst : code.getInsts()) {
+        // 检查指令是否有结果值且需要内存分配
+        if (inst->hasResultValue()) {
+            int32_t baseReg;
+            int64_t offset;
+            
+            // 如果指令结果没有内存地址，则需要分配
+            if (!inst->getMemoryAddr(&baseReg, &offset)) {
+                needMemoryInsts.push_back(inst);
+            }
+        }
+    }
+    
+    printf("Found %zu instructions that need memory allocation\n", needMemoryInsts.size());
+    
+    for (size_t i = 0; i < needMemoryInsts.size(); i++) {
+        auto inst = needMemoryInsts[i];
+        int32_t varSize = calculateVariableSize(inst->getType());
+        
+        currentOffset -= varSize;
+        printf("Allocating InstResult[%zu] %s (type=%s): size=%d, at fp%+d\n", 
+               i, 
+               inst->getName().c_str(),
+               typeid(*inst).name(),
+               varSize, 
+               currentOffset);
+        inst->setMemoryAddr(framePointerReg, currentOffset);
+    }
+
+    // 第九步：添加安全边距，防止参数传递时的栈重叠问题
+    printf("--- Phase 9: Adding Safety Margin for Stack Parameter Passing ---\n");
     // 为参数传递预留安全空间
     // 主要解决以下问题：
     // 1. 函数调用时，栈参数存储在[sp]和[sp+4]

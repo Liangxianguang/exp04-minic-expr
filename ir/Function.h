@@ -219,6 +219,13 @@ public:
     /// @brief 重新分配所有变量的内存地址（修复地址冲突）
     void reallocateMemory();
 
+    /// @brief 检查内存是否已经重新分配过
+    /// @return true表示已重新分配，false表示尚未分配
+    bool isMemoryFixed() const
+    {
+        return memoryFixed;
+    }
+
     /// @brief 验证内存分配是否有冲突
     /// @return true表示无冲突，false表示有冲突
     bool validateMemoryAllocation();

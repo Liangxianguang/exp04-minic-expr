@@ -442,12 +442,12 @@ void ILocArm32::load_var(int rs_reg_no, Value * src_var)
         int paramIndex = std::stoi(varName.substr(2));
         if (paramIndex >= 4) {
             printf("★★★ 栈参数 %s (索引: %d) -> 从栈加载 ★★★\n", varName.c_str(), paramIndex);
-            
+
             // 栈参数的偏移计算：
             // 栈参数从 fp+8 开始（fp+0是保存的fp, fp+4是返回地址）
             // 第5个参数(t4)在 fp+8, 第6个(t5)在 fp+12, 以此类推
             int stack_offset = 8 + (paramIndex - 4) * 4;
-            
+
             printf("从栈加载参数: ldr r%d, [fp, #%d]\n", rs_reg_no, stack_offset);
             load_base(rs_reg_no, ARM32_FP_REG_NO, stack_offset);
             printf("=== END DEBUG (栈参数) ===\n");
@@ -474,7 +474,7 @@ void ILocArm32::load_var(int rs_reg_no, Value * src_var)
             // 栈参数：检查是否设置了内存地址
             int32_t baseRegId = -1;
             int64_t offset = -1;
-            
+
             if (fp->getMemoryAddr(&baseRegId, &offset)) {
                 printf("★★★ 栈参数 %s: 基址r%d, 偏移%ld ★★★\n", fp->getName().c_str(), baseRegId, offset);
                 load_base(rs_reg_no, baseRegId, offset);
@@ -847,10 +847,19 @@ void ILocArm32::lea_var(int rs_reg_no, Value * var)
 /// @param tmp_reg_no 第三方寄存器
 void ILocArm32::store_var(int src_reg_no, Value * dest_var, int tmp_reg_no)
 {
+    // 添加安全检查
+    if (!dest_var) {
+        printf("ERROR: store_var - dest_var is NULL!\n");
+        return;
+    }
+
     // 添加调试输出
-    printf("DEBUG: store_var - src_reg=r%d, dest_var='%s'\n", 
-           src_reg_no, dest_var->getName().c_str());
-    
+    printf("DEBUG: store_var - src_reg=r%d, dest_var='%s', type=%s, regId=%d\n",
+           src_reg_no,
+           dest_var->getName().c_str(),
+           typeid(*dest_var).name(),
+           dest_var->getRegId());
+
     // 检查是否存在变量冲突
     if (!dest_var->getName().empty()) {
         int32_t dest_baseRegId = -1;
@@ -858,7 +867,11 @@ void ILocArm32::store_var(int src_reg_no, Value * dest_var, int tmp_reg_no)
         bool hasMemAddr = dest_var->getMemoryAddr(&dest_baseRegId, &dest_offset);
         if (hasMemAddr) {
             printf("DEBUG: dest_var memory addr: fp%+ld\n", dest_offset);
+        } else {
+            printf("DEBUG: dest_var has no memory address\n");
         }
+    } else {
+        printf("DEBUG: dest_var name is empty\n");
     }
 
     if (dest_var->getRegId() != -1) {
@@ -867,6 +880,8 @@ void ILocArm32::store_var(int src_reg_no, Value * dest_var, int tmp_reg_no)
 
         // -1表示非寄存器，其他表示寄存器的索引值
         int dest_reg_id = dest_var->getRegId();
+
+        printf("DEBUG: store to register r%d\n", dest_reg_id);
 
         // 寄存器不一样才需要mov操作
         if (src_reg_no != dest_reg_id) {
@@ -878,6 +893,8 @@ void ILocArm32::store_var(int src_reg_no, Value * dest_var, int tmp_reg_no)
     } else if (Instanceof(globalVar, GlobalVariable *, dest_var)) {
         // 全局变量
 
+        printf("DEBUG: store to global variable %s\n", globalVar->getName().c_str());
+
         // 读取符号的地址到寄存器r10
         load_symbol(tmp_reg_no, globalVar->getName());
 
@@ -888,7 +905,7 @@ void ILocArm32::store_var(int src_reg_no, Value * dest_var, int tmp_reg_no)
 
         // 对于局部变量，则直接从栈基址+偏移寻址
 
-        // TODO 目前只考虑局部变量
+        printf("DEBUG: store to local/memory variable\n");
 
         // 栈帧偏移
         int32_t dest_baseRegId = -1;
@@ -896,8 +913,14 @@ void ILocArm32::store_var(int src_reg_no, Value * dest_var, int tmp_reg_no)
 
         bool result = dest_var->getMemoryAddr(&dest_baseRegId, &dest_offset);
         if (!result) {
-            minic_log(LOG_ERROR, "BUG");
+            printf("ERROR: Failed to get memory address for variable '%s', type=%s\n",
+                   dest_var->getName().c_str(),
+                   typeid(*dest_var).name());
+            printf("ERROR: This is likely a bug in variable allocation\n");
+            return; // 安全返回，避免段错误
         }
+
+        printf("DEBUG: store to memory [r%d, #%ld]\n", dest_baseRegId, dest_offset);
 
         // str r8,[r9]
         // str r8, [fp, # - 16]

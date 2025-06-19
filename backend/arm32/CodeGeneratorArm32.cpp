@@ -269,6 +269,9 @@ void CodeGeneratorArm32::registerAllocation(Function * func)
     // 当然也可以不做处理，不过性能更差。这个处理是可选的。
     adjustFuncCallInsts(func);
 
+    // 先进行内存重新分配优化（解决循环变量冲突）
+    func->reallocateMemory();
+
     // 为局部变量和临时变量在栈内分配空间，指定偏移，进行栈空间的分配
     stackAlloc(func);
 
@@ -418,6 +421,12 @@ void CodeGeneratorArm32::adjustFuncCallInsts(Function * func)
 void CodeGeneratorArm32::stackAlloc(Function * func)
 {
     printf("=== Stack Allocation for Function %s ===\n", func->getName().c_str());
+
+    // 如果已经通过 reallocateMemory 重新分配过，则跳过
+    if (func->isMemoryFixed()) {
+        printf("Memory already reallocated by reallocateMemory, skipping stackAlloc\n");
+        return;
+    }
 
     // 栈内分配的空间除了寄存器保护所分配的空间之外，还需要管理如下的空间
     // (1) 没有指派寄存器的局部变量、形参或临时变量的栈内分配
